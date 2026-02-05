@@ -9,7 +9,6 @@ import { MessagesModule } from './modules/messages/messages.module';
 import { FriendsModule } from './modules/friends/friends.module';
 import { MembersModule } from './modules/members/members.module';
 import { ConversationSettingsModule } from './modules/conversation-settings/conversation-settings.module';
-import { AuthController } from './modules/auth/auth.controller';
 import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
@@ -42,6 +41,5 @@ import { AuthModule } from './modules/auth/auth.module';
     ConversationSettingsModule,
     AuthModule,
   ],
-  controllers: [AuthController],
 })
 export class AppModule {}
