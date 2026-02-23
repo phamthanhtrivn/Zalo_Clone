@@ -4,7 +4,7 @@ export interface Member {
   _id: string;
   userId: string;
   conversationId: string;
-  nickname?: string;
+  nickName?: string;
   joinedAt: Date;
   leftAt?: Date;
   role: MemberRole;

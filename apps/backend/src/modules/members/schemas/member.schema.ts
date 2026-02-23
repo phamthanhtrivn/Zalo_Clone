@@ -11,7 +11,7 @@ export class Member {
   conversationId: Types.ObjectId;
 
   @Prop()
-  nickname?: string;
+  nickName?: string;
 
   @Prop({ required: true })
   joinedAt: Date;
