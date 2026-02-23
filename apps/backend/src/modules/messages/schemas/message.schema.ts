@@ -29,28 +29,28 @@ export class Content {
   file?: File;
 }
 
+@Schema({ _id: false })
+export class Emoji {
+  @Prop({ required: true })
+  name: string;
+
+  @Prop({ required: true, default: 1 })
+  quantity: number;
+}
+
 @Schema({ timestamps: true })
 export class Reaction {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   userId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Message', required: true })
-  messageId: Types.ObjectId;
-
-  @Prop()
-  emoji: string;
-
-  @Prop({ default: 1 })
-  quantity: number;
+  @Prop({ type: [Emoji], default: [] })
+  emoji: Emoji[];
 }
 
 @Schema({ timestamps: true })
 export class ReadReceipt {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   userId: Types.ObjectId;
-
-  @Prop({ type: Types.ObjectId, ref: 'Message', required: true })
-  messageId: Types.ObjectId;
 }
 
 @Schema({ _id: false })
@@ -73,7 +73,7 @@ export class Message {
   @Prop({ type: Types.ObjectId, ref: 'Conversation', required: true })
   conversationId: Types.ObjectId;
 
-  @Prop({ type: Content, required: true })
+  @Prop({ type: Content })
   content?: Content;
 
   @Prop({ default: false })

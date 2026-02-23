@@ -1,3 +1,4 @@
+import type { Friend } from "./friend.js";
 import type { Profile } from "./profile.js";
 import type { Setting } from "./setting.js";
 
@@ -12,4 +13,5 @@ export interface User {
   updatedAt: Date;
   refreshToken?: string;
   lastSeenAt?: Date;
+  friends?: Friend[];
 }

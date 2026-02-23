@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Gender } from '@zalo-clone/shared-types';
+import { FriendStatus, Gender } from '@zalo-clone/shared-types';
+import { Types } from 'mongoose';
 
 @Schema({ _id: false })
 export class Profile {
@@ -28,6 +29,15 @@ export class Setting {
   allowCallFromStrangers: boolean;
 }
 
+@Schema({ _id: false, timestamps: true })
+export class Friend {
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  friendId: Types.ObjectId;
+
+  @Prop({ type: String, enum: FriendStatus, required: true })
+  status: FriendStatus;
+}
+
 @Schema({ timestamps: true })
 export class User {
   @Prop({ required: true, unique: true })
@@ -50,6 +60,9 @@ export class User {
 
   @Prop()
   lastSeenAt?: Date;
+
+  @Prop({ type: [Friend], default: [] })
+  friends?: Friend[];
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
