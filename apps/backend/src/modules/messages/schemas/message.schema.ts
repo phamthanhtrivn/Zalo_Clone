@@ -38,7 +38,7 @@ export class Emoji {
   quantity: number;
 }
 
-@Schema({ timestamps: true })
+@Schema({ _id: false, timestamps: true })
 export class Reaction {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   userId: Types.ObjectId;
@@ -47,7 +47,7 @@ export class Reaction {
   emoji: Emoji[];
 }
 
-@Schema({ timestamps: true })
+@Schema({ _id: false, timestamps: true })
 export class ReadReceipt {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   userId: Types.ObjectId;
