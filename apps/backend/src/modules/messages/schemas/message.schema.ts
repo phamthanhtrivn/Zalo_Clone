@@ -63,6 +63,9 @@ export class Call {
 
   @Prop()
   endedAt: Date;
+
+  @Prop()
+  duration: number;
 }
 
 @Schema({ timestamps: true })
