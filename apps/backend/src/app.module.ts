@@ -6,7 +6,6 @@ import { RedisModule } from '@nestjs-modules/ioredis';
 import { UsersModule } from './modules/users/users.module';
 import { ConversationsModule } from './modules/conversations/conversations.module';
 import { MessagesModule } from './modules/messages/messages.module';
-import { FriendsModule } from './modules/friends/friends.module';
 import { MembersModule } from './modules/members/members.module';
 import { ConversationSettingsModule } from './modules/conversation-settings/conversation-settings.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -36,7 +35,6 @@ import { AuthModule } from './modules/auth/auth.module';
     UsersModule,
     ConversationsModule,
     MessagesModule,
-    FriendsModule,
     MembersModule,
     ConversationSettingsModule,
     AuthModule,
