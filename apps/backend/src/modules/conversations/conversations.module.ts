@@ -6,11 +6,13 @@ import {
   Conversation,
   ConversationSchema,
 } from './schemas/conversation.schema';
+import { Member, MemberSchema } from '../members/schemas/member.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Conversation.name, schema: ConversationSchema },
+      { name: Member.name, schema: MemberSchema },
     ]),
   ],
   providers: [ConversationsService],
