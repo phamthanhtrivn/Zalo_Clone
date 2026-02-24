@@ -7,6 +7,10 @@ import { Model } from 'mongoose';
 export class UsersService {
   constructor(@InjectModel(User.name) private userModel: Model<User>) {}
 
+  async findByPhone(phone: string): Promise<User | null> {
+    return this.userModel.findOne({ phone: phone }).exec();
+  }
+
   createTestUser(body: any) {
     return this.userModel.create(body);
   }
