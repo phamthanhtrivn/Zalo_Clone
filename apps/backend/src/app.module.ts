@@ -2,13 +2,13 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import envConfig from './config/env.config';
 import { MongooseModule } from '@nestjs/mongoose';
-import { RedisModule } from '@nestjs-modules/ioredis';
 import { UsersModule } from './modules/users/users.module';
 import { ConversationsModule } from './modules/conversations/conversations.module';
 import { MessagesModule } from './modules/messages/messages.module';
 import { MembersModule } from './modules/members/members.module';
 import { ConversationSettingsModule } from './modules/conversation-settings/conversation-settings.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { RedisModule } from './common/redis/redis.module';
 
 @Module({
   imports: [
@@ -22,16 +22,7 @@ import { AuthModule } from './modules/auth/auth.module';
         uri: configService.get<string>('mongoUri'),
       }),
     }),
-    RedisModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'single',
-        options: {
-          host: configService.get<string>('redis.host'),
-          port: configService.get<number>('redis.port'),
-        },
-      }),
-    }),
+    RedisModule,
     UsersModule,
     ConversationsModule,
     MessagesModule,
