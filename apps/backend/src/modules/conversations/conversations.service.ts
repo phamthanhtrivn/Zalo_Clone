@@ -15,6 +15,8 @@ import { Message } from '../messages/schemas/message.schema';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 import { TransferOwnerDto } from './dto/transfer-owenr.dto';
 import { RemoveMemberDto } from './dto/remove-member.dto';
+import { AddMemberDto } from './dto/add-member.dto';
+import e from 'express';
 
 @Injectable()
 export class ConversationsService {
@@ -296,35 +298,107 @@ export class ConversationsService {
       userId: actorId,
     });
 
-    if(!actorMember){
-      throw new ForbiddenException('Bạn không phải là thành viên của nhóm này')
+    if (!actorMember) {
+      throw new ForbiddenException('Bạn không phải là thành viên của nhóm này');
     }
 
-    if(actorMember.role === MemberRole.MEMBER){
-      throw new ForbiddenException('Bạn không có quyền xoá thành viên')
+    if (actorMember.role === MemberRole.MEMBER) {
+      throw new ForbiddenException('Bạn không có quyền xoá thành viên');
     }
 
     const targetMember = await this.memberModel.findOne({
       conversationId: conversation._id,
-      userId:  dto.targetUserId
-    })
+      userId: dto.targetUserId,
+    });
 
-    if(!targetMember){
-      throw new NotFoundException('Thành viên muốn xoá không tồn tại trong nhóm')
+    if (!targetMember) {
+      throw new NotFoundException(
+        'Thành viên muốn xoá không tồn tại trong nhóm',
+      );
     }
 
-    if(actorMember.role === MemberRole.ADMIN && targetMember.role !== MemberRole.MEMBER){
-      throw new ForbiddenException('Nhóm phó chỉ được phép xoá thành viên thường')
+    if (
+      actorMember.role === MemberRole.ADMIN &&
+      targetMember.role !== MemberRole.MEMBER
+    ) {
+      throw new ForbiddenException(
+        'Nhóm phó chỉ được phép xoá thành viên thường',
+      );
     }
 
-    await this.memberModel.deleteOne({_id: targetMember._id})
+    await this.memberModel.deleteOne({ _id: targetMember._id });
 
     return {
       success: true,
       message: 'Đã xoá thành viên khỏi nhóm',
-      data:  {
-        removeUserId:  dto.targetUserId
-      }
+      data: {
+        removeUserId: dto.targetUserId,
+      },
+    };
+  }
+
+  async addMember(conversationId: string, actorId: string, dto: AddMemberDto) {
+    const conversation = await this.conversationModel.findById(conversationId);
+    if (!conversation) {
+      throw new NotFoundException('Nhóm trò chuyện không tồn tại');
     }
+
+    if (conversation.type !== ConversationType.GROUP) {
+      throw new BadRequestException('Chỉ áp dụng cho nhóm chat');
+    }
+
+    const actorMember = await this.memberModel.findOne({
+      conversationId: conversation._id,
+      userId: actorId,
+    });
+
+    if (!actorMember) {
+      throw new ForbiddenException('Bạn không phải là thành viên của nhóm này');
+    }
+
+    const isManager = [MemberRole.OWNER, MemberRole.ADMIN].includes(
+      actorMember.role,
+    );
+
+    if (!isManager && !conversation.group?.allowMembersInvite) {
+      throw new ForbiddenException(
+        'Chỉ cho phép trưởng nhóm và phó nhóm thêm thành viên',
+      );
+    }
+
+    const existingMembers = await this.memberModel.find({
+      conversationId: conversation._id,
+      userId: { $in: dto.userIds },
+    });
+
+    const existingUserIds = existingMembers.map((m) => m.userId.toString());
+
+    const newUserIds = dto.userIds.filter(
+      (uid) => !existingUserIds.includes(uid),
+    );
+
+    if (newUserIds.length === 0) {
+      throw new BadRequestException(
+        'Tất cả thành viên này đều đã có trong nhóm',
+      );
+    }
+
+    const newMembersData = newUserIds.map((uid) => ({
+      conversationId: conversation._id,
+      userId: uid,
+      role: MemberRole.MEMBER,
+      joinedAt: new Date(),
+    }));
+
+    await this.memberModel.insertMany(newMembersData);
+
+    return {
+      success: true,
+      message: `Đã thêm ${newMembersData.length} thành viên vào nhóm`,
+      data: {
+        addedUserIds: newUserIds,
+        ignoredUserIds: existingUserIds,
+      },
+    };
   }
 }
