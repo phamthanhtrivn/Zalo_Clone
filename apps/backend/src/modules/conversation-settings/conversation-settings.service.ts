@@ -54,11 +54,13 @@ export class ConversationSettingsService {
         const setting = await this.conversationSettingModel.findOneAndUpdate(
             { userId, conversationId },
             { $set: { pinned: true } },
-            { new: true }
+            {
+                new: true,
+                upsert: true,
+                setDefaultsOnInsert: true,
+            }
         );
-        if (!setting) {
-            throw new Error('Conversation setting not found');
-        }
+
         return setting;
     }
     // Bỏ gim
@@ -76,6 +78,22 @@ export class ConversationSettingsService {
         return setting;
 
     }
+    // Tắt thông báo
+    async muteConversation(
+        userId: Types.ObjectId,
+        conversationId: Types.ObjectId) {
+        const setting = await this.conversationSettingModel.findOneAndUpdate(
+            { userId, conversationId },
+            { $set: { muted: true } },
+            {
+                new: true,
+                upsert: true,
+                setDefaultsOnInsert: true,
+            }
+        );
 
+        return setting;
 
+    }
 }
+

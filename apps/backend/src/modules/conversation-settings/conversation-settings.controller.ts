@@ -51,4 +51,15 @@ export class ConversationSettingsController {
             new Types.ObjectId(conversationId));
 
     }
+    // Tắt thông báo
+    @Patch('mute')
+    muteConversation(
+        @Body('userId') userId: string,
+        @Body('conversationId') conversationId: string,
+    ) {
+        return this.conversationSettingsService.muteConversation(
+            new Types.ObjectId(userId),
+            new Types.ObjectId(conversationId));
+    }
+
 }
