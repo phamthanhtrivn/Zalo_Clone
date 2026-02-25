@@ -1,10 +1,16 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Conversation } from './schemas/conversation.schema';
 import { Model } from 'mongoose';
 import { Member } from '../members/schemas/member.schema';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { ConversationType, MemberRole } from '@zalo-clone/shared-types';
+import { Message } from '../messages/schemas/message.schema';
 
 @Injectable()
 export class ConversationsService {
@@ -12,6 +18,7 @@ export class ConversationsService {
     @InjectModel(Conversation.name)
     private conversationModel: Model<Conversation>,
     @InjectModel(Member.name) private memberModel: Model<Member>,
+    @InjectModel(Message.name) private messageModel: Model<Message>,
   ) {}
 
   async createGroup(creatorId: string, dto: CreateGroupDto) {
@@ -68,5 +75,44 @@ export class ConversationsService {
         totalMembers: allMembers.length,
       },
     };
+  }
+
+  async deleteGroup(conversetionId: string, userId: string) {
+    const conversetion = await this.conversationModel.findById(conversetionId);
+
+    if (!conversetion) {
+      throw new NotFoundException('Nhóm trò chuyện không tồn tại');
+    }
+
+    if (conversetion.type !== ConversationType.GROUP) {
+      throw new BadRequestException('Chỉ áp dụng cho nhóm chat');
+    }
+
+    const owner = await this.memberModel.findOne({
+      conversationId: conversetion._id,
+      userId: userId,
+    });
+
+    if (!owner || owner.role !== MemberRole.OWNER) {
+      throw new ForbiddenException(
+        'Chỉ trưởng nhóm mới có quyền giải tán nhóm',
+      );
+    }
+
+    try {
+      // Xoá tất cả member
+      await this.memberModel.deleteMany({ conversationId: conversetion._id });
+      // Xoá tất cả tin nhắn
+      await this.messageModel.deleteMany({ conversationId: conversetion._id });
+      // Xoá nhóm chat
+      await this.conversationModel.findByIdAndDelete(conversetionId);
+
+      return {
+        success: true,
+        message: 'Giải tán nhóm thành công'
+      }
+    } catch (error) {
+      throw new BadRequestException('Lỗi khi giải tán nhóm')
+    }
   }
 }
