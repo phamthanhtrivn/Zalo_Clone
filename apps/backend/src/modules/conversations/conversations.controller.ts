@@ -12,6 +12,7 @@ import { ConversationsService } from './conversations.service';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 import { TransferOwnerDto } from './dto/transfer-owenr.dto';
+import { RemoveMemberDto } from './dto/remove-member.dto';
 
 @Controller('conversations')
 export class ConversationsController {
@@ -50,5 +51,16 @@ export class ConversationsController {
   ) {
     const currentOwnerId = req.user?.id;
     return this.conversationsService.transferOwner(id, currentOwnerId, dto);
+  }
+
+  @Delete(':id/member')
+  async removeMember(
+    @Param('id') id: string,
+    @Req() req,
+    @Body() dto: RemoveMemberDto,
+  ) {
+    const actorId = req.user?.id;
+
+    return this.conversationsService.removeMember(id, actorId, dto);
   }
 }

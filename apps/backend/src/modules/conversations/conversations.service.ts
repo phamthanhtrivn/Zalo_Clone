@@ -14,6 +14,7 @@ import { ConversationType, MemberRole } from '@zalo-clone/shared-types';
 import { Message } from '../messages/schemas/message.schema';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 import { TransferOwnerDto } from './dto/transfer-owenr.dto';
+import { RemoveMemberDto } from './dto/remove-member.dto';
 
 @Injectable()
 export class ConversationsService {
@@ -263,10 +264,67 @@ export class ConversationsService {
         throw error;
       }
 
-      console.error('Lỗi chuyển nhượng nhóm trưởng', error)
-      throw new InternalServerErrorException('Lỗi hệ thống khi chuyển nhượng quyền')
-    } finally{
-      await session.endSession()
+      console.error('Lỗi chuyển nhượng nhóm trưởng', error);
+      throw new InternalServerErrorException(
+        'Lỗi hệ thống khi chuyển nhượng quyền',
+      );
+    } finally {
+      await session.endSession();
+    }
+  }
+
+  async removeMember(
+    conversationId: string,
+    actorId: string,
+    dto: RemoveMemberDto,
+  ) {
+    const conversation = await this.conversationModel.findById(conversationId);
+    if (!conversation) {
+      throw new NotFoundException('Nhóm trò chuyện không tồn tại');
+    }
+
+    if (conversation.type !== ConversationType.GROUP) {
+      throw new BadRequestException('Chỉ áp dụng cho nhóm chat');
+    }
+
+    if (actorId === dto.targetUserId) {
+      throw new BadRequestException('Vui lòng sử dụng tính năng rời nhóm');
+    }
+
+    const actorMember = await this.memberModel.findOne({
+      conversationId: conversation._id,
+      userId: actorId,
+    });
+
+    if(!actorMember){
+      throw new ForbiddenException('Bạn không phải là thành viên của nhóm này')
+    }
+
+    if(actorMember.role === MemberRole.MEMBER){
+      throw new ForbiddenException('Bạn không có quyền xoá thành viên')
+    }
+
+    const targetMember = await this.memberModel.findOne({
+      conversationId: conversation._id,
+      userId:  dto.targetUserId
+    })
+
+    if(!targetMember){
+      throw new NotFoundException('Thành viên muốn xoá không tồn tại trong nhóm')
+    }
+
+    if(actorMember.role === MemberRole.ADMIN && targetMember.role !== MemberRole.MEMBER){
+      throw new ForbiddenException('Nhóm phó chỉ được phép xoá thành viên thường')
+    }
+
+    await this.memberModel.deleteOne({_id: targetMember._id})
+
+    return {
+      success: true,
+      message: 'Đã xoá thành viên khỏi nhóm',
+      data:  {
+        removeUserId:  dto.targetUserId
+      }
     }
   }
 }
