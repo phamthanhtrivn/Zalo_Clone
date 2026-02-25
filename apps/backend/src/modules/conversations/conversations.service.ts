@@ -2,16 +2,18 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Conversation } from './schemas/conversation.schema';
-import { Model } from 'mongoose';
+import { Connection, Model } from 'mongoose';
 import { Member } from '../members/schemas/member.schema';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { ConversationType, MemberRole } from '@zalo-clone/shared-types';
 import { Message } from '../messages/schemas/message.schema';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
+import { TransferOwnerDto } from './dto/transfer-owenr.dto';
 
 @Injectable()
 export class ConversationsService {
@@ -20,6 +22,8 @@ export class ConversationsService {
     private conversationModel: Model<Conversation>,
     @InjectModel(Member.name) private memberModel: Model<Member>,
     @InjectModel(Message.name) private messageModel: Model<Message>,
+
+    @InjectConnection() private connection: Connection,
   ) {}
 
   async createGroup(creatorId: string, dto: CreateGroupDto) {
@@ -78,19 +82,19 @@ export class ConversationsService {
     };
   }
 
-  async deleteGroup(conversetionId: string, userId: string) {
-    const conversetion = await this.conversationModel.findById(conversetionId);
+  async deleteGroup(conversationId: string, userId: string) {
+    const conversation = await this.conversationModel.findById(conversationId);
 
-    if (!conversetion) {
+    if (!conversation) {
       throw new NotFoundException('Nhóm trò chuyện không tồn tại');
     }
 
-    if (conversetion.type !== ConversationType.GROUP) {
+    if (conversation.type !== ConversationType.GROUP) {
       throw new BadRequestException('Chỉ áp dụng cho nhóm chat');
     }
 
     const owner = await this.memberModel.findOne({
-      conversationId: conversetion._id,
+      conversationId: conversation._id,
       userId: userId,
     });
 
@@ -102,11 +106,11 @@ export class ConversationsService {
 
     try {
       // Xoá tất cả member
-      await this.memberModel.deleteMany({ conversationId: conversetion._id });
+      await this.memberModel.deleteMany({ conversationId: conversation._id });
       // Xoá tất cả tin nhắn
-      await this.messageModel.deleteMany({ conversationId: conversetion._id });
+      await this.messageModel.deleteMany({ conversationId: conversation._id });
       // Xoá nhóm chat
-      await this.conversationModel.findByIdAndDelete(conversetionId);
+      await this.conversationModel.findByIdAndDelete(conversationId);
 
       return {
         success: true,
@@ -118,17 +122,21 @@ export class ConversationsService {
   }
 
   async updateMembersRole(
-    conversetionId: string,
+    conversationId: string,
     actorId: string,
     dto: UpdateMemberRoleDto,
   ) {
-    const conversetion = await this.conversationModel.findById(conversetionId);
-    if (!conversetion) {
+    const conversation = await this.conversationModel.findById(conversationId);
+    if (!conversation) {
       throw new NotFoundException('Nhóm trò chuyện không tồn tại');
     }
 
+    if (conversation.type !== ConversationType.GROUP) {
+      throw new BadRequestException('Chỉ áp dụng cho nhóm chat');
+    }
+
     const owner = await this.memberModel.findOne({
-      conversationId: conversetion._id,
+      conversationId: conversation._id,
       userId: actorId,
     });
 
@@ -150,7 +158,7 @@ export class ConversationsService {
 
     const result = await this.memberModel.updateMany(
       {
-        conversationId: conversetion._id,
+        conversationId: conversation._id,
         userId: { $in: targetIds },
       },
       {
@@ -172,5 +180,93 @@ export class ConversationsService {
         newRole: dto.newRole,
       },
     };
+  }
+
+  async transferOwner(
+    conversationId: string,
+    currentOwnerId: string,
+    dto: TransferOwnerDto,
+  ) {
+    const session = await this.connection.startSession();
+
+    session.startTransaction();
+
+    try {
+      const conversation =
+        await this.conversationModel.findById(conversationId);
+      if (!conversation) {
+        throw new NotFoundException('Nhóm trò chuyện không tồn tại');
+      }
+
+      if (conversation.type !== ConversationType.GROUP) {
+        throw new BadRequestException('Chỉ áp dụng cho nhóm chat');
+      }
+
+      if (currentOwnerId === dto.targetUserId) {
+        throw new BadRequestException('Bạn đã là trưởng nhóm rồi');
+      }
+
+      const currentOwnerMember = await this.memberModel.findOne({
+        conversationId: conversation._id,
+        userId: currentOwnerId,
+      });
+
+      if (!currentOwnerMember || currentOwnerMember.role !== MemberRole.OWNER) {
+        throw new ForbiddenException(
+          'Chỉ trưởng nhóm mới có quyền chuyển nhượng',
+        );
+      }
+
+      const targetMember = await this.memberModel.findOne({
+        conversationId: conversation._id,
+        userId: dto.targetUserId,
+      });
+
+      if (!targetMember) {
+        throw new NotFoundException(
+          'Thành viên được chỉ định không tồn tại trong nhóm',
+        );
+      }
+
+      await this.memberModel
+        .updateOne(
+          { _id: targetMember._id },
+          { $set: { role: MemberRole.OWNER } },
+        )
+        .session(session);
+
+      await this.memberModel
+        .updateOne(
+          { _id: currentOwnerMember._id },
+          { $set: { role: MemberRole.MEMBER } },
+        )
+        .session(session);
+
+      await session.commitTransaction();
+
+      return {
+        success: true,
+        message: 'Chuyển nhượng trưởng nhóm thành công',
+        data: {
+          newOwnerId: targetMember._id,
+          oldOwnerId: currentOwnerMember._id,
+        },
+      };
+    } catch (error) {
+      await session.abortTransaction();
+
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ForbiddenException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      console.error('Lỗi chuyển nhượng nhóm trưởng', error)
+      throw new InternalServerErrorException('Lỗi hệ thống khi chuyển nhượng quyền')
+    } finally{
+      await session.endSession()
+    }
   }
 }
