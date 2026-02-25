@@ -11,6 +11,7 @@ import { Member } from '../members/schemas/member.schema';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { ConversationType, MemberRole } from '@zalo-clone/shared-types';
 import { Message } from '../messages/schemas/message.schema';
+import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 
 @Injectable()
 export class ConversationsService {
@@ -109,10 +110,67 @@ export class ConversationsService {
 
       return {
         success: true,
-        message: 'Giải tán nhóm thành công'
-      }
+        message: 'Giải tán nhóm thành công',
+      };
     } catch (error) {
-      throw new BadRequestException('Lỗi khi giải tán nhóm')
+      throw new BadRequestException('Lỗi khi giải tán nhóm');
     }
+  }
+
+  async updateMembersRole(
+    conversetionId: string,
+    actorId: string,
+    dto: UpdateMemberRoleDto,
+  ) {
+    const conversetion = await this.conversationModel.findById(conversetionId);
+    if (!conversetion) {
+      throw new NotFoundException('Nhóm trò chuyện không tồn tại');
+    }
+
+    const owner = await this.memberModel.findOne({
+      conversationId: conversetion._id,
+      userId: actorId,
+    });
+
+    if (!owner || owner.role !== MemberRole.OWNER) {
+      throw new ForbiddenException('Chỉ trưởng nhóm mới có quyền phân quyền');
+    }
+
+    const targetIds = dto.memberIds.filter((id) => id !== actorId);
+
+    if (targetIds.length === 0) {
+      throw new BadRequestException('Vui lòng chọn thành viên để phân quyền');
+    }
+
+    if (dto.newRole === MemberRole.OWNER) {
+      throw new BadRequestException(
+        'Vui lòng chọn chức năng chuyển nhượng nhớm trưởng riêng',
+      );
+    }
+
+    const result = await this.memberModel.updateMany(
+      {
+        conversationId: conversetion._id,
+        userId: { $in: targetIds },
+      },
+      {
+        $set: { role: dto.newRole },
+      },
+    );
+
+    if (result.matchedCount === 0) {
+      throw new NotFoundException(
+        'Không tìm thấy thành viên nào trong nhóm để cập nhật',
+      );
+    }
+
+    return {
+      success: true,
+      message: `Đã cập nhật quyền cho ${result.modifiedCount} thành viên`,
+      data: {
+        updateCount: result.modifiedCount,
+        newRole: dto.newRole,
+      },
+    };
   }
 }
