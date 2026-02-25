@@ -1,4 +1,12 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
 import { CreateGroupDto } from './dto/create-group.dto';
 
@@ -12,5 +20,12 @@ export class ConversationsController {
     const userId = req.user?._id;
 
     return this.conversationsService.createGroup(userId, createGroupDto);
+  }
+
+  @Delete(':id/delete')
+  async deleteGroup(@Param('id') id: string, @Req() req) {
+    const userId = req.user?.id;
+
+    return this.conversationsService.deleteGroup(id, userId);
   }
 }
