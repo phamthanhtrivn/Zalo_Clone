@@ -61,5 +61,15 @@ export class ConversationSettingsController {
             new Types.ObjectId(userId),
             new Types.ObjectId(conversationId));
     }
+    // Bật thông báo
+    @Patch('unmute')
+    unmuteConversation(
+        @Body('userId') userId: string,
+        @Body('conversationId') conversationId: string,
+    ) {
+        return this.conversationSettingsService.unmuteConversation(
+            new Types.ObjectId(userId),
+            new Types.ObjectId(conversationId));
+    }
 
 }

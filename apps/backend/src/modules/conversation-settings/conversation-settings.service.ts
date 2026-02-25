@@ -95,5 +95,19 @@ export class ConversationSettingsService {
         return setting;
 
     }
+    // Bật thông báo
+    async unmuteConversation(
+        userId: Types.ObjectId,
+        conversationId: Types.ObjectId) {
+        const setting = await this.conversationSettingModel.findOneAndUpdate(
+            { userId, conversationId },
+            { $set: { muted: false } },
+            { new: true }
+        );
+        if (!setting) {
+            throw new Error('Conversation setting not found');
+        }
+        return setting;
+    }
 }
 
