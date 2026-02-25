@@ -33,5 +33,20 @@ export class ConversationSettingsService {
         );
         return setting;
     }
+    // Bổ ẩn
+    async unhideConversation(
+        userId: Types.ObjectId,
+        conversationId: Types.ObjectId) {
+        const setting = await this.conversationSettingModel.findOneAndUpdate(
+            { userId, conversationId },
+            { $set: { hidden: false } },
+            { new: true }
+        );
+        if (!setting) {
+            throw new Error('Conversation setting not found');
+        }
+        return setting;
+    }
+
 
 }
