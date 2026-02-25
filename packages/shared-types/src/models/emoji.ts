@@ -1,4 +1,6 @@
+import type { EmojiType } from "../enums/emoji-type.js";
+
 export interface Emoji {
-  name: string;
+  name: EmojiType;
   quantity: number;
 }

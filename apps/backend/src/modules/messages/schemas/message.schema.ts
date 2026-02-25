@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { CallStatus, CallType, FileType } from '@zalo-clone/shared-types';
+import { EmojiType } from '@zalo-clone/shared-types/dist/enums/emoji-type';
 import { Types } from 'mongoose';
 
 @Schema({ _id: false })
@@ -31,8 +32,8 @@ export class Content {
 
 @Schema({ _id: false })
 export class Emoji {
-  @Prop({ required: true })
-  name: string;
+  @Prop({ type: String, enum: EmojiType, required: true })
+  name: EmojiType;
 
   @Prop({ required: true, default: 1 })
   quantity: number;

@@ -13,6 +13,9 @@ import { Conversation } from '../conversations/schemas/conversation.schema';
 import { ConversationType, MemberRole } from '@zalo-clone/shared-types';
 import { PinnedMessageDto } from './dto/pinned-message.dto';
 import { RecalledMessageDto } from './dto/recalled-message.dto';
+import { ReactionDto } from './dto/reaction.dto';
+import { RemoveReactionDto } from './dto/remove-reaction.dto';
+import { ReadReceiptDto } from './dto/read-reciept.dto';
 
 @Injectable()
 export class MessagesService {
@@ -108,6 +111,10 @@ export class MessagesService {
       throw new NotFoundException('Message not found');
     }
 
+    if (message.call) {
+      throw new BadRequestException('Cannot pinned a call message');
+    }
+
     const member = await this.memberModel.findOne({
       userId: new Types.ObjectId(userId),
       conversationId: new Types.ObjectId(conversationId),
@@ -161,6 +168,10 @@ export class MessagesService {
       throw new NotFoundException('Message not found');
     }
 
+    if (message.call) {
+      throw new BadRequestException('Cannot recall a call message');
+    }
+
     const member = await this.memberModel.findOne({
       userId: new Types.ObjectId(userId),
       conversationId: new Types.ObjectId(conversationId),
@@ -199,5 +210,169 @@ export class MessagesService {
     await message.save();
 
     return message;
+  }
+
+  async reactionMessage(reactionDto: ReactionDto) {
+    const { userId, messageId, conversationId, emojiType } = reactionDto;
+
+    const message = await this.messageModel.findById(messageId);
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    if (message.recalled) {
+      throw new BadRequestException('Cannot react to a recalled message');
+    }
+
+    if (message.call) {
+      throw new BadRequestException('Cannot react to a call message');
+    }
+
+    const member = await this.memberModel.findOne({
+      userId: new Types.ObjectId(userId),
+      conversationId: new Types.ObjectId(conversationId),
+      leftAt: null,
+    });
+
+    if (!member) {
+      throw new NotFoundException(
+        'User is not a participant in this conversation',
+      );
+    }
+
+    if (message.conversationId.toString() !== conversationId) {
+      throw new BadRequestException(
+        'Message does not belong to this conversation',
+      );
+    }
+
+    const existingReaction = message.reactions?.find(
+      (r) => r.userId.toString() === userId,
+    );
+
+    if (!existingReaction) {
+      message.reactions?.push({
+        userId: new Types.ObjectId(userId),
+        emoji: [
+          {
+            name: emojiType,
+            quantity: 1,
+          },
+        ],
+      });
+    } else {
+      const existingEmoji = existingReaction.emoji.find(
+        (e) => e.name === emojiType,
+      );
+
+      if (!existingEmoji) {
+        existingReaction.emoji.push({
+          name: emojiType,
+          quantity: 1,
+        });
+      } else {
+        existingEmoji.quantity += 1;
+      }
+    }
+
+    await message.save();
+
+    return message;
+  }
+
+  async removeReactionMessage(removeReactionDto: RemoveReactionDto) {
+    const { userId, messageId, conversationId } = removeReactionDto;
+
+    const message = await this.messageModel
+      .findOne({
+        _id: new Types.ObjectId(messageId),
+        conversationId: new Types.ObjectId(conversationId),
+      })
+      .select('recalled call reactions');
+
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    if (message.recalled) {
+      throw new BadRequestException(
+        'Cannot remove reaction to a recalled message',
+      );
+    }
+
+    if (message.call) {
+      throw new BadRequestException('Cannot remove reaction to a call message');
+    }
+
+    const member = await this.memberModel.exists({
+      userId: new Types.ObjectId(userId),
+      conversationId: new Types.ObjectId(conversationId),
+      leftAt: null,
+    });
+
+    if (!member) {
+      throw new NotFoundException(
+        'User is not a participant in this conversation',
+      );
+    }
+
+    const updated = await this.messageModel.updateOne(
+      {
+        _id: new Types.ObjectId(messageId),
+        'reactions.userId': new Types.ObjectId(userId),
+      },
+      {
+        $pull: {
+          reactions: { userId: new Types.ObjectId(userId) },
+        },
+      },
+    );
+
+    if (updated.modifiedCount === 0) {
+      throw new BadRequestException('User has not reacted to this message');
+    }
+
+    return updated;
+  }
+
+  async readReceiptMessage(readReceiptDto: ReadReceiptDto) {
+    const { userId, messageId, conversationId } = readReceiptDto;
+
+    const objectUserId = new Types.ObjectId(userId);
+    const objectMessageId = new Types.ObjectId(messageId);
+    const objectConversationId = new Types.ObjectId(conversationId);
+
+    const member = await this.memberModel.exists({
+      userId: objectUserId,
+      conversationId: objectConversationId,
+      leftAt: null,
+    });
+
+    if (!member) {
+      throw new NotFoundException(
+        'User is not a participant in this conversation',
+      );
+    }
+
+    const updated = await this.messageModel.updateOne(
+      {
+        _id: objectMessageId,
+        conversationId: objectConversationId,
+        'readReceipts.userId': { $ne: objectUserId },
+      },
+      {
+        $push: {
+          readReceipts: {
+            userId: objectUserId,
+          },
+        },
+      },
+    );
+
+    if (updated.modifiedCount === 0) {
+      throw new BadRequestException('Message already read by this user');
+    }
+
+    return updated;
   }
 }
