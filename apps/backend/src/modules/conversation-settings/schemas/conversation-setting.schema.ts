@@ -19,6 +19,7 @@ export class ConversationSetting {
   hidden: boolean;
 }
 
+export type ConversationSettingDocument = ConversationSetting & Document;
 export const ConversationSettingSchema =
   SchemaFactory.createForClass(ConversationSetting);
 
