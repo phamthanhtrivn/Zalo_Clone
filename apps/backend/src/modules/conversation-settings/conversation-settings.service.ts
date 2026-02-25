@@ -47,6 +47,35 @@ export class ConversationSettingsService {
         }
         return setting;
     }
+    // Gim cuộc hội thoại
+    async pinConversation(
+        userId: Types.ObjectId,
+        conversationId: Types.ObjectId) {
+        const setting = await this.conversationSettingModel.findOneAndUpdate(
+            { userId, conversationId },
+            { $set: { pinned: true } },
+            { new: true }
+        );
+        if (!setting) {
+            throw new Error('Conversation setting not found');
+        }
+        return setting;
+    }
+    // Bỏ gim
+    async unpinConversation(
+        userId: Types.ObjectId,
+        conversationId: Types.ObjectId) {
+        const setting = await this.conversationSettingModel.findOneAndUpdate(
+            { userId, conversationId },
+            { $set: { pinned: false } },
+            { new: true }
+        );
+        if (!setting) {
+            throw new Error('Conversation setting not found');
+        }
+        return setting;
+
+    }
 
 
 }

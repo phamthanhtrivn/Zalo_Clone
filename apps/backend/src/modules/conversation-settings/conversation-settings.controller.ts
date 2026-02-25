@@ -30,4 +30,25 @@ export class ConversationSettingsController {
             new Types.ObjectId(conversationId));
 
     }
+    // Gim
+    @Patch('pin')
+    pinConversation(
+        @Body('userId') userId: string,
+        @Body('conversationId') conversationId: string,
+    ) {
+        return this.conversationSettingsService.pinConversation(new Types.ObjectId(userId),
+            new Types.ObjectId(conversationId));
+
+    }
+    // Bỏ Gim
+    @Patch('unpin')
+    unpinConversation(
+        @Body('userId') userId: string,
+        @Body('conversationId') conversationId: string,
+    ) {
+        return this.conversationSettingsService.unpinConversation(
+            new Types.ObjectId(userId),
+            new Types.ObjectId(conversationId));
+
+    }
 }
