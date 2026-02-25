@@ -16,8 +16,8 @@ export class Member {
   @Prop({ required: true })
   joinedAt: Date;
 
-  @Prop()
-  leftAt?: Date;
+  @Prop({ type: Date, default: null })
+  leftAt?: Date | null;
 
   @Prop({ type: String, enum: MemberRole, required: true })
   role: MemberRole;
