@@ -1,6 +1,6 @@
 /* eslint-disable prettier/prettier */
 
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Patch, Post } from '@nestjs/common';
 import { MembersService } from './members.service';
 import { Types } from 'mongoose';
 @Controller('members')
@@ -18,6 +18,18 @@ export class MembersController {
         return this.membersService.addMember(
             new Types.ObjectId(conversationId),
             new Types.ObjectId(userIdToAdd),
+            new Types.ObjectId(currentUserId),
+        );
+    }
+    @Patch('remove')
+    async removeMember(
+        @Body('conversationId') conversationId: string,
+        @Body('userIdToRemove') userIdToRemove: string,
+        @Body('currentUserId') currentUserId: string,
+    ) {
+        return this.membersService.removeMember(
+            new Types.ObjectId(conversationId),
+            new Types.ObjectId(userIdToRemove),
             new Types.ObjectId(currentUserId),
         );
     }
