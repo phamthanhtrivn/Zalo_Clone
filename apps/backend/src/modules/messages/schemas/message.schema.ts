@@ -63,6 +63,9 @@ export class Call {
   status: CallStatus;
 
   @Prop()
+  startedAt: Date;
+
+  @Prop()
   endedAt: Date;
 
   @Prop()

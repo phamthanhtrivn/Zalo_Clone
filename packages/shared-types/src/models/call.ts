@@ -4,6 +4,7 @@ import type { CallType } from "../enums/call-type.js";
 export interface Call {
   type: CallType;
   status: CallStatus;
+  startedAt: Date;
   endedAt: Date;
   duration: number;
 }
