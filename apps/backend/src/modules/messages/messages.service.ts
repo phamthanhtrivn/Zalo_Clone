@@ -91,7 +91,11 @@ export class MessagesService {
       pinned: false,
       recalled: false,
       reactions: [],
-      readReceipts: [],
+      readReceipts: [
+        {
+          userId: new Types.ObjectId(senderId),
+        },
+      ],
       repliedId: repliedId ? new Types.ObjectId(repliedId) : null,
     });
 
@@ -106,131 +110,148 @@ export class MessagesService {
   async pinnedMessage(pinnedMessageDto: PinnedMessageDto) {
     const { userId, messageId, conversationId } = pinnedMessageDto;
 
-    const message = await this.messageModel.findById(messageId);
-    if (!message) {
-      throw new NotFoundException('Message not found');
-    }
+    const session = await this.messageModel.db.startSession();
+    session.startTransaction();
 
-    if (message.call) {
-      throw new BadRequestException('Cannot pinned a call message');
-    }
+    try {
+      const objectUserId = new Types.ObjectId(userId);
+      const objectMessageId = new Types.ObjectId(messageId);
+      const objectConversationId = new Types.ObjectId(conversationId);
 
-    const member = await this.memberModel.findOne({
-      userId: new Types.ObjectId(userId),
-      conversationId: new Types.ObjectId(conversationId),
-      leftAt: null,
-    });
-    if (!member) {
-      throw new NotFoundException(
-        'User is not a participant in this conversation',
-      );
-    }
+      const message = await this.messageModel
+        .findById(objectMessageId)
+        .session(session);
 
-    if (message.conversationId.toString() !== conversationId) {
-      throw new BadRequestException(
-        'Message does not belong to this conversation',
-      );
-    }
+      if (!message) {
+        throw new NotFoundException('Message not found');
+      }
 
-    const conversation = await this.conversationModel.findById(conversationId);
-    if (conversation!.type === ConversationType.GROUP) {
-      if (member.role === MemberRole.MEMBER) {
+      if (message.conversationId.toString() !== conversationId) {
         throw new BadRequestException(
-          'Members are not allowed to pinned messages in group',
+          'Message does not belong to this conversation',
         );
       }
+
+      if (message.call) {
+        throw new BadRequestException('Cannot pin a call message');
+      }
+
+      if (message.recalled) {
+        throw new BadRequestException('Cannot pin a recalled message');
+      }
+
+      const conversation = await this.conversationModel
+        .findById(objectConversationId)
+        .session(session);
+
+      if (!conversation) {
+        throw new NotFoundException('Conversation not found');
+      }
+
+      const member = await this.memberModel
+        .findOne({
+          userId: objectUserId,
+          conversationId: objectConversationId,
+          leftAt: null,
+        })
+        .session(session);
+
+      if (!member) {
+        throw new NotFoundException(
+          'User is not a participant in this conversation',
+        );
+      }
+
+      if (
+        conversation.type === ConversationType.GROUP &&
+        member.role === MemberRole.MEMBER
+      ) {
+        throw new BadRequestException(
+          'Members are not allowed to pin messages in group',
+        );
+      }
+
+      if (!message.pinned) {
+        const pinnedCount = await this.messageModel
+          .countDocuments({
+            conversationId: objectConversationId,
+            pinned: true,
+          })
+          .session(session);
+
+        if (pinnedCount >= 4) {
+          throw new BadRequestException('Maximum pinned messages reached');
+        }
+      }
+
+      message.pinned = !message.pinned;
+      await message.save({ session });
+
+      await session.commitTransaction();
+      session.endSession();
+
+      return message;
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
     }
-
-    if (message.recalled) {
-      throw new BadRequestException('Cannot pinned a recalled message');
-    }
-
-    const pinnedCount = await this.messageModel.countDocuments({
-      conversationId: new Types.ObjectId(conversationId),
-      pinned: true,
-    });
-
-    if (!message.pinned && pinnedCount > 3) {
-      throw new BadRequestException('Maximum pinned messages reached');
-    }
-
-    message.pinned = !message.pinned;
-    await message.save();
-
-    return message;
   }
 
   async recalledMessage(recalledMessageDto: RecalledMessageDto) {
     const { userId, messageId, conversationId } = recalledMessageDto;
 
-    const message = await this.messageModel.findById(messageId);
-    if (!message) {
-      throw new NotFoundException('Message not found');
-    }
+    const objectUserId = new Types.ObjectId(userId);
+    const objectMessageId = new Types.ObjectId(messageId);
+    const objectConversationId = new Types.ObjectId(conversationId);
 
-    if (message.call) {
-      throw new BadRequestException('Cannot recall a call message');
-    }
-
-    const member = await this.memberModel.findOne({
-      userId: new Types.ObjectId(userId),
-      conversationId: new Types.ObjectId(conversationId),
+    const member = await this.memberModel.exists({
+      userId: objectUserId,
+      conversationId: objectConversationId,
       leftAt: null,
     });
+
     if (!member) {
       throw new NotFoundException(
         'User is not a participant in this conversation',
       );
     }
 
-    if (message.conversationId.toString() !== conversationId) {
+    const expireDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const result = await this.messageModel.updateOne(
+      {
+        _id: objectMessageId,
+        conversationId: objectConversationId,
+        senderId: objectUserId,
+        recalled: false,
+        call: null,
+        createdAt: { $gte: expireDate },
+      },
+      {
+        $set: { recalled: true },
+      },
+    );
+
+    if (result.matchedCount === 0) {
       throw new BadRequestException(
-        'Message does not belong to this conversation',
+        'Message cannot be recalled (not found, expired, already recalled, or not sender)',
       );
     }
 
-    if (message.senderId.toString() !== userId) {
-      throw new BadRequestException('User is not the sender of this message');
-    }
-
-    if (message.recalled) {
-      throw new BadRequestException('Message has already been recalled');
-    }
-
-    const isExpired =
-      Date.now() - (message as any).createdAt.getTime() > 24 * 60 * 60 * 1000;
-
-    if (isExpired) {
-      throw new BadRequestException(
-        'Message is expired and cannot be recalled',
-      );
-    }
-
-    message.recalled = true;
-    await message.save();
-
-    return message;
+    return await this.messageModel.findById(objectMessageId);
   }
 
   async reactionMessage(reactionDto: ReactionDto) {
     const { userId, messageId, conversationId, emojiType } = reactionDto;
 
-    const message = await this.messageModel.findById(messageId);
-    if (!message) {
-      throw new NotFoundException('Message not found');
-    }
+    const objectUserId = new Types.ObjectId(userId);
+    const objectMessageId = new Types.ObjectId(messageId);
+    const objectConversationId = new Types.ObjectId(conversationId);
 
-    if (message.recalled) {
-      throw new BadRequestException('Cannot react to a recalled message');
-    }
-
-    if (message.call) {
-      throw new BadRequestException('Cannot react to a call message');
-    }
-
-    const member = await this.memberModel.findOne({
-      userId: new Types.ObjectId(userId),
-      conversationId: new Types.ObjectId(conversationId),
+    const member = await this.memberModel.exists({
+      userId: objectUserId,
+      conversationId: objectConversationId,
       leftAt: null,
     });
 
@@ -240,73 +261,92 @@ export class MessagesService {
       );
     }
 
-    if (message.conversationId.toString() !== conversationId) {
-      throw new BadRequestException(
-        'Message does not belong to this conversation',
-      );
-    }
-
-    const existingReaction = message.reactions?.find(
-      (r) => r.userId.toString() === userId,
+    const incResult = await this.messageModel.updateOne(
+      {
+        _id: objectMessageId,
+        conversationId: objectConversationId,
+        recalled: false,
+        call: null,
+        'reactions.userId': objectUserId,
+        'reactions.emoji.name': emojiType,
+      },
+      {
+        $inc: {
+          'reactions.$[r].emoji.$[e].quantity': 1,
+        },
+      },
+      {
+        arrayFilters: [{ 'r.userId': objectUserId }, { 'e.name': emojiType }],
+      },
     );
 
-    if (!existingReaction) {
-      message.reactions?.push({
-        userId: new Types.ObjectId(userId),
-        emoji: [
-          {
+    if (incResult.modifiedCount > 0) {
+      return await this.messageModel.findById(objectMessageId);
+    }
+
+    const pushEmojiResult = await this.messageModel.updateOne(
+      {
+        _id: objectMessageId,
+        conversationId: objectConversationId,
+        recalled: false,
+        call: null,
+        'reactions.userId': objectUserId,
+      },
+      {
+        $push: {
+          'reactions.$.emoji': {
             name: emojiType,
             quantity: 1,
           },
-        ],
-      });
-    } else {
-      const existingEmoji = existingReaction.emoji.find(
-        (e) => e.name === emojiType,
-      );
+        },
+      },
+    );
 
-      if (!existingEmoji) {
-        existingReaction.emoji.push({
-          name: emojiType,
-          quantity: 1,
-        });
-      } else {
-        existingEmoji.quantity += 1;
-      }
+    if (pushEmojiResult.modifiedCount > 0) {
+      return await this.messageModel.findById(objectMessageId);
     }
 
-    await message.save();
+    const pushUserResult = await this.messageModel.updateOne(
+      {
+        _id: objectMessageId,
+        conversationId: objectConversationId,
+        recalled: false,
+        call: null,
+      },
+      {
+        $push: {
+          reactions: {
+            userId: objectUserId,
+            emoji: [
+              {
+                name: emojiType,
+                quantity: 1,
+              },
+            ],
+          },
+        },
+      },
+    );
 
-    return message;
+    if (pushUserResult.modifiedCount === 0) {
+      throw new BadRequestException(
+        'Cannot react to this message (not found, recalled, or a call message)',
+      );
+    }
+
+    return await this.messageModel.findById(objectMessageId);
   }
 
   async removeReactionMessage(removeReactionDto: RemoveReactionDto) {
     const { userId, messageId, conversationId } = removeReactionDto;
 
-    const message = await this.messageModel
-      .findOne({
-        _id: new Types.ObjectId(messageId),
-        conversationId: new Types.ObjectId(conversationId),
-      })
-      .select('recalled call reactions');
-
-    if (!message) {
-      throw new NotFoundException('Message not found');
-    }
-
-    if (message.recalled) {
-      throw new BadRequestException(
-        'Cannot remove reaction to a recalled message',
-      );
-    }
-
-    if (message.call) {
-      throw new BadRequestException('Cannot remove reaction to a call message');
-    }
+    const objectUserId = new Types.ObjectId(userId);
+    const objectMessageId = new Types.ObjectId(messageId);
+    const objectConversationId = new Types.ObjectId(conversationId);
 
     const member = await this.memberModel.exists({
-      userId: new Types.ObjectId(userId),
-      conversationId: new Types.ObjectId(conversationId),
+      userId: objectUserId,
+      conversationId: objectConversationId,
       leftAt: null,
     });
 
@@ -316,23 +356,28 @@ export class MessagesService {
       );
     }
 
-    const updated = await this.messageModel.updateOne(
+    const result = await this.messageModel.updateOne(
       {
-        _id: new Types.ObjectId(messageId),
-        'reactions.userId': new Types.ObjectId(userId),
+        _id: objectMessageId,
+        conversationId: objectConversationId,
+        recalled: false,
+        call: null,
+        'reactions.userId': objectUserId,
       },
       {
         $pull: {
-          reactions: { userId: new Types.ObjectId(userId) },
+          reactions: { userId: objectUserId },
         },
       },
     );
 
-    if (updated.modifiedCount === 0) {
-      throw new BadRequestException('User has not reacted to this message');
+    if (result.modifiedCount === 0) {
+      throw new BadRequestException(
+        'Cannot remove reaction from this message (not found, already removed, recalled, or a call message)',
+      );
     }
 
-    return updated;
+    return await this.messageModel.findById(objectMessageId);
   }
 
   async readReceiptMessage(readReceiptDto: ReadReceiptDto) {
