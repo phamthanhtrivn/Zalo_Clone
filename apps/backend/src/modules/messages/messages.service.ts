@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   BadRequestException,
   Injectable,
@@ -15,9 +16,17 @@ import { RecalledMessageDto } from './dto/recalled-message.dto';
 import { ReactionDto } from './dto/reaction.dto';
 import { RemoveReactionDto } from './dto/remove-reaction.dto';
 import { ReadReceiptDto } from './dto/read-reciept.dto';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'crypto';
+import { getSignedUrl } from '@aws-sdk/cloudfront-signer';
+import fs from 'fs';
+import path from 'path';
 
 @Injectable()
 export class MessagesService {
+  private readonly s3Client: S3Client;
+
   constructor(
     @InjectModel(Message.name)
     private readonly messageModel: Model<Message>,
@@ -25,7 +34,49 @@ export class MessagesService {
     private readonly memberModel: Model<Member>,
     @InjectModel(Conversation.name)
     private readonly conversationModel: Model<Conversation>,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.s3Client = new S3Client({
+      region: this.configService.get<string>('aws.region') || '',
+      credentials: {
+        accessKeyId: this.configService.get<string>('aws.accessKeyId') || '',
+        secretAccessKey:
+          this.configService.get<string>('aws.secretAccessKey') || '',
+      },
+    });
+  }
+
+  async uploadFile(file: Express.Multer.File) {
+    const bucket = this.configService.get<string>('aws.s3Bucket') || '';
+    const key = `messages/${randomUUID()}-${file.originalname}`;
+
+    await this.s3Client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+      }),
+    );
+
+    const privateKey = fs.readFileSync(
+      path.join(process.cwd(), 'secrets/private_key.pem'),
+      'utf8',
+    );
+
+    const signedUrl = getSignedUrl({
+      url: this.configService.get<string>('aws.cloudFrontDomain') + key,
+      dateLessThan: new Date(Date.now() + 1000 * 60 * 60 * 24),
+      privateKey,
+      keyPairId:
+        this.configService.get<string>('aws.cloudFrontKeyPairId') || '',
+    });
+
+    return {
+      key,
+      url: signedUrl,
+    };
+  }
 
   async sendMessage(sendMessageDto: SendMessageDto) {
     const { senderId, conversationId, content, call, repliedId } =

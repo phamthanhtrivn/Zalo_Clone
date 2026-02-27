@@ -6,10 +6,7 @@ import { Types } from 'mongoose';
 @Schema({ _id: false })
 export class File {
   @Prop()
-  fileName: string;
-
-  @Prop()
-  fileUrl: string;
+  fileKey: string;
 
   @Prop()
   fileSize: number;
