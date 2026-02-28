@@ -1,6 +1,4 @@
-import { IsOptional, IsString, ValidateNested } from 'class-validator';
-import { FileDto } from './file.dto';
-import { Type } from 'class-transformer';
+import { IsOptional, IsString } from 'class-validator';
 
 export class ContentDto {
   @IsOptional()
@@ -9,8 +7,4 @@ export class ContentDto {
   @IsOptional()
   @IsString()
   icon?: string;
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => FileDto)
-  file?: FileDto;
 }

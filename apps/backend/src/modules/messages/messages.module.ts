@@ -9,6 +9,7 @@ import {
   Conversation,
   ConversationSchema,
 } from '../conversations/schemas/conversation.schema';
+import { StorageModule } from 'src/common/storage/storage.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import {
       { name: Conversation.name, schema: ConversationSchema },
     ]),
     MembersModule,
+    StorageModule,
   ],
   providers: [MessagesService],
   controllers: [MessagesController],

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   BadRequestException,
   Injectable,
@@ -16,17 +15,10 @@ import { RecalledMessageDto } from './dto/recalled-message.dto';
 import { ReactionDto } from './dto/reaction.dto';
 import { RemoveReactionDto } from './dto/remove-reaction.dto';
 import { ReadReceiptDto } from './dto/read-reciept.dto';
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { ConfigService } from '@nestjs/config';
-import { randomUUID } from 'crypto';
-import { getSignedUrl } from '@aws-sdk/cloudfront-signer';
-import fs from 'fs';
-import path from 'path';
+import { StorageService } from 'src/common/storage/storage.service';
 
 @Injectable()
 export class MessagesService {
-  private readonly s3Client: S3Client;
-
   constructor(
     @InjectModel(Message.name)
     private readonly messageModel: Model<Message>,
@@ -34,51 +26,13 @@ export class MessagesService {
     private readonly memberModel: Model<Member>,
     @InjectModel(Conversation.name)
     private readonly conversationModel: Model<Conversation>,
-    private readonly configService: ConfigService,
+    private readonly storageService: StorageService,
+  ) {}
+
+  async sendMessage(
+    sendMessageDto: SendMessageDto,
+    file?: Express.Multer.File,
   ) {
-    this.s3Client = new S3Client({
-      region: this.configService.get<string>('aws.region') || '',
-      credentials: {
-        accessKeyId: this.configService.get<string>('aws.accessKeyId') || '',
-        secretAccessKey:
-          this.configService.get<string>('aws.secretAccessKey') || '',
-      },
-    });
-  }
-
-  async uploadFile(file: Express.Multer.File) {
-    const bucket = this.configService.get<string>('aws.s3Bucket') || '';
-    const key = `messages/${randomUUID()}-${file.originalname}`;
-
-    await this.s3Client.send(
-      new PutObjectCommand({
-        Bucket: bucket,
-        Key: key,
-        Body: file.buffer,
-        ContentType: file.mimetype,
-      }),
-    );
-
-    const privateKey = fs.readFileSync(
-      path.join(process.cwd(), 'secrets/private_key.pem'),
-      'utf8',
-    );
-
-    const signedUrl = getSignedUrl({
-      url: this.configService.get<string>('aws.cloudFrontDomain') + key,
-      dateLessThan: new Date(Date.now() + 1000 * 60 * 60 * 24),
-      privateKey,
-      keyPairId:
-        this.configService.get<string>('aws.cloudFrontKeyPairId') || '',
-    });
-
-    return {
-      key,
-      url: signedUrl,
-    };
-  }
-
-  async sendMessage(sendMessageDto: SendMessageDto) {
     const { senderId, conversationId, content, call, repliedId } =
       sendMessageDto;
 
@@ -118,18 +72,24 @@ export class MessagesService {
     let formattedContent = {};
 
     if (content) {
-      const { text, icon, file } = content;
+      const { text, icon } = content;
 
-      if (!text && !icon && !file) {
+      if (!text && !icon) {
         throw new BadRequestException(
-          'At least one of text, icon, or file must be provided in content',
+          'At least one of text, icon must be provided in content',
         );
+      }
+
+      let uploadedFile = {};
+
+      if (file) {
+        uploadedFile = await this.storageService.uploadFile(file);
       }
 
       formattedContent = {
         text: text ?? null,
         icon: icon ?? null,
-        file: file ?? null,
+        file: uploadedFile ?? null,
       };
     }
 
@@ -269,6 +229,16 @@ export class MessagesService {
 
     const expireDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
+    const message = await this.messageModel.findById(objectMessageId);
+
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    } else {
+      if (message.content?.file) {
+        await this.storageService.deleteFile(message.content.file.fileKey);
+      }
+    }
+
     const result = await this.messageModel.updateOne(
       {
         _id: objectMessageId,
@@ -279,7 +249,7 @@ export class MessagesService {
         createdAt: { $gte: expireDate },
       },
       {
-        $set: { recalled: true },
+        $set: { recalled: true, 'content.file': null },
       },
     );
 

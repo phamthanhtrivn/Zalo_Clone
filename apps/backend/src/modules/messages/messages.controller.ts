@@ -14,24 +14,18 @@ import { ReactionDto } from './dto/reaction.dto';
 import { RemoveReactionDto } from './dto/remove-reaction.dto';
 import { ReadReceiptDto } from './dto/read-reciept.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ConfigService } from '@nestjs/config';
 
 @Controller('messages')
 export class MessagesController {
-  constructor(
-    private readonly messagesService: MessagesService,
-    private readonly configService: ConfigService,
-  ) {}
+  constructor(private readonly messagesService: MessagesService) {}
 
   @Post()
-  async sendMessage(@Body() sendMessageDto: SendMessageDto) {
-    return this.messagesService.sendMessage(sendMessageDto);
-  }
-
-  @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
-  uploadFile(@UploadedFile() file: Express.Multer.File) {
-    return this.messagesService.uploadFile(file);
+  async sendMessage(
+    @Body() sendMessageDto: SendMessageDto,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.messagesService.sendMessage(sendMessageDto, file);
   }
 
   @Patch('pinned')
