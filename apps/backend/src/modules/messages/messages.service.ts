@@ -9,13 +9,19 @@ import { Message } from './schemas/message.schema';
 import { SendMessageDto } from './dto/send-message.dto';
 import { Member } from '../members/schemas/member.schema';
 import { Conversation } from '../conversations/schemas/conversation.schema';
-import { ConversationType, MemberRole } from '@zalo-clone/shared-types';
+import {
+  CallStatus,
+  ConversationType,
+  MemberRole,
+} from '@zalo-clone/shared-types';
 import { PinnedMessageDto } from './dto/pinned-message.dto';
 import { RecalledMessageDto } from './dto/recalled-message.dto';
 import { ReactionDto } from './dto/reaction.dto';
 import { RemoveReactionDto } from './dto/remove-reaction.dto';
 import { ReadReceiptDto } from './dto/read-reciept.dto';
 import { StorageService } from 'src/common/storage/storage.service';
+import { CallMessageDto } from './dto/call-message.dto';
+import { UpdateCallMessageDto } from './dto/update-call-message.dto';
 
 @Injectable()
 export class MessagesService {
@@ -33,8 +39,7 @@ export class MessagesService {
     sendMessageDto: SendMessageDto,
     file?: Express.Multer.File,
   ) {
-    const { senderId, conversationId, content, call, repliedId } =
-      sendMessageDto;
+    const { senderId, conversationId, content, repliedId } = sendMessageDto;
 
     const conversation = await this.conversationModel.findById(conversationId);
 
@@ -54,8 +59,8 @@ export class MessagesService {
       );
     }
 
-    if ((!content && !call) || (content && call)) {
-      throw new BadRequestException('Content or call must be provided');
+    if (!content) {
+      throw new BadRequestException('Content must be provided');
     }
 
     if (conversation.type === ConversationType.GROUP) {
@@ -97,7 +102,7 @@ export class MessagesService {
       senderId: new Types.ObjectId(senderId),
       conversationId: new Types.ObjectId(conversationId),
       content: formattedContent,
-      call: call ?? null,
+      call: null,
       pinned: false,
       recalled: false,
       reactions: [],
@@ -115,6 +120,201 @@ export class MessagesService {
     });
 
     return message;
+  }
+
+  async createCallMessage(callMessageDto: CallMessageDto) {
+    const { senderId, conversationId } = callMessageDto;
+
+    const objectSenderId = new Types.ObjectId(senderId);
+    const objectConversationId = new Types.ObjectId(conversationId);
+
+    const member = await this.memberModel.findOne({
+      userId: objectSenderId,
+      conversationId: objectConversationId,
+      leftAt: null,
+    });
+
+    if (!member) {
+      throw new NotFoundException(
+        'User is not a participant in this conversation',
+      );
+    }
+
+    const message = await this.messageModel.create({
+      senderId: new Types.ObjectId(senderId),
+      conversationId: new Types.ObjectId(conversationId),
+      content: null,
+      call: {
+        type: callMessageDto.type,
+        status: CallStatus.INITIATED,
+        startedAt: null,
+        endedAt: null,
+        duration: null,
+      },
+      pinned: false,
+      recalled: false,
+      reactions: [],
+      readReceipts: [
+        {
+          userId: new Types.ObjectId(senderId),
+        },
+      ],
+      repliedId: null,
+    });
+
+    return message;
+  }
+
+  async updateCallMessage(updateCallMessageDto: UpdateCallMessageDto) {
+    const { messageId, status } = updateCallMessageDto;
+
+    const objectMessageId = new Types.ObjectId(messageId);
+
+    if (status === CallStatus.RINGING) {
+      const updated = await this.messageModel.findOneAndUpdate(
+        {
+          _id: objectMessageId,
+          'call.status': CallStatus.INITIATED,
+        },
+        {
+          $set: {
+            'call.status': CallStatus.RINGING,
+            'call.duration': 0,
+          },
+        },
+        { new: true },
+      );
+
+      if (!updated) {
+        throw new BadRequestException(
+          'Call message not found or not in INITIATED status',
+        );
+      }
+
+      return updated;
+    } else if (status === CallStatus.MISSED) {
+      const updated = await this.messageModel.updateOne(
+        {
+          _id: objectMessageId,
+          'call.status': { $in: [CallStatus.INITIATED, CallStatus.RINGING] },
+        },
+        {
+          $set: {
+            'call.status': CallStatus.MISSED,
+            'call.startedAt': null,
+            'call.endedAt': null,
+            'call.duration': 0,
+          },
+        },
+      );
+
+      if (updated.modifiedCount === 0) {
+        throw new BadRequestException(
+          'Call message not found or not in INITIATED or RINGING status',
+        );
+      }
+
+      return updated;
+    } else if (status === CallStatus.REJECTED) {
+      const updated = await this.messageModel.updateOne(
+        {
+          _id: objectMessageId,
+          'call.status': CallStatus.RINGING,
+        },
+        {
+          $set: {
+            'call.status': CallStatus.MISSED,
+            'call.startedAt': null,
+            'call.endedAt': null,
+            'call.duration': 0,
+          },
+        },
+      );
+
+      if (updated.modifiedCount === 0) {
+        throw new BadRequestException(
+          'Call message not found or not in RINGING status',
+        );
+      }
+
+      return updated;
+    } else if (status === CallStatus.BUSY) {
+      const updated = await this.messageModel.updateOne(
+        {
+          _id: objectMessageId,
+          'call.status': CallStatus.RINGING,
+        },
+        {
+          $set: {
+            'call.status': CallStatus.BUSY,
+            'call.startedAt': null,
+            'call.endedAt': null,
+            'call.duration': 0,
+          },
+        },
+      );
+
+      if (updated.modifiedCount === 0) {
+        throw new BadRequestException(
+          'Call message not found or not in RINGING status',
+        );
+      }
+
+      return updated;
+    } else if (status === CallStatus.ACCEPTED) {
+      const updated = await this.messageModel.updateOne(
+        {
+          _id: objectMessageId,
+          'call.status': CallStatus.RINGING,
+        },
+        {
+          $set: {
+            'call.status': CallStatus.ACCEPTED,
+            'call.startedAt': new Date(),
+          },
+        },
+      );
+
+      if (updated.modifiedCount === 0) {
+        throw new BadRequestException(
+          'Call message not found or not in RINGING status',
+        );
+      }
+
+      return updated;
+    } else if (status === CallStatus.ENDED) {
+      const message = await this.messageModel.findOne({
+        _id: objectMessageId,
+        'call.status': CallStatus.ACCEPTED,
+      });
+
+      if (!message) {
+        throw new BadRequestException(
+          'Call message not found or not in ACCEPTED status',
+        );
+      }
+
+      if (!message.call?.startedAt) {
+        throw new BadRequestException('Call has no start time');
+      }
+
+      const now = new Date();
+      const duration =
+        (now.getTime() - message.call.startedAt.getTime()) / 1000;
+
+      const updated = await this.messageModel.updateOne(
+        { _id: objectMessageId },
+        {
+          $set: {
+            'call.status': CallStatus.ENDED,
+            'call.endedAt': now,
+            'call.duration': Math.floor(duration),
+          },
+        },
+      );
+
+      return updated;
+    }
   }
 
   async pinnedMessage(pinnedMessageDto: PinnedMessageDto) {

@@ -14,6 +14,8 @@ import { ReactionDto } from './dto/reaction.dto';
 import { RemoveReactionDto } from './dto/remove-reaction.dto';
 import { ReadReceiptDto } from './dto/read-reciept.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { CallMessageDto } from './dto/call-message.dto';
+import { UpdateCallMessageDto } from './dto/update-call-message.dto';
 
 @Controller('messages')
 export class MessagesController {
@@ -26,6 +28,16 @@ export class MessagesController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     return this.messagesService.sendMessage(sendMessageDto, file);
+  }
+
+  @Post('call')
+  async sendCallMessage(@Body() callMessageDto: CallMessageDto) {
+    return this.messagesService.createCallMessage(callMessageDto);
+  }
+
+  @Patch('call')
+  async updateCallMessage(@Body() updateCallMessageDto: UpdateCallMessageDto) {
+    return this.messagesService.updateCallMessage(updateCallMessageDto);
   }
 
   @Patch('pinned')
