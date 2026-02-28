@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { User } from './schemas/user.schema';
 import { Model } from 'mongoose';
 import { Gender } from '@zalo-clone/shared-types';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
@@ -17,8 +18,9 @@ export class UsersService {
     name: string,
     gender: Gender,
     birthday: Date,
-    password: string,
+    pass: string,
   ) {
+    const password = await bcrypt.hash(pass, 10);
     const profile = {
       name,
       gender,
@@ -26,15 +28,14 @@ export class UsersService {
     };
     try {
       // Tạo user với phone và profile
-      return await this.userModel.create({
-        phone,
-        profile,
-        password,
-        settings: {
-          allowMessagesFromStrangers: true,
-          allowCallFromStrangers: true,
-        },
-      });
+      if (
+        await this.userModel.create({
+          phone,
+          profile,
+          password,
+        })
+      )
+        return true;
     } catch (err) {
       console.log(`Lỗi tạo người dùng mới ${err as string}`);
       throw new InternalServerErrorException(

@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import {
   CanActivate,
   ExecutionContext,
@@ -9,7 +10,10 @@ import { Request } from 'express';
 
 @Injectable()
 export class TempVerifyGuard implements CanActivate {
-  constructor(private jwtService: JwtService) {}
+  constructor(
+    private jwtService: JwtService,
+    private configService: ConfigService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
@@ -22,7 +26,7 @@ export class TempVerifyGuard implements CanActivate {
       const payload = await this.jwtService.verifyAsync<
         Record<string, unknown>
       >(token, {
-        secret: String(process.env.JWT_TEMP_SECRET),
+        secret: this.configService.get<string>('tmp_secret'),
       });
       request['user'] = payload;
     } catch (err) {

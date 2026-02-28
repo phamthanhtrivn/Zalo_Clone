@@ -9,6 +9,8 @@ import { MembersModule } from './modules/members/members.module';
 import { ConversationSettingsModule } from './modules/conversation-settings/conversation-settings.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { RedisModule } from './common/redis/redis.module';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtAuthGuard } from './modules/auth/passport/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -29,6 +31,12 @@ import { RedisModule } from './common/redis/redis.module';
     MembersModule,
     ConversationSettingsModule,
     AuthModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
   ],
 })
 export class AppModule {}

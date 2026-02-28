@@ -4,32 +4,40 @@ import {
   Controller,
   InternalServerErrorException,
   Post,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { SignUpDto } from './dto/signUp.dto';
-import { TempVerifyGuard } from './guards/temp-auth.guard';
+import { TempVerifyGuard } from './passport/temp-auth.guard';
+import { LocalAuthGuard } from './guards/local-auth.guard';
+import { Public } from 'src/common/decorator/is-public.decorator';
+import { RequestOtpDTO } from './dto/request-otp.dto';
+import { AuthUser } from './auth.type';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(private readonly authService: AuthService) {}
 
-  @Post('otp/send')
-  async sendOtp(@Body('phone') phone: string) {
-    return this.authService.sendOtp(phone);
+  @Post('sign-up')
+  @Public()
+  async signUp(@Body() requestOtp: RequestOtpDTO) {
+    return this.authService.signUp(requestOtp.phone);
   }
 
   @Post('otp/verify')
-  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
-    return this.authService.verifyOtp(verifyOtpDto.phone, verifyOtpDto.otp);
+  @Public()
+  verifyOtp(@Body() verifyOtp: VerifyOtpDto) {
+    return this.authService.verifyOtp(verifyOtp.phone, verifyOtp.otp);
   }
 
-  @Post('sign-up')
+  @Post('complete-sign-up')
+  @Public()
   @UseGuards(TempVerifyGuard)
-  async signUp(@Body() signUpDto: SignUpDto) {
+  async completeSignUp(@Body() signUpDto: SignUpDto) {
     console.log('Request user:', signUpDto);
     try {
-      return await this.authService.signUp(
+      return await this.authService.completeSignUp(
         signUpDto.phone,
         signUpDto.name,
         signUpDto.gender,
@@ -40,5 +48,12 @@ export class AuthController {
       console.log(`Lỗi khi sign up: ${err}`);
       throw new InternalServerErrorException('Lỗi sign up');
     }
+  }
+
+  @Post('sign-in')
+  @Public()
+  @UseGuards(LocalAuthGuard)
+  logIn(@Request() req: { user: AuthUser }) {
+    return this.authService.signIn(req.user);
   }
 }
