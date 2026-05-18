@@ -356,7 +356,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({
           } catch (e) {
             console.warn("Signal error (1-1):", e);
           }
-        } else if (data.signal.type === "offer") {
+        } else if (data.signal.type === "offer" || !data.signal.type) {
           setPendingSignals((prev) => [...prev, data.signal]);
         }
       }
