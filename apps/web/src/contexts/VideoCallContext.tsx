@@ -526,7 +526,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const p = new Peer({
         initiator: true,
-        trickle: true,
+        trickle: false,
         stream: currentStream,
         config: ICE_SERVERS,
       });
@@ -587,7 +587,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const p = new Peer({
         initiator: false,
-        trickle: true,
+        trickle: false,
         stream: currentStream,
         config: ICE_SERVERS,
       });
