@@ -59,6 +59,7 @@ export async function getListUserForStatus(
         friendId: '$friendInfo._id',
         name: '$friendInfo.profile.name',
         avatarUrl: '$friendInfo.profile.avatarUrl',
+        birthday: '$friendInfo.profile.birthday',
         status: '$friends.status',
       },
     },

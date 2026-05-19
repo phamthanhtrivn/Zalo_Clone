@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Search } from "lucide-react";
+import { useSelector } from "react-redux";
 
 type Friend = {
   friendId: string;
@@ -53,6 +54,8 @@ const CreateGroupModal = ({
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [isLoadingFriends, setIsLoadingFriends] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const userId = useSelector((item: any) => item.auth.user.userId);
+
 
   const excludeSet = useMemo(
     () => new Set(excludeUserIds.filter(Boolean)),
@@ -75,7 +78,7 @@ const CreateGroupModal = ({
     const loadFriends = async () => {
       try {
         setIsLoadingFriends(true);
-        const response = await userService.getListFriends();
+        const response = await userService.searchFriend("",userId);
         const groups: FriendGroup[] = response?.data?.users || [];
         const flattened = groups.flatMap((group) => group.friends || []);
         setFriends(flattened);
@@ -253,3 +256,4 @@ const CreateGroupModal = ({
 };
 
 export default CreateGroupModal;
+  

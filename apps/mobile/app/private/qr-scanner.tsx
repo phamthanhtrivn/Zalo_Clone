@@ -13,10 +13,11 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
-import { useAppDispatch } from "@/store/store";
+import { useAppDispatch, useAppSelector } from "@/store/store";
 import { scanQrLogin } from "@/store/auth/authThunk";
 import { conversationService } from "@/services/conversation.service";
 import GroupAvatar from "@/components/ui/GroupAvatar";
+import { userService } from "@/services/user.service";
 
 export default function QRScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -29,6 +30,7 @@ export default function QRScannerScreen() {
 
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const userId = useAppSelector((state: any) => state.auth.user?.userId || state.auth.user?._id);
 
   // 1. Kiểm tra quyền
   if (!permission) return <View style={{ flex: 1, backgroundColor: 'black' }} />;
@@ -95,7 +97,42 @@ export default function QRScannerScreen() {
       return;
     }
 
-    // --- CASE 2: ĐĂNG NHẬP WEB ---
+    // --- CASE 2: TÌM KIẾM BẠN BÈ QUA SỐ ĐIỆN THOẠI ---
+    const phoneRegex = /^[0-9]{10,11}$/;
+    if (phoneRegex.test(data.trim())) {
+      setLoading(true);
+      try {
+        const phoneFromQR = data.trim();
+        const friendData = await userService.searchFriendByPhone(userId, phoneFromQR);
+        if (!friendData) {
+          ToastAndroid.show("Không tìm thấy người dùng", ToastAndroid.SHORT);
+          setTimeout(() => setScanned(false), 2000);
+          return;
+        }
+
+        router.replace({
+          pathname: "/private/search-profile",
+          params: {
+            phone: phoneFromQR,
+            friendId: friendData.friendId || "",
+            name: friendData.name || "",
+            avatarUrl: friendData.avatarUrl || "",
+            status: friendData.status || "NONE",
+          },
+        });
+      } catch (err: any) {
+        ToastAndroid.show(
+          err?.response?.data?.message || "Lỗi khi tìm kiếm người dùng",
+          ToastAndroid.SHORT
+        );
+        setTimeout(() => setScanned(false), 2000);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // --- CASE 3: ĐĂNG NHẬP WEB ---
     try {
       const rs = await dispatch(scanQrLogin(data)).unwrap();
       router.push({

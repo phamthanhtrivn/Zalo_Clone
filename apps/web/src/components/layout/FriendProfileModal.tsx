@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { X, Phone, MessageSquare, Users, Contact, Ban, User } from "lucide-react";
+import { X, Phone, MessageSquare, Users, Ban, User } from "lucide-react";
 import AppAvatar from "../common/AppAvatar";
 import { userService } from "@/services/user.service";
 import { conversationService } from "@/services/conversation.service";
 import { formatBirthday } from "@/utils/dateTimeFormat.util";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
+import { useCall } from "@/contexts/VideoCallContext";
+import { CallType } from "@/constants/types";
 
 type UserProfile = {
   name?: string;
@@ -45,6 +47,7 @@ export default function FriendProfileModal({
   const [profile, setProfile] = useState<UserInformation | null>(null);
   const [commonGroupsCount, setCommonGroupsCount] = useState(0);
   const userId = useSelector((item: any) => item.auth.user.userId);
+  const { startDirectCall } = useCall();
 
 
   useEffect(() => {
@@ -78,6 +81,34 @@ export default function FriendProfileModal({
   const birthday = profile?.profile?.birthday
     ? formatBirthday(new Date(profile.profile.birthday))
     : "Chưa cập nhật";
+
+  const handleVoiceCall = async () => {
+    if (!profileId) {
+      toast.error("Không tìm thấy người dùng để gọi");
+      return;
+    }
+
+    try {
+      const res = await conversationService.getOrCreateDirect(profileId);
+      const conversationId = res?.data?.conversationId || res?.conversationId || res?.data?._id || res?._id;
+
+      if (!conversationId) {
+        toast.error("Không thể mở cuộc gọi");
+        return;
+      }
+
+      startDirectCall(
+        profileId,
+        conversationId,
+        CallType.VOICE,
+        displayName,
+        displayAvatar,
+      );
+    } catch (error) {
+      console.error("Failed to start voice call:", error);
+      toast.error("Không thể gọi điện lúc này");
+    }
+  };
 
     const handelBock = () => {
       const blockFriend = async () => {
@@ -162,7 +193,10 @@ export default function FriendProfileModal({
 
               {/* Action buttons */}
               <div className="mb-3 grid grid-cols-2 gap-2.5">
-                <button className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-gray-50 py-[7px] text-[13px] font-semibold text-gray-700 transition-colors hover:bg-gray-100">
+                <button
+                  onClick={handleVoiceCall}
+                  className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-gray-50 py-[7px] text-[13px] font-semibold text-gray-700 transition-colors hover:bg-gray-100"
+                >
                   <Phone size={15} />
                   Gọi điện
                 </button>

@@ -52,7 +52,7 @@ const CreateGroupModal: React.FC<Props> = ({
       userService
         .getFriends()
         .then((res: any) => {
-          const groups = res?.data?.users || [];
+          const groups = res?.users || [];
           const rawFriends = groups.flatMap((g: any) => g.friends || []);
           const cleanFriends = rawFriends.map((f: any) => ({
             id: f.friendId || f._id,

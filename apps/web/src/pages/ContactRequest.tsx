@@ -1,18 +1,15 @@
 import { UserPlus } from "lucide-react";
 import Mailbox from "@/assets/Mailbox.svg";
-import { useEffect, useState } from "react";
 import { userService } from "@/services/user.service";
 import UserRequestCart from "@/components/layout/UserRequestCard";
 import UserSendCart from "@/components/layout/UserSendCart";
 import UserSuggestCart from "@/components/layout/UserSuggestCart";
 import { useSelector } from "react-redux";
-import { useSocket } from "@/contexts/SocketContext";
 import { toast } from "react-toastify";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const ContactRequest = () => {
   const userId = useSelector((item: any) => item.auth.user.userId);
-  const { socket } = useSocket();
   const queryClient = useQueryClient();
 
   // 1. Fetch Lời mời đã nhận
@@ -47,42 +44,6 @@ const ContactRequest = () => {
     enabled: !!userId,
     staleTime: 1000 * 60 * 5,
   });
-
-  useEffect(() => {
-    if (!socket) return;
-
-    function handleReceiveRequest(data: any) {
-      queryClient.setQueryData(["friendRequests", "received", userId], (old: any) => {
-        return [data, ...(old || [])];
-      });
-      toast.info(`Bạn có lời mời kết bạn mới từ ${data.name}!`);
-    }
-
-    const handleFriendAccepted = (data: any) => {
-      queryClient.setQueryData(["friendRequests", "sent", userId], (old: any) => {
-        return (old || []).filter((user: any) => user.friendId !== data.friendId);
-      });
-      queryClient.invalidateQueries({ queryKey: ["friends"] }); // Cập nhật danh sách bạn bè chính
-      toast.success(`${data.name} đã chấp nhận lời mời kết bạn!`);
-    };
-
-    const handleCancelFriendRequest = (friendId: string) => {
-      queryClient.setQueryData(["friendRequests", "received", userId], (old: any) => {
-        return (old || []).filter((user: any) => user.friendId !== friendId);
-      });
-      toast.info("Lời mời kết bạn đã bị hủy!");
-    };
-
-    socket.on("receive_friend_request", handleReceiveRequest);
-    socket.on("friend_accepted", handleFriendAccepted);
-    socket.on("cancel_friend_request", handleCancelFriendRequest);
-
-    return () => {
-      socket.off("receive_friend_request", handleReceiveRequest);
-      socket.off("friend_accepted", handleFriendAccepted);
-      socket.off("cancel_friend_request", handleCancelFriendRequest);
-    };
-  }, [socket, queryClient, userId]);
 
   const handelAccept = (id: string) => {
     const acceptFriend = async () => {
@@ -152,9 +113,11 @@ const ContactRequest = () => {
     toast.success("Bỏ qua thành công");
   };
 
+  console.log("receivedUsers",receivedUsers);
+
   return (
     <div className="flex-1 overflow-y-auto flex-col bg-white overflow-hidden">
-      <header className="h-[64px] border-b border-[#e5e7eb] flex items-center px-4 shrink-0">
+      <header className="h-16 border-b border-[#e5e7eb] flex items-center px-4 shrink-0">
         <div className="flex items-center gap-3">
           <UserPlus className="w-5 h-5 text-gray-600" />
           <h1 className="text-[16px] font-semibold text-gray-800">

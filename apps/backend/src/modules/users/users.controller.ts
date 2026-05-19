@@ -18,9 +18,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('users')
 export class UsersController {
-  constructor(
-    private readonly usersService: UsersService,
-  ) { }
+  constructor(private readonly usersService: UsersService) {}
 
   @Get()
   async findByPhone(phone: string) {

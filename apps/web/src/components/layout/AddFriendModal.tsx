@@ -11,6 +11,7 @@ const AddFriendModal = ({ onClose }: any) => {
 
   const [userSearch, setUserSearch] = useState<any>(null);
   const [suggestUsers, setSuggestUsers] = useState<any>([]);
+  const [showAllSuggestions, setShowAllSuggestions] = useState(false);
 
   useEffect(() => {
     const fetchSuggestions = async () => {
@@ -103,7 +104,7 @@ const AddFriendModal = ({ onClose }: any) => {
             <div className="space-y-3">
               {suggestUsers.length > 0 ? (
                 <>
-                  {suggestUsers.slice(0, 3).map((user: any) => (
+                  {suggestUsers.slice(0, showAllSuggestions ? suggestUsers.length : 3).map((user: any) => (
                     <FriendSearchResultItem
                       key={user.friendId}
                       user={{ ...user, source: "Gợi ý kết bạn" }}
@@ -111,8 +112,12 @@ const AddFriendModal = ({ onClose }: any) => {
                       setUserSearch={setUserSearch}
                     />
                   ))}
-                  {suggestUsers.length > 3 && (
-                    <button className="w-full py-2 text-blue-600 text-sm font-semibold hover:bg-blue-50 rounded-lg transition-colors">
+                  {suggestUsers.length > 3 && !showAllSuggestions && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllSuggestions(true)}
+                      className="w-full py-2 text-blue-600 text-sm font-semibold hover:bg-blue-50 rounded-lg transition-colors"
+                    >
                       Xem thêm
                     </button>
                   )}

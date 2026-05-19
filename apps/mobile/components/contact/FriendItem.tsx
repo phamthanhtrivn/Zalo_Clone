@@ -24,7 +24,7 @@ function FriendItem({ item, isOnline, onStartConversation, onStartVideoCall }: a
 
       {/* Cụm Icon Call & Video */}
       <View className="flex-row gap-x-6 items-center pr-1">
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => item && onStartVideoCall?.(item)}>
           <Ionicons name="call-outline" size={22} color="#555" />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => item && onStartVideoCall?.(item)}>

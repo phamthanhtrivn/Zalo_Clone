@@ -44,6 +44,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "react-toastify";
+import { useQueryClient } from "@tanstack/react-query";
 import { clearAuth } from "@/store/auth/authSlice";
 import { getDeviceId } from "@/utils/device.util";
 import { userService } from "@/services/user.service";
@@ -94,6 +95,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
   const user = useAppSelector((state) => state.auth.user);
   const accessToken = useAppSelector((state) => state.auth.accessToken);
   const conversations = useAppSelector((state: RootState) => state.conversation.conversations);
+
+  const queryClient = useQueryClient();
 
   const socketRef = useRef<Socket | null>(null);
   const conversationsRef = useRef(conversations);
@@ -339,6 +342,63 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       setAiStreamingText((prev) => prev + data.text);
     }
   }, []);
+
+  // --- FRIEND / CONTACT SOCKET HANDLERS ---
+  const handleReceiveFriendRequest = useCallback((payload: any) => {
+    try {
+      const currentUserId = user?.userId;
+      if (!currentUserId) return;
+      const queryKey = ["friendRequests", "received", currentUserId];
+      queryClient.setQueryData(queryKey, (old: any) => {
+        const arr = Array.isArray(old) ? old.slice() : [];
+        // avoid dup
+        if (!arr.some((i: any) => i.friendId === payload.friendId)) {
+          arr.unshift(payload);
+        }
+        return arr;
+      });
+      toast.info("Bạn có lời mời kết bạn mới");
+    } catch (err) {
+      console.error("handleReceiveFriendRequest error", err);
+    }
+  }, [queryClient, user?.userId]);
+
+  const handleFriendAccepted = useCallback((payload: any) => {
+    try {
+      const currentUserId = user?.userId;
+      if (!currentUserId) return;
+      const friendName = payload?.name || "Người bạn";
+      const friendId = payload?.friendId;
+
+      // Invalidate received request list and all friends queries (so ContactPage refetches)
+      queryClient.invalidateQueries({ queryKey: ["friendRequests", "received", currentUserId] });
+      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === "friends" });
+
+      // Invalidate friend queries so ContactPage refetches and shows updated list
+
+      toast.success(`${friendName} đã chấp nhận lời mời kết bạn`);
+    } catch (err) {
+      console.error("handleFriendAccepted error", err);
+    }
+  }, [queryClient, user?.userId]);
+
+  const handleCancelFriendRequest = useCallback((payload: any) => {
+    try {
+      const currentUserId = user?.userId;
+      if (!currentUserId) return;
+      // Remove from received list
+      queryClient.setQueryData(["friendRequests", "received", currentUserId], (old: any) => {
+        return (old || []).filter((i: any) => i.friendId !== payload.friendId);
+      });
+      // Remove from sent list
+      queryClient.setQueryData(["friendRequests", "sent", currentUserId], (old: any) => {
+        return (old || []).filter((i: any) => i.friendId !== payload.friendId);
+      });
+      toast.info("Lời mời kết bạn đã bị hủy");
+    } catch (err) {
+      console.error("handleCancelFriendRequest error", err);
+    }
+  }, [queryClient, user?.userId]);
 
   // --- INITIALIZE SOCKET & ATTACH LISTENERS ---
   useEffect(() => {
@@ -634,6 +694,9 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
     socketInstance.on("ai_status", handleAiStatus);
     socketInstance.on("ai_typing_chunk", handleAiTypingChunk);
     socketInstance.on("user_status_change", handleUserStatusChange);
+    socketInstance.on("receive_friend_request", handleReceiveFriendRequest);
+    socketInstance.on("friend_accepted", handleFriendAccepted);
+    socketInstance.on("cancel_friend_request", handleCancelFriendRequest);
 
     return () => {
       socketInstance.off("connect", onConnect);
@@ -673,11 +736,14 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       socketInstance.off("ai_status", handleAiStatus);
       socketInstance.off("ai_typing_chunk", handleAiTypingChunk);
       socketInstance.off("user_status_change", handleUserStatusChange);
+      socketInstance.off("receive_friend_request", handleReceiveFriendRequest);
+      socketInstance.off("friend_accepted", handleFriendAccepted);
+      socketInstance.off("cancel_friend_request", handleCancelFriendRequest);
 
       socketInstance.disconnect();
       socketRef.current = null;
     };
-  }, [apiUrl, user?.userId, accessToken, handleNewMessage, handleMessageReacted, handleMessageRecalled, handleMessagePinned, handleReadReceipt, handleMessagesExpired, handleUpdatePoll, handlePollOptionAdded, handleGroupDisbanded, handleForceLogout, handleAiStatus, handleAiTypingChunk]);
+  }, [apiUrl, user?.userId, accessToken, handleNewMessage, handleMessageReacted, handleMessageRecalled, handleMessagePinned, handleReadReceipt, handleMessagesExpired, handleUpdatePoll, handlePollOptionAdded, handleGroupDisbanded, handleForceLogout, handleAiStatus, handleAiTypingChunk, handleReceiveFriendRequest, handleFriendAccepted, handleCancelFriendRequest]);
 
   return (
     <SocketContext.Provider

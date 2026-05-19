@@ -1410,13 +1410,13 @@ const ConversationInfoSheet: React.FC<Props> = ({
                         onPress={() => handleMemberAction(m)}
                       >
                         <GroupAvatar
-                          uri={m.profile?.avatarUrl}
-                          name={m.profile?.name || "User"}
+                          uri={m.avatarUrl || m.profile?.avatarUrl}
+                          name={m.name || m.profile?.name || "User"}
                           size={44}
                         />
                         <View className="flex-1 ml-3">
                           <Text className="text-[15px] font-medium text-[#1f2937]">
-                            {m.profile?.name}{" "}
+                            {m.name || m.profile?.name}{" "}
                             {m.userId === currentUserId && "(Bạn)"}
                           </Text>
                           {m.role !== "MEMBER" && (
