@@ -48,6 +48,8 @@ import GroupAvatar from "../ui/GroupAvatar";
 import ShareGroupQRModal from "./ShareGroupQRModal";
 import { pollService } from "@/services/poll.service";
 import ConversationPinModal from "./ConversationPinModal";
+import { ConversationStorageSheet } from "./ConversationStorageSheet";
+import { MobileImageViewer } from "../ui/MobileImageViewer";
 
 const { width } = Dimensions.get("window");
 
@@ -103,12 +105,12 @@ const ConversationInfoSheet: React.FC<Props> = ({
   const dispatch = useAppDispatch();
   const [showMuteOptions, setShowMuteOptions] = useState(false);
   const [expandedMedia, setExpandedMedia] = useState(true);
-  const [expandedFile, setExpandedFile] = useState(false);
-  const [expandedLink, setExpandedLink] = useState(false);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [fullListType, setFullListType] = useState<
     null | "media" | "file" | "link" | "member"
   >(null);
+  const [storageSheetVisible, setStorageSheetVisible] = useState(false);
+  const [storageInitialTab, setStorageInitialTab] = useState<"media" | "files" | "links">("media");
   const [pinModalVisible, setPinModalVisible] = useState(false);
   const [pinLoading, setPinLoading] = useState(false);
 
@@ -133,6 +135,7 @@ const ConversationInfoSheet: React.FC<Props> = ({
         (c) => c.conversationId === conversation?.conversationId,
       ),
     ) || conversation;
+  const isAI = conversation?.type === "AI" || currentConversation?.type === "AI";
   // --- FIX CỐT LÕI: LOCAL STATE CHO SWITCH ĐỂ TRÁNH BỊ GIẬT ---
   const [localSettings, setLocalSettings] = useState({
     allowMembersInvite: true,
@@ -628,7 +631,7 @@ const ConversationInfoSheet: React.FC<Props> = ({
       Alert.alert(
         "Lỗi",
         err?.response?.data?.message ||
-          "Không thể thực hiện thao tác này. Vui lòng thử lại.",
+        "Không thể thực hiện thao tác này. Vui lòng thử lại.",
       );
     }
   };
@@ -731,9 +734,6 @@ const ConversationInfoSheet: React.FC<Props> = ({
   const shouldShowUnhideButton =
     openedFromSearch && !isGroup && !!currentConversation?.hidden;
 
-  const visibleMedias = medias.slice(0, 6);
-  const visibleFiles = files.slice(0, 6);
-  const visibleLinks = links.slice(0, 6);
   const visibleMembers = members.slice(0, 15);
   const fullListTitle =
     fullListType === "media"
@@ -832,7 +832,7 @@ const ConversationInfoSheet: React.FC<Props> = ({
               Alert.alert(
                 "Lỗi",
                 err?.response?.data?.message ||
-                  "Không thể xóa lịch sử trò chuyện",
+                "Không thể xóa lịch sử trò chuyện",
               );
             }
           },
@@ -910,7 +910,7 @@ const ConversationInfoSheet: React.FC<Props> = ({
                   />
                 ) : (
                   <View className="flex-row items-center gap-2">
-                    <Text className="text-lg font-bold text-[#111827]">
+                    <Text className="text-base font-bold text-[#111827]">
                       {currentConversation?.name}
                     </Text>
                     {isGroup && (isOwner || isAdmin) && (
@@ -923,72 +923,74 @@ const ConversationInfoSheet: React.FC<Props> = ({
               </View>
             </View>
 
-            <View className="bg-white flex-row justify-around py-3.5 mb-2">
-              {[
-                {
-                  icon: "notifications-outline",
-                  label: isMuted ? "Bật thông báo" : "Tắt thông báo",
-                  onPress: () =>
-                    isMuted ? handleMute(0) : setShowMuteOptions(true),
-                  active: isMuted,
-                },
-                {
-                  icon: "pin-outline",
-                  label: isPinned ? "Bỏ ghim" : "Ghim hội thoại",
-                  onPress: handlePin,
-                  active: isPinned,
-                },
-                {
-                  icon: isGroup ? "person-add-outline" : "people-outline",
-                  label: isGroup ? "Thêm TV" : "Tạo nhóm",
-                  onPress: () => {
-                    if (isGroup) {
-                      if (canInvite) {
-                        setIsAddMemberVisible(true);
-                      } else {
-                        Alert.alert(
-                          "Thông báo",
-                          "Trưởng/phó nhóm đã tắt quyền mời thành viên đối với thành viên thường.",
-                        );
-                      }
-                    } else {
-                      setIsAddMemberVisible(true);
-                    }
+            {!isAI && (
+              <View className="bg-white flex-row justify-around py-3.5 mb-2">
+                {[
+                  {
+                    icon: "notifications-outline",
+                    label: isMuted ? "Bật thông báo" : "Tắt thông báo",
+                    onPress: () =>
+                      isMuted ? handleMute(0) : setShowMuteOptions(true),
+                    active: isMuted,
                   },
-                  active: false,
-                },
-                {
-                  icon: "qr-code-outline",
-                  label: "Mã QR",
-                  onPress: () => setIsQrModalVisible(true),
-                  active: false,
-                },
-              ].map((action) => (
-                <TouchableOpacity
-                  key={action.label}
-                  onPress={action.onPress}
-                  className="items-center gap-1.5"
-                  style={{ width: width / 4 }}
-                >
-                  <View
-                    className={`w-10 h-10 rounded-full items-center justify-center ${action.active ? "bg-[#dbeafe]" : "bg-[#f3f4f6]"}`}
+                  {
+                    icon: "pin-outline",
+                    label: isPinned ? "Bỏ ghim" : "Ghim hội thoại",
+                    onPress: handlePin,
+                    active: isPinned,
+                  },
+                  {
+                    icon: isGroup ? "person-add-outline" : "people-outline",
+                    label: isGroup ? "Thêm TV" : "Tạo nhóm",
+                    onPress: () => {
+                      if (isGroup) {
+                        if (canInvite) {
+                          setIsAddMemberVisible(true);
+                        } else {
+                          Alert.alert(
+                            "Thông báo",
+                            "Trưởng/phó nhóm đã tắt quyền mời thành viên đối với thành viên thường.",
+                          );
+                        }
+                      } else {
+                        setIsAddMemberVisible(true);
+                      }
+                    },
+                    active: false,
+                  },
+                  {
+                    icon: "qr-code-outline",
+                    label: "Mã QR",
+                    onPress: () => setIsQrModalVisible(true),
+                    active: false,
+                  },
+                ].map((action) => (
+                  <TouchableOpacity
+                    key={action.label}
+                    onPress={action.onPress}
+                    className="items-center gap-1.5"
+                    style={{ width: width / 4 }}
                   >
-                    <Ionicons
-                      name={action.icon as any}
-                      size={20}
-                      color={action.active ? "#0068ff" : "#374151"}
-                    />
-                  </View>
+                    <View
+                      className={`w-10 h-10 rounded-full items-center justify-center ${action.active ? "bg-[#dbeafe]" : "bg-[#f3f4f6]"}`}
+                    >
+                      <Ionicons
+                        name={action.icon as any}
+                        size={20}
+                        color={action.active ? "#0068ff" : "#374151"}
+                      />
+                    </View>
 
-                  <Text
-                    className={`text-[11px] text-center px-1 ${action.active ? "text-[#0068ff]" : "text-[#4b5563]"}`}
-                    numberOfLines={2}
-                  >
-                    {action.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                    <Text
+                      className={`text-[11px] text-center px-1 ${action.active ? "text-[#0068ff]" : "text-[#4b5563]"}`}
+                      numberOfLines={2}
+                    >
+                      {action.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
             {isGroup && (isOwner || isAdmin) && joinRequests.length > 0 && (
               <View className="bg-white mb-2">
                 <SectionHeader
@@ -1124,209 +1126,87 @@ const ConversationInfoSheet: React.FC<Props> = ({
               </View>
             )}
 
-            {/* Media section */}
-            {/* Media section */}
+            {/* Unified Media, File, Link Section */}
             {isReady && (
-              <View className="bg-white mb-2">
+              <View className="bg-white mb-2 pb-4">
                 <SectionHeader
                   icon={
-                    <MaterialIcons name="image" size={18} color="#374151" />
+                    <Ionicons name="folder-open-outline" size={18} color="#374151" />
                   }
-                  title="Ảnh/Video"
+                  title="Ảnh, file, link"
                   expanded={expandedMedia}
                   onToggle={() => setExpandedMedia((v) => !v)}
                 />
                 {expandedMedia && (
-                  <View className="px-3 pb-4">
+                  <View className="px-4 pt-1">
                     {medias.length === 0 ? (
-                      <Text className="text-xs text-[#9ca3af] text-center py-2">
-                        Chưa có ảnh/video trong cuộc trò chuyện
-                      </Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setStorageInitialTab("media");
+                          setStorageSheetVisible(true);
+                        }}
+                        className="py-5 bg-[#f9fafb] border border-dashed border-gray-200 rounded-2xl items-center justify-center"
+                      >
+                        <Ionicons name="images-outline" size={22} color="#9ca3af" />
+                        <Text className="text-[11px] text-gray-400 mt-1 font-semibold">
+                          Chưa có ảnh, file hoặc link. Bấm để xem kho
+                        </Text>
+                      </TouchableOpacity>
                     ) : (
-                      <>
-                        <View className="flex-row flex-wrap gap-0.5">
-                          {visibleMedias.map((media, idx) => {
-                            const file = media?.content?.file;
-                            const isVideo = file?.type === "VIDEO";
-                            return (
-                              <TouchableOpacity
-                                key={idx}
-                                onPress={() => setPreviewIndex(idx)}
-                                className="bg-[#e5e7eb] overflow-hidden"
-                                style={{
-                                  width: (width - 32 - 4) / 3,
-                                  aspectRatio: 1,
-                                }}
-                              >
-                                {isVideo ? (
-                                  <View className="flex-1 items-center justify-center bg-black">
-                                    <Ionicons
-                                      name="play-circle"
-                                      size={36}
-                                      color="white"
-                                    />
-                                  </View>
-                                ) : (
-                                  <Image
-                                    source={{ uri: file?.fileKey }}
-                                    style={{ width: "100%", height: "100%" }}
-                                    contentFit="cover"
+                      <View className="flex-row items-center gap-1.5">
+                        {/* Display up to 4 preview thumbnails */}
+                        {medias.slice(0, 4).map((media, idx) => {
+                          const file = media?.content?.file;
+                          if (!file) return null;
+                          const isVideo = file?.type === "VIDEO";
+                          const tileWidth = (width - 32 - 24) / 5;
+
+                          return (
+                            <TouchableOpacity
+                              key={idx}
+                              onPress={() => {
+                                setPreviewIndex(idx);
+                              }}
+                              className="bg-[#e5e7eb] rounded-xl overflow-hidden"
+                              style={{
+                                width: tileWidth,
+                                height: tileWidth,
+                              }}
+                            >
+                              {isVideo ? (
+                                <View className="flex-1 items-center justify-center bg-black">
+                                  <Ionicons
+                                    name="play-circle"
+                                    size={24}
+                                    color="white"
                                   />
-                                )}
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-                        {medias.length > 6 && (
-                          <TouchableOpacity
-                            className="mt-3 rounded-xl bg-[#f3f4f6] py-3 items-center"
-                            onPress={() => setFullListType("media")}
-                          >
-                            <Text className="text-[14px] font-medium text-[#374151]">
-                              {`Xem tất cả (${medias.length})`}
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                      </>
-                    )}
-                  </View>
-                )}
-              </View>
-            )}
+                                </View>
+                              ) : (
+                                <Image
+                                  source={{ uri: file?.fileKey }}
+                                  style={{ width: "100%", height: "100%" }}
+                                  contentFit="cover"
+                                />
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })}
 
-            {isReady && (
-              <View className="bg-white mb-2">
-                <SectionHeader
-                  icon={
-                    <MaterialIcons
-                      name="insert-drive-file"
-                      size={18}
-                      color="#374151"
-                    />
-                  }
-                  title="File"
-                  expanded={expandedFile}
-                  onToggle={() => setExpandedFile((v) => !v)}
-                />
-                {expandedFile && (
-                  <View className="px-3 pb-4">
-                    {files.length === 0 ? (
-                      <Text className="text-xs text-[#9ca3af] text-center py-2">
-                        Chưa có file trong cuộc trò chuyện
-                      </Text>
-                    ) : (
-                      visibleFiles.map((item, idx) => {
-                        const file = item.content?.file;
-                        return (
-                          <TouchableOpacity
-                            key={idx}
-                            onPress={() => handleDownload(file)}
-                            disabled={downloadingId === file.fileKey}
-                            className="flex-row items-center p-2.5 rounded-xl bg-[#f9fafb] border border-[#f3f4f6] mb-2 gap-2.5"
-                          >
-                            <View className="w-10 h-10 rounded-lg bg-[#dbeafe] items-center justify-center">
-                              <Text className="text-[10px] font-bold text-[#1d4ed8]">
-                                {getFileExt(file.fileName)}
-                              </Text>
-                            </View>
-                            <View className="flex-1">
-                              <Text
-                                numberOfLines={1}
-                                className="text-[13px] font-medium text-[#111]"
-                              >
-                                {truncateFileName(file.fileName, 30)}
-                              </Text>
-                              <Text className="text-[11px] text-[#9ca3af]">
-                                {getDateLabel(item.createdAt)} •{" "}
-                                {formatFileSize(file.fileSize)}
-                              </Text>
-                            </View>
-                            {downloadingId === file.fileKey ? (
-                              <ActivityIndicator size="small" color="#0068ff" />
-                            ) : (
-                              <Ionicons
-                                name="download-outline"
-                                size={17}
-                                color="#0068ff"
-                              />
-                            )}
-                          </TouchableOpacity>
-                        );
-                      })
-                    )}
-                    {files.length > 6 && (
-                      <TouchableOpacity
-                        className="mt-2 rounded-xl bg-[#f3f4f6] py-3 items-center"
-                        onPress={() => setFullListType("file")}
-                      >
-                        <Text className="text-[14px] font-medium text-[#374151]">
-                          {`Xem tất cả (${files.length})`}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                )}
-              </View>
-            )}
-
-            {isReady && (
-              <View className="bg-white mb-2">
-                <SectionHeader
-                  icon={<MaterialIcons name="link" size={18} color="#374151" />}
-                  title="Link"
-                  expanded={expandedLink}
-                  onToggle={() => setExpandedLink((v) => !v)}
-                />
-                {expandedLink && (
-                  <View className="px-3 pb-4">
-                    {links.length === 0 ? (
-                      <Text className="text-xs text-[#9ca3af] text-center py-2">
-                        Chưa có link trong cuộc trò chuyện
-                      </Text>
-                    ) : (
-                      visibleLinks.map((item, idx) => {
-                        const url = item.content?.text;
-                        let domain = url;
-                        try {
-                          domain = new URL(url).hostname.replace("www.", "");
-                        } catch {}
-                        return (
-                          <TouchableOpacity
-                            key={idx}
-                            onPress={() => Linking.openURL(url)}
-                            className="flex-row items-center p-2.5 rounded-xl bg-[#f9fafb] border border-[#f3f4f6] mb-2 gap-2.5"
-                          >
-                            <View className="w-10 h-10 rounded-lg bg-[#f3f4f6] items-center justify-center">
-                              <MaterialIcons
-                                name="link"
-                                size={20}
-                                color="#6b7280"
-                              />
-                            </View>
-                            <View className="flex-1">
-                              <Text
-                                numberOfLines={1}
-                                className="text-[13px] text-[#0068ff]"
-                              >
-                                {url}
-                              </Text>
-                              <Text className="text-[11px] text-[#9ca3af]">
-                                {domain}
-                              </Text>
-                            </View>
-                          </TouchableOpacity>
-                        );
-                      })
-                    )}
-                    {links.length > 6 && (
-                      <TouchableOpacity
-                        className="mt-2 rounded-xl bg-[#f3f4f6] py-3 items-center"
-                        onPress={() => setFullListType("link")}
-                      >
-                        <Text className="text-[14px] font-medium text-[#374151]">
-                          {`Xem tất cả (${links.length})`}
-                        </Text>
-                      </TouchableOpacity>
+                        {/* Last element: The special arrow tile to see all */}
+                        <TouchableOpacity
+                          onPress={() => {
+                            setStorageInitialTab("media");
+                            setStorageSheetVisible(true);
+                          }}
+                          className="bg-[#e5f1ff] rounded-xl items-center justify-center border border-blue-50/50"
+                          style={{
+                            width: (width - 32 - 24) / 5,
+                            height: (width - 32 - 24) / 5,
+                          }}
+                        >
+                          <Ionicons name="arrow-forward" size={24} color="#0068ff" />
+                        </TouchableOpacity>
+                      </View>
                     )}
                   </View>
                 )}
@@ -1560,118 +1440,118 @@ const ConversationInfoSheet: React.FC<Props> = ({
 
                     {fullListType === "file"
                       ? files.map((item, idx) => {
-                          const file = item.content?.file;
-                          return (
-                            <TouchableOpacity
-                              key={`${file?.fileKey || "file"}-${idx}`}
-                              onPress={() => handleDownload(file)}
-                              disabled={downloadingId === file.fileKey}
-                              className="flex-row items-center p-2.5 rounded-xl bg-[#f9fafb] border border-[#f3f4f6] mb-2 gap-2.5"
-                            >
-                              <View className="w-10 h-10 rounded-lg bg-[#dbeafe] items-center justify-center">
-                                <Text className="text-[10px] font-bold text-[#1d4ed8]">
-                                  {getFileExt(file.fileName)}
-                                </Text>
-                              </View>
-                              <View className="flex-1">
-                                <Text
-                                  numberOfLines={1}
-                                  className="text-[13px] font-medium text-[#111]"
-                                >
-                                  {truncateFileName(file.fileName, 30)}
-                                </Text>
-                                <Text className="text-[11px] text-[#9ca3af]">
-                                  {getDateLabel(item.createdAt)} •{" "}
-                                  {formatFileSize(file.fileSize)}
-                                </Text>
-                              </View>
-                              {downloadingId === file.fileKey ? (
-                                <ActivityIndicator
-                                  size="small"
-                                  color="#0068ff"
-                                />
-                              ) : (
-                                <Ionicons
-                                  name="download-outline"
-                                  size={17}
-                                  color="#0068ff"
-                                />
-                              )}
-                            </TouchableOpacity>
-                          );
-                        })
+                        const file = item.content?.file;
+                        return (
+                          <TouchableOpacity
+                            key={`${file?.fileKey || "file"}-${idx}`}
+                            onPress={() => handleDownload(file)}
+                            disabled={downloadingId === file.fileKey}
+                            className="flex-row items-center p-2.5 rounded-xl bg-[#f9fafb] border border-[#f3f4f6] mb-2 gap-2.5"
+                          >
+                            <View className="w-10 h-10 rounded-lg bg-[#dbeafe] items-center justify-center">
+                              <Text className="text-[10px] font-bold text-[#1d4ed8]">
+                                {getFileExt(file.fileName)}
+                              </Text>
+                            </View>
+                            <View className="flex-1">
+                              <Text
+                                numberOfLines={1}
+                                className="text-[13px] font-medium text-[#111]"
+                              >
+                                {truncateFileName(file.fileName, 30)}
+                              </Text>
+                              <Text className="text-[11px] text-[#9ca3af]">
+                                {getDateLabel(item.createdAt)} •{" "}
+                                {formatFileSize(file.fileSize)}
+                              </Text>
+                            </View>
+                            {downloadingId === file.fileKey ? (
+                              <ActivityIndicator
+                                size="small"
+                                color="#0068ff"
+                              />
+                            ) : (
+                              <Ionicons
+                                name="download-outline"
+                                size={17}
+                                color="#0068ff"
+                              />
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })
                       : null}
 
                     {fullListType === "link"
                       ? links.map((item, idx) => {
-                          const url = item.content?.text;
-                          let domain = url;
-                          try {
-                            domain = new URL(url).hostname.replace("www.", "");
-                          } catch {}
-                          return (
-                            <TouchableOpacity
-                              key={`${url || "link"}-${idx}`}
-                              onPress={() => Linking.openURL(url)}
-                              className="flex-row items-center p-2.5 rounded-xl bg-[#f9fafb] border border-[#f3f4f6] mb-2 gap-2.5"
-                            >
-                              <View className="w-10 h-10 rounded-lg bg-[#f3f4f6] items-center justify-center">
-                                <MaterialIcons
-                                  name="link"
-                                  size={20}
-                                  color="#6b7280"
-                                />
-                              </View>
-                              <View className="flex-1">
-                                <Text
-                                  numberOfLines={1}
-                                  className="text-[13px] text-[#0068ff]"
-                                >
-                                  {url}
-                                </Text>
-                                <Text className="text-[11px] text-[#9ca3af]">
-                                  {domain}
-                                </Text>
-                              </View>
-                            </TouchableOpacity>
-                          );
-                        })
+                        const url = item.content?.text;
+                        let domain = url;
+                        try {
+                          domain = new URL(url).hostname.replace("www.", "");
+                        } catch { }
+                        return (
+                          <TouchableOpacity
+                            key={`${url || "link"}-${idx}`}
+                            onPress={() => Linking.openURL(url)}
+                            className="flex-row items-center p-2.5 rounded-xl bg-[#f9fafb] border border-[#f3f4f6] mb-2 gap-2.5"
+                          >
+                            <View className="w-10 h-10 rounded-lg bg-[#f3f4f6] items-center justify-center">
+                              <MaterialIcons
+                                name="link"
+                                size={20}
+                                color="#6b7280"
+                              />
+                            </View>
+                            <View className="flex-1">
+                              <Text
+                                numberOfLines={1}
+                                className="text-[13px] text-[#0068ff]"
+                              >
+                                {url}
+                              </Text>
+                              <Text className="text-[11px] text-[#9ca3af]">
+                                {domain}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })
                       : null}
 
                     {fullListType === "member"
                       ? members.map((m) => (
-                          <TouchableOpacity
-                            key={m.userId}
-                            className="flex-row items-center py-3 border-b border-[#f3f4f6]"
-                            onPress={() => handleMemberAction(m)}
-                          >
-                            <GroupAvatar
-                              uri={m.profile?.avatarUrl}
-                              name={m.profile?.name || "User"}
-                              size={44}
-                            />
-                            <View className="flex-1 ml-3">
-                              <Text className="text-[15px] font-medium text-[#1f2937]">
-                                {m.profile?.name}{" "}
-                                {m.userId === currentUserId && "(Bạn)"}
+                        <TouchableOpacity
+                          key={m.userId}
+                          className="flex-row items-center py-3 border-b border-[#f3f4f6]"
+                          onPress={() => handleMemberAction(m)}
+                        >
+                          <GroupAvatar
+                            uri={m.profile?.avatarUrl}
+                            name={m.profile?.name || "User"}
+                            size={44}
+                          />
+                          <View className="flex-1 ml-3">
+                            <Text className="text-[15px] font-medium text-[#1f2937]">
+                              {m.profile?.name}{" "}
+                              {m.userId === currentUserId && "(Bạn)"}
+                            </Text>
+                            {m.role !== "MEMBER" ? (
+                              <Text className="text-[11px] text-[#0068ff] font-semibold mt-0.5">
+                                {m.role === "OWNER"
+                                  ? "Trưởng nhóm"
+                                  : "Phó nhóm"}
                               </Text>
-                              {m.role !== "MEMBER" ? (
-                                <Text className="text-[11px] text-[#0068ff] font-semibold mt-0.5">
-                                  {m.role === "OWNER"
-                                    ? "Trưởng nhóm"
-                                    : "Phó nhóm"}
-                                </Text>
-                              ) : null}
-                            </View>
-                            {m.userId !== currentUserId ? (
-                              <Ionicons
-                                name="ellipsis-horizontal"
-                                size={18}
-                                color="#9ca3af"
-                              />
                             ) : null}
-                          </TouchableOpacity>
-                        ))
+                          </View>
+                          {m.userId !== currentUserId ? (
+                            <Ionicons
+                              name="ellipsis-horizontal"
+                              size={18}
+                              color="#9ca3af"
+                            />
+                          ) : null}
+                        </TouchableOpacity>
+                      ))
                       : null}
                   </ScrollView>
                 </View>
@@ -1679,82 +1559,17 @@ const ConversationInfoSheet: React.FC<Props> = ({
             </Modal>
           )}
 
-          {previewIndex !== null && (
-            <Modal
-              transparent
-              visible
-              animationType="fade"
-              onRequestClose={() => setPreviewIndex(null)}
-            >
-              <View className="flex-1 bg-black/95 items-center justify-center">
-                <TouchableOpacity
-                  className="absolute top-[50px] right-5 z-10"
-                  onPress={() => setPreviewIndex(null)}
-                >
-                  <Ionicons name="close" size={30} color="white" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  className="absolute top-12 left-5 z-10"
-                  onPress={() => {
-                    const file = medias[previewIndex!]?.content?.file;
-                    if (file) handleDownload(file);
-                  }}
-                  disabled={
-                    downloadingId ===
-                    medias[previewIndex!]?.content?.file?.fileKey
-                  }
-                >
-                  {downloadingId ===
-                  medias[previewIndex!]?.content?.file?.fileKey ? (
-                    <ActivityIndicator color="white" />
-                  ) : (
-                    <Ionicons name="download-outline" size={28} color="white" />
-                  )}
-                </TouchableOpacity>
-
-                {previewIndex > 0 && (
-                  <TouchableOpacity
-                    className="absolute left-5 top-[90%] z-10"
-                    onPress={() =>
-                      setPreviewIndex((p) => (p !== null ? p - 1 : p))
-                    }
-                  >
-                    <Ionicons name="chevron-back" size={36} color="white" />
-                  </TouchableOpacity>
-                )}
-
-                {previewIndex < medias.length - 1 && (
-                  <TouchableOpacity
-                    className="absolute right-5 top-[90%] z-10"
-                    onPress={() =>
-                      setPreviewIndex((p) => (p !== null ? p + 1 : p))
-                    }
-                  >
-                    <Ionicons name="chevron-forward" size={36} color="white" />
-                  </TouchableOpacity>
-                )}
-
-                {(() => {
-                  const file = medias[previewIndex]?.content?.file;
-                  if (!file) return null;
-                  return file.type === "VIDEO" ? (
-                    <Video
-                      source={{ uri: file.fileKey }}
-                      useNativeControls
-                      className="w-[90%] aspect-video"
-                    />
-                  ) : (
-                    <Image
-                      source={{ uri: file.fileKey }}
-                      style={{ width: "90%", height: "80%" }}
-                      contentFit="contain"
-                    />
-                  );
-                })()}
-              </View>
-            </Modal>
-          )}
+          <MobileImageViewer
+            visible={previewIndex !== null}
+            onClose={() => setPreviewIndex(null)}
+            initialIndex={previewIndex ?? 0}
+            mediaList={medias.map((m: any) => ({
+              fileKey: m.content?.file?.fileKey || "",
+              type: m.content?.file?.type || "IMAGE",
+              fileName: m.content?.file?.fileName,
+              mimeType: m.content?.file?.mimeType,
+            }))}
+          />
         </Pressable>
       </Pressable>
       <Modal
@@ -1855,6 +1670,25 @@ const ConversationInfoSheet: React.FC<Props> = ({
           const target = members.find((m) => m.userId === uid);
           if (target) confirmRemoveMember(target);
         }}
+      />
+      <MobileImageViewer
+        visible={previewIndex !== null}
+        onClose={() => setPreviewIndex(null)}
+        initialIndex={previewIndex ?? 0}
+        mediaList={medias.map((item: any) => ({
+          fileKey: item.content?.file?.fileKey || "",
+          type: item.content?.file?.type || "IMAGE",
+          fileName: item.content?.file?.fileName,
+          mimeType: item.content?.file?.mimeType,
+        }))}
+      />
+      <ConversationStorageSheet
+        visible={storageSheetVisible}
+        onClose={() => setStorageSheetVisible(false)}
+        initialTab={storageInitialTab}
+        conversationId={conversation?.conversationId || currentConversation?.conversationId || ""}
+        members={members}
+        currentUserId={currentUserId}
       />
     </Modal>
   );

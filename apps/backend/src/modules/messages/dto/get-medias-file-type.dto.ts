@@ -1,11 +1,11 @@
-import { IsEnum, IsMongoId, IsNumberString, IsOptional } from 'class-validator';
+import { IsIn, IsMongoId, IsNumberString, IsOptional } from 'class-validator';
 import { FileType } from 'src/common/types/enums/file-type';
 
 export class GetMediasFileTypeDto {
   @IsMongoId()
   userId: string;
   @IsOptional()
-  @IsEnum(FileType)
+  @IsIn([...Object.values(FileType), 'LINK'])
   type?: FileType | 'LINK';
   @IsOptional()
   @IsMongoId()

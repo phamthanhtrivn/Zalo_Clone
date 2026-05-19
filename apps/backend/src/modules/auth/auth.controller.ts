@@ -194,13 +194,42 @@ export class AuthController {
   changePassword(
     @Request() req: { user: AuthUser },
     @Body() changePasswordDTO: ChangePasswordDTO,
+    @ClientContext() client: IClientInfo,
   ) {
     return this.authService.changePassword(
       changePasswordDTO.oldPassword,
       changePasswordDTO.newPassword,
       changePasswordDTO.confirmPassword,
       req.user.phone,
+      req.user.userId,
+      client.deviceId,
     );
+  }
+
+  @Post('update-phone/request')
+  @UseGuards(JwtAuthGuard)
+  requestUpdatePhone(
+    @Request() req: { user: AuthUser },
+    @Body('phone') phone: string,
+  ) {
+    if (!phone) {
+      throw new BadRequestException('Số điện thoại không được để trống !');
+    }
+    return this.authService.requestUpdatePhone(req.user.userId, phone);
+  }
+
+  @Post('update-phone/verify')
+  @UseGuards(JwtAuthGuard)
+  verifyUpdatePhone(
+    @Request() req: { user: AuthUser },
+    @Body('phone') phone: string,
+    @Body('otp') otp: string,
+    @ClientContext() client: IClientInfo,
+  ) {
+    if (!phone || !otp) {
+      throw new BadRequestException('Số điện thoại và mã OTP không được để trống !');
+    }
+    return this.authService.verifyUpdatePhone(req.user.userId, phone, otp, client.deviceId);
   }
 
   @Post('token/refresh')

@@ -1,10 +1,9 @@
-import AgreementCheckBox from "@/components/common/AgreementCheckBox";
 import Button from "@/components/common/Button";
 import Container from "@/components/common/Container";
 import Header from "@/components/common/Header";
 import Input from "@/components/common/TextInput";
 import Tips from "@/components/auth/Tips";
-import { changePassword, logOutOther } from "@/store/auth/authThunk";
+import { changePassword } from "@/store/auth/authThunk";
 import { useAppDispatch, useAppSelector } from "@/store/store";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -21,7 +20,6 @@ export default function ChangePassword() {
   const [oldPassword, setOldPassword] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
-  const [logoutOther, setLogoutOther] = useState<boolean>(false);
 
   const [isHiddenPass, setHiddenPass] = useState<boolean>(true);
   const [isHiddenPass1, setHiddenPass1] = useState<boolean>(true);
@@ -37,10 +35,6 @@ export default function ChangePassword() {
           oldPassword: oldPassword,
         }),
       ).unwrap();
-
-      if (logoutOther) {
-        await dispatch(logOutOther()).unwrap();
-      }
 
       showToast("Đổi mật khẩu thành công");
       router.back();
@@ -108,14 +102,6 @@ export default function ChangePassword() {
             {fieldErrors.confirmPassword}
           </Text>
         )}
-
-        <View className="mt-2">
-          <AgreementCheckBox checked={logoutOther} onChange={setLogoutOther}>
-            <Text className="text-sm text-gray-700">
-              Đăng xuất khỏi các thiết bị khác
-            </Text>
-          </AgreementCheckBox>
-        </View>
 
         <Button
           onPress={handleOnUpdate}

@@ -10,7 +10,7 @@ import crypto from 'crypto';
 export class SessionService {
   constructor(
     @InjectModel(Session.name) private sessionModel: Model<Session>,
-  ) {}
+  ) { }
 
   async create(
     userId: string,
@@ -92,5 +92,26 @@ export class SessionService {
     return plainToInstance(SessionResponseDTO, sessions, {
       excludeExtraneousValues: true,
     });
+  }
+
+  async removeAllSessions(userId: string) {
+    const userObjectId = new Types.ObjectId(userId);
+    const sessions = await this.sessionModel.find({
+      userId: userObjectId,
+    }).select('deviceId').lean();
+
+    if (sessions.length === 0) {
+      return { deletedCount: 0, deviceIds: [] };
+    }
+    const deviceIds = sessions.map(s => s.deviceId);
+    const result = await this.sessionModel.deleteMany({
+      userId: userObjectId,
+      deviceId: { $in: deviceIds }
+    });
+
+    return {
+      deletedCount: result.deletedCount,
+      deviceIds: deviceIds,
+    };
   }
 }

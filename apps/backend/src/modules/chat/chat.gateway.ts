@@ -374,6 +374,25 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
+  async forceOfflineUser(userId: string) {
+    try {
+      const redis = this.redisService.getClient();
+      const redisKey = `online:${userId}`;
+      await redis.del(redisKey);
+
+      const now = new Date();
+      await this.usersService.updateLastSeen(userId);
+
+      this.server.emit('user_status_change', {
+        userId,
+        isOnline: false,
+        lastSeenAt: now.toISOString(),
+      });
+    } catch (err) {
+      console.error('Lỗi khi ép offline người dùng:', err);
+    }
+  }
+
   // --- WebRTC Signaling Handlers ---
 
   @SubscribeMessage('call:signal')

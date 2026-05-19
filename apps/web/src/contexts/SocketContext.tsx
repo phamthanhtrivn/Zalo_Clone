@@ -178,8 +178,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  const handleForceLogout = useCallback(() => {
-    toast.info("Phiên đăng nhập đã hết hạn hoặc bạn bị đăng xuất từ nơi khác.");
+  const handleForceLogout = useCallback((data?: { message: string }) => {
+    toast.info(data?.message || "Phiên đăng nhập đã hết hạn hoặc bạn bị đăng xuất từ nơi khác.");
     dispatch(clearAuth());
     if (socketRef.current) socketRef.current.disconnect();
     navigateTo("/login");
@@ -189,6 +189,17 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
   const handleNewMessage = useCallback((newMessage: MessagesType) => {
     const conversationId = newMessage.conversationId;
     if (!conversationId) return;
+
+    // Tránh lộ tin nhắn riêng tư / AI Summary: Nếu là tin nhắn PRIVATE hoặc AI_SUMMARY, 
+    // chỉ xử lý nếu targetUserId là của chính người dùng hiện tại.
+    const isPrivateOrAiSummary =
+      newMessage.type === "PRIVATE" || newMessage.type === "AI_SUMMARY";
+    const targetUserId =
+      (newMessage as any).targetUserId?._id || (newMessage as any).targetUserId;
+
+    if (isPrivateOrAiSummary && targetUserId && targetUserId !== user?.userId) {
+      return;
+    }
 
     const normalizedMessage = {
       ...newMessage,
@@ -442,6 +453,18 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
     const handleNewMessageSidebar = (data: any) => {
       if (!data?.conversationId) return;
       const conversationId = data.conversationId;
+
+      // Tránh lộ tin nhắn riêng tư / AI Summary: Nếu là tin nhắn PRIVATE hoặc AI_SUMMARY,
+      // chỉ cập nhật sidebar nếu targetUserId là của chính người dùng hiện tại.
+      const lastMsg = data.lastMessage || data;
+      const isPrivateOrAiSummary =
+        lastMsg?.type === "PRIVATE" || lastMsg?.type === "AI_SUMMARY";
+      const targetUserId =
+        lastMsg?.targetUserId?._id || lastMsg?.targetUserId || data?.targetUserId;
+
+      if (isPrivateOrAiSummary && targetUserId && targetUserId !== user?.userId) {
+        return;
+      }
 
       // SMELL fix: dùng conversationsRef thay vì conversations để tránh stale closure
       const existsInStore = conversationsRef.current.some(

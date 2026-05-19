@@ -97,6 +97,21 @@ export class AuthService {
     return { message: 'Xác thực thành công', tmp_token };
   }
 
+  async verifyOtpOnly(phone: string, otp: string) {
+    const savedOtp = await this.redisService.get(this.otpKey(phone));
+
+    if (!savedOtp) {
+      throw new BadRequestException('OTP đã hết hạn !');
+    }
+
+    if (otp !== savedOtp) {
+      throw new BadRequestException('Nhập sai mã OTP !');
+    }
+
+    await this.redisService.del(this.otpKey(phone));
+    return true;
+  }
+
   async forgotPassword(phone: string) {
     const user = await this.userService.findByPhone(phone);
     if (!user) {
@@ -110,8 +125,23 @@ export class AuthService {
     }
   }
 
+  async signOutAllDevices(userId: string, currentDeviceId?: string) {
+    const { deviceIds } = await this.sessionService.removeAllSessions(userId);
+
+    for (const deviceId of deviceIds) {
+      if (deviceId !== currentDeviceId) {
+        this.chatGateway.forceLogoutDevice(deviceId);
+      }
+    }
+
+    // Ép trạng thái hoạt động offline và cập nhật lastSeen ngay lập tức
+    await this.chatGateway.forceOfflineUser(userId);
+  }
+
   async resetPassword(user: AuthUser, password: string, client: IClientInfo) {
     await this.userService.updatePassword(user.phone, password);
+
+    await this.signOutAllDevices(user.userId, client.deviceId);
 
     return this.signIn(
       { userId: user.userId, phone: user.phone, name: user.name },
@@ -235,6 +265,8 @@ export class AuthService {
     newPassword: string,
     confirmPassword: string,
     phone: string,
+    userId: string,
+    currentDeviceId?: string,
   ) {
     if (newPassword !== confirmPassword) {
       throw new BadRequestException('Mật khẩu xác nhận không khớp !');
@@ -242,7 +274,35 @@ export class AuthService {
     await this.userService.checkMatchPassword(phone, oldPassword);
     await this.userService.updatePassword(phone, newPassword);
 
+    await this.signOutAllDevices(userId, currentDeviceId);
+
     return { message: 'Đổi mật khẩu thành công' };
+  }
+
+  async requestUpdatePhone(userId: string, newPhone: string) {
+    const existingUser = await this.userService.findByPhone(newPhone);
+    if (existingUser) {
+      throw new BadRequestException('Số điện thoại mới đã được đăng ký bởi một tài khoản khác !');
+    }
+
+    await this.sendOtp(newPhone);
+
+    return { message: 'Mã OTP đã được gửi tới số điện thoại mới thành công.' };
+  }
+
+  async verifyUpdatePhone(userId: string, newPhone: string, otp: string, currentDeviceId?: string) {
+    await this.verifyOtpOnly(newPhone, otp);
+
+    const existingUser = await this.userService.findByPhone(newPhone);
+    if (existingUser) {
+      throw new BadRequestException('Số điện thoại mới đã được đăng ký bởi một tài khoản khác !');
+    }
+
+    await this.userService.updatePhone(userId, newPhone);
+
+    await this.signOutAllDevices(userId, currentDeviceId);
+
+    return { message: 'Cập nhật số điện thoại thành công.' };
   }
 
   async signOut(userId: string, refreshToken: string) {

@@ -72,4 +72,12 @@ export const authService = {
     const res = await api.post("/auth/logout-others");
     return res.data;
   },
+  requestUpdatePhone: async (phone: string) => {
+    const res = await api.post("/auth/update-phone/request", { phone });
+    return res.data;
+  },
+  verifyUpdatePhone: async (phone: string, otp: string) => {
+    const res = await api.post("/auth/update-phone/verify", { phone, otp });
+    return res.data;
+  },
 };

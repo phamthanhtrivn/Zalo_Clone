@@ -90,6 +90,13 @@ export class UsersService {
     );
   }
 
+  async updatePhone(userId: string, newPhone: string) {
+    return await this.userModel.updateOne(
+      { _id: new Types.ObjectId(userId) },
+      { $set: { phone: newPhone } },
+    );
+  }
+
   createTestUser(body: any) {
     return this.userModel.create(body);
   }

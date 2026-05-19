@@ -202,11 +202,18 @@ export const messageService = {
 
   getMediasFileType: async (
     conversationId: string,
-    userId: string,
-    type: "FILE" | "LINK",
+    params: {
+      userId: string;
+      type: "IMAGE" | "VIDEO" | "FILE" | "LINK";
+      senderId?: string;
+      fromDate?: string;
+      toDate?: string;
+      cursor?: string;
+      limit?: number;
+    },
   ) => {
     return await api.get(`/messages/conversation/${conversationId}/medias`, {
-      params: { userId, type },
+      params,
     });
   },
 

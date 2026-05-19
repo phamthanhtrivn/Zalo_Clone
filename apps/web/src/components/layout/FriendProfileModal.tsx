@@ -28,6 +28,7 @@ type FriendProfileModalProps = {
   profileId?: string;
   onClose: () => void;
   onMessage?: () => void;
+  onCall?: () => void;
 };
 
 const getGenderText = (gender?: string) => {
@@ -110,33 +111,33 @@ export default function FriendProfileModal({
     }
   };
 
-    const handelBock = () => {
-      const blockFriend = async () => {
-        try {
-          const data = await userService.blockFriend(profileId!, userId);
-          if (data.data) {
-            toast.success("Chặn bạn thành công !");
-          }
-        } catch (err) {
-          console.log(err);
+  const handelBock = () => {
+    const blockFriend = async () => {
+      try {
+        const data = await userService.blockFriend(profileId!, userId);
+        if (data.data) {
+          toast.success("Chặn bạn thành công !");
         }
-      };
-      blockFriend();
+      } catch (err) {
+        console.log(err);
+      }
     };
-  
-    const handelDeleteFriend = () => {
-      const deleteFriend = async () => {
-        try {
-          const data = await userService.cancelFriend(profileId!, userId);
-          if (data.data) {
-            toast.success("Xóa bạn thành công !");
-          }
-        } catch (err) {
-          console.log(err);
+    blockFriend();
+  };
+
+  const handelDeleteFriend = () => {
+    const deleteFriend = async () => {
+      try {
+        const data = await userService.cancelFriend(profileId!, userId);
+        if (data.data) {
+          toast.success("Xóa bạn thành công !");
         }
-      };
-      deleteFriend();
+      } catch (err) {
+        console.log(err);
+      }
     };
+    deleteFriend();
+  };
 
   return (
     <div

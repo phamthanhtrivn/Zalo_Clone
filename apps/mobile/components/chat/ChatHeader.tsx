@@ -114,9 +114,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       }
       rightChild={
         <View className="flex-row items-center gap-3">
-          <TouchableOpacity className="p-1" onPress={handleVideoCall}>
-            <Ionicons name="videocam-outline" size={moderateScale(24)} color="white" />
-          </TouchableOpacity>
+          {!isAI && (
+            <TouchableOpacity className="p-1" onPress={handleVideoCall}>
+              <Ionicons name="videocam-outline" size={moderateScale(24)} color="white" />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             className="p-1"
             onPress={() =>

@@ -121,7 +121,7 @@ export default function Personal() {
             <GroupAvatar
               uri={userInfo?.profile?.avatarUrl}
               name={userInfo?.profile?.name || "User"}
-              size={scale(72)}
+              size={scale(56)}
             />
             <View className="flex-1 ml-4">
               <Text className="text-gray-500 text-[13px] mb-1">
@@ -137,6 +137,7 @@ export default function Personal() {
           <View className="bg-white rounded-md overflow-hidden border border-gray-100 shadow-sm">
             {/* Số điện thoại */}
             <OptionItem
+              onPress={() => router.push("/private/change-phone")}
               className="gap-4 border-b-[0.2px] border-gray-300 py-4 px-4"
               icon="arrow-forward"
             >
