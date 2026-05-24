@@ -1,4 +1,4 @@
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 import ChatHeader from "@/components/layout/message/ChatHeader";
 import MessageList from "@/components/layout/message/MessageList";
@@ -30,12 +30,14 @@ import {
 import { addMessage } from "@/store/slices/messageSlice"; // Added import for addMessage
 import ForwardModal from "@/components/layout/message/ForwardModal";
 import { conversationService } from "@/services/conversation.service";
+import HomePage from "./HomePage";
 
 const EMPTY_MESSAGES: MessagesType[] = [];
 
 const ConversationPage = () => {
   const { id } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const { conversation: stateConversation, otherUserId: locationOtherUserId } =
     location.state || {};
   const openedFromSearch = Boolean(location.state?.fromSearch);
@@ -46,6 +48,9 @@ const ConversationPage = () => {
 
   const conversations = useAppSelector(
     (state) => state.conversation.conversations,
+  );
+  const isConversationLoading = useAppSelector(
+    (state) => state.conversation.isLoading,
   );
   const replyingMessage = useAppSelector(
     (state) => state.conversation.replyingMessage,
@@ -756,13 +761,15 @@ const ConversationPage = () => {
       socket.emit("leave_room", id);
     };
   }, [socket, id, dispatch, handleMessagesExpired, handleReadReceipt]);
-  if (!conversation)
-    return (
-      <div className="flex-1 flex items-center justify-center text-gray-500 italic">
-        Hội thoại không tồn tại
-      </div>
-    );
 
+  useEffect(() => {
+    if (!id || conversation || isConversationLoading) return;
+    navigate("/", { replace: true });
+  }, [conversation, id, isConversationLoading, navigate]);
+
+  if (!conversation) {
+    return <HomePage />;
+  }
   return (
     <div className="flex flex-1 h-full overflow-hidden">
       <div className="flex-1 flex flex-col h-full bg-[#EBECF0] min-w-0">
@@ -919,6 +926,7 @@ const ConversationPage = () => {
 };
 
 export default ConversationPage;
+
 
 
 

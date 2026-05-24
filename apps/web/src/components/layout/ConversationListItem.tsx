@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MoreHorizontal, Users } from "lucide-react";
 import { MdGroups, MdNotificationsOff } from "react-icons/md";
@@ -160,6 +160,7 @@ const ConversationListItem = ({
       conversation.lastMessage?.expiresAt,
     ),
   );
+  const menuContainerRef = useRef<HTMLDivElement | null>(null);
 
   const closeSubMenu = () => setHoverMenu(null);
   const isDirect = conversation.type === "DIRECT";
@@ -727,6 +728,31 @@ const ConversationListItem = ({
     ? conversation.expireDuration / (24 * 60 * 60 * 1000)
     : 0;
 
+  useEffect(() => {
+    if (openMenu !== conversation.conversationId) return;
+
+    const handlePointerDownOutside = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+
+      if (
+        menuContainerRef.current?.contains(target) ||
+        refs.reference.current?.contains(target) ||
+        refs.floating.current?.contains(target)
+      ) {
+        return;
+      }
+
+      setOpenMenu(null);
+      setHoverMenu(null);
+    };
+
+    document.addEventListener("mousedown", handlePointerDownOutside);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDownOutside);
+    };
+  }, [conversation.conversationId, openMenu, refs.floating, refs.reference, setOpenMenu]);
+
   return (
     <>
       <ConversationPinDialog
@@ -765,6 +791,10 @@ const ConversationListItem = ({
                 try {
                   await deleteConversation(user?.userId, conversation.conversationId);
                   dispatch(removeConversation(conversation.conversationId));
+                  setDeleteDialogOpen(false);
+                  if (isActive) {
+                    navigate("/", { replace: true });
+                  }
                 } catch (error) {
                   console.error("Delete failed:", error);
                 }
@@ -830,7 +860,8 @@ const ConversationListItem = ({
                 )}
               </div>
 
-              <div ref={refs.setReference}>
+              <div ref={menuContainerRef}>
+                <div ref={refs.setReference}>
                 <button
                   onClick={(e) => {
                     e.preventDefault();
@@ -845,6 +876,7 @@ const ConversationListItem = ({
                 >
                   <MoreHorizontal size={16} className="text-gray-500" />
                 </button>
+                </div>
 
                 {openMenu === conversation.conversationId && (
                   <FloatingPortal>
