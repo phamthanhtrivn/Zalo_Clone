@@ -22,8 +22,8 @@ config.resolver = {
   // Thêm svg vào phần quản lý file mã nguồn (source code) để import được dạng Component
   sourceExts: [...resolver.sourceExts, "svg"],
 };
-
 // 3. Cuối cùng, bọc toàn bộ config đã tùy biến bằng NativeWind và xuất ra
 module.exports = withNativeWind(config, {
   input: path.join(projectRoot, "global.css"),
 });
+//
