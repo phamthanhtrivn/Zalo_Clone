@@ -97,7 +97,13 @@ export function LoginForm({
                     hoặc đăng nhập với mật khẩu
                   </span>
                 </div>
-                <div className="grid gap-6">
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    handleOnLogin();
+                  }}
+                  className="grid gap-6"
+                >
                   <div className="grid gap-2">
                     <Label htmlFor="phone">Số điện thoại</Label>
                     <Input
@@ -127,10 +133,10 @@ export function LoginForm({
                       onChange={(event) => setPassword(event.target.value)}
                     />
                   </div>
-                  <Button className="w-full" onClick={handleOnLogin}>
+                  <Button type="submit" className="w-full">
                     Đăng nhập
                   </Button>
-                </div>
+                </form>
                 <div className="text-center text-sm">
                   Bạn chưa có tài khoản?{" "}
                   <Link to="/register" className="underline underline-offset-4 text-blue-600 hover:text-blue-800">
