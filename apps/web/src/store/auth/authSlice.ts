@@ -106,8 +106,9 @@ const authSlice = createSlice({
         state.loading = true;
       })
       .addCase(resetPassword.fulfilled, (state, action) => {
-        state.user = action.payload;
         state.loading = false;
+        state.user = action.payload.user;
+        state.accessToken = action.payload.accessToken;
       })
       .addCase(resetPassword.rejected, (state) => {
         state.loading = false;

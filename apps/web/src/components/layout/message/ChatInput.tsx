@@ -13,6 +13,7 @@ import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
 import { RiShareForward2Fill } from "react-icons/ri";
 
 import CreatePollModal from "./CreatePollModal";
+import { MentionSuggestions } from "./MentionSuggestions";
 
 import { conversationService } from "@/services/conversation.service";
 
@@ -71,6 +72,8 @@ const ChatInput = ({
   const [showPollModal, setShowPollModal] = useState(false);
   const [myRole, setMyRole] = useState<string>("MEMBER");
 
+  const [members, setMembers] = useState<any[]>([]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -102,22 +105,27 @@ const ChatInput = ({
   const allowSend =
     (currentConversation as any)?.group?.allowMembersSendMessages !== false;
 
-  // Tự động lấy quyền (Role) của mình khi mở nhóm
+  // Tự động lấy quyền (Role) của mình khi mở nhóm và load thành viên nhóm
   useEffect(() => {
     if (isGroup && conversationId && currentUser?.userId) {
       conversationService
         .getListMembers(conversationId)
         .then((res) => {
           if (res?.success) {
+            setMembers(res.data || []);
             const me = res.data.find(
-              (m: any) => String(m.userId) === String(currentUser.userId),
+              (m: any) => String(m.userId?._id || m.userId) === String(currentUser.userId),
             );
             if (me) setMyRole(me.role);
           }
         })
         .catch(console.error);
+    } else {
+      setMembers([]);
     }
   }, [isGroup, conversationId, currentUser?.userId]);
+
+
 
   const isManager = myRole === "OWNER" || myRole === "ADMIN";
   const isMutedByAdmin = isGroup && !allowSend && !isManager;
@@ -143,13 +151,20 @@ const ChatInput = ({
   };
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setText(e.target.value);
+    const val = e.target.value;
+    setText(val);
     const el = textareaRef.current;
     if (el) {
       el.style.height = "auto";
       const maxHeight = 10 * 24;
       const newHeight = Math.min(el.scrollHeight, maxHeight);
       el.style.height = newHeight + "px";
+      setTimeout(() => {
+        const overlay = document.getElementById("textarea-highlight-overlay");
+        if (overlay) {
+          overlay.scrollTop = el.scrollTop;
+        }
+      }, 0);
     }
   };
 
@@ -309,6 +324,46 @@ const ChatInput = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const getRenderedText = () => {
+    const validMentionNames = [
+      "Zola AI",
+      ...members.map((m: any) => {
+        if (!m) return "";
+        if (m.userId && typeof m.userId === "object") {
+          return m.userId.profile?.name || m.userId.name || "";
+        }
+        return m.name || "";
+      }).filter(Boolean)
+    ];
+
+    const escapedNames = validMentionNames
+      .map(name => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      .filter(Boolean)
+      .sort((a, b) => b.length - a.length);
+
+    if (escapedNames.length === 0) {
+      return text.split(/(\s+)/).map((part, index) => {
+        if (part.startsWith("@") && part.length > 1) {
+          return <span key={index} className="text-[#0068ff]">{part}</span>;
+        }
+        return <span key={index}>{part}</span>;
+      });
+    }
+
+    const pattern = new RegExp(`(@(?:${escapedNames.join("|")}))`, "g");
+    const parts = text.split(pattern);
+
+    return parts.map((part, index) => {
+      if (part.startsWith("@")) {
+        const namePart = part.substring(1);
+        if (validMentionNames.includes(namePart)) {
+          return <span key={index} className="text-[#0068ff]">{part}</span>;
+        }
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
+
   // --- RENDER GIAO DIỆN ---
   if (isMutedByAdmin) {
     return (
@@ -320,7 +375,15 @@ const ChatInput = ({
     );
   }
   return (
-    <div className="bg-white border-t">
+    <div className="bg-white border-t relative">
+      <MentionSuggestions
+        text={text}
+        setText={setText}
+        textareaRef={textareaRef}
+        members={members}
+        isGroup={isGroup}
+        currentUserId={currentUser?.userId}
+      />
       {isSelected && (
         <div className="px-3 py-2 border-b flex justify-between items-center bg-white">
           <div className="text-sm">
@@ -450,27 +513,61 @@ const ChatInput = ({
         )}
         <div className="flex-1"></div>
       </div>
-      <div className="flex items-center gap-2 p-2">
-        <textarea
-          ref={textareaRef}
-          value={text}
-          onChange={handleInput}
-          onKeyDown={handleKeyDown}
-          placeholder={`Nhắn tin tới ${chatName}`}
-          rows={1}
-          className="
-            flex-1 
-            resize-none 
-            border-none 
-            bg-white 
-            text-sm 
-            outline-none 
-            overflow-y-auto
-            p-2
-            leading-6
-            max-h-60
-          "
-        />
+      <div className="flex items-center gap-2 p-2 relative">
+        <div className="flex-1 relative min-w-0">
+          {/* Highlight overlay */}
+          <div
+            id="textarea-highlight-overlay"
+            className="absolute inset-0 p-2 text-sm leading-6 pointer-events-none whitespace-pre-wrap break-words text-gray-800 select-none overflow-y-auto max-h-60 font-sans border border-transparent bg-transparent"
+            style={{
+              fontFamily: "inherit",
+              fontSize: "inherit",
+              lineHeight: "inherit",
+              boxSizing: "border-box",
+            }}
+          >
+            {getRenderedText()}
+          </div>
+
+          <textarea
+            ref={textareaRef}
+            value={text}
+            onChange={handleInput}
+            onKeyDown={handleKeyDown}
+            onScroll={(e) => {
+              const overlay = document.getElementById("textarea-highlight-overlay");
+              if (overlay) {
+                overlay.scrollTop = e.currentTarget.scrollTop;
+              }
+            }}
+            placeholder={`Nhắn tin tới ${chatName}`}
+            rows={1}
+            className="
+              w-full
+              resize-none 
+              border-none 
+              bg-transparent 
+              text-sm 
+              outline-none 
+              overflow-y-auto
+              p-2
+              leading-6
+              max-h-60
+              text-black
+              relative
+              z-10
+              caret-black
+              font-sans
+            "
+            style={{
+              color: text ? "transparent" : "inherit",
+              fontFamily: "inherit",
+              fontSize: "inherit",
+              lineHeight: "inherit",
+              boxSizing: "border-box",
+            }}
+          />
+        </div>
         <Button
           onClick={handleSend}
           variant="ghost"

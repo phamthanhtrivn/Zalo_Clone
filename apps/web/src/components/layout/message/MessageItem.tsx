@@ -32,7 +32,8 @@ interface Props {
   selectedMessages: string[];
   toggleSelectMessage: (messageId: string) => void;
   onJumpToMessage?: (messageId: string) => void;
-
+  members?: any[];
+  onShowProfile?: (profileId: string) => void;
 }
 
 export const MessageItem = ({
@@ -51,7 +52,8 @@ export const MessageItem = ({
   selectedMessages,
   toggleSelectMessage,
   onJumpToMessage,
-
+  members,
+  onShowProfile,
 }: Props) => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -91,6 +93,8 @@ export const MessageItem = ({
             selectedMessages={selectedMessages}
             toggleSelectMessage={toggleSelectMessage}
             onJumpToMessage={onJumpToMessage}
+            members={members}
+            onShowProfile={onShowProfile}
           />
 
           {!message.recalled && (

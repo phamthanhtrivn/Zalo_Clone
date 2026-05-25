@@ -19,6 +19,8 @@ import { Audio } from "expo-av";
 import { COLORS } from "@/constants/colors";
 import CreatePollModal from "./CreatePollModal";
 import { moderateScale } from "@/utils/responsive";
+import MentionSuggestions from "./MentionSuggestions";
+import { useAppSelector } from "@/store/store";
 
 interface SelectedFile {
   uri: string;
@@ -44,6 +46,7 @@ interface ChatInputProps {
   onCancelSelect?: () => void;
   isGroup?: boolean;
   conversationId?: string;
+  members?: any[];
 }
 
 type VoiceMode = "audio";
@@ -68,9 +71,82 @@ const ChatInput: React.FC<ChatInputProps> = ({
   onCancelSelect,
   isGroup = false,
   conversationId = "",
+  members = [],
 }) => {
   const [text, setText] = useState("");
   const [showPollModal, setShowPollModal] = useState(false);
+  const [showMentionList, setShowMentionList] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+
+  const handleTextChange = (val: string) => {
+    setText(val);
+    const lastAtIndex = val.lastIndexOf("@");
+    if (lastAtIndex !== -1) {
+      const textAfterAt = val.slice(lastAtIndex + 1);
+      if (!textAfterAt.includes(" ")) {
+        setMentionQuery(textAfterAt);
+        setShowMentionList(true);
+        return;
+      }
+    }
+    setShowMentionList(false);
+    setMentionQuery("");
+  };
+
+  const handleSelectMention = (name: string) => {
+    const lastAtIndex = text.lastIndexOf("@");
+    if (lastAtIndex !== -1) {
+      const beforeAt = text.slice(0, lastAtIndex);
+      const newText = `${beforeAt}@${name} `;
+      setText(newText);
+    }
+    setShowMentionList(false);
+    setMentionQuery("");
+    inputRef.current?.focus();
+  };
+
+  const currentUser = useAppSelector((state) => state.auth.user);
+  const currentUserId = currentUser?.userId || "";
+
+  // Tạo danh sách những người có thể tag bao gồm con Zola AI và các thành viên khác
+  const memberCandidates = isGroup
+    ? (members || [])
+      .map((m: any) => {
+        if (!m) return null;
+
+        // Nếu m.userId là một đối tượng đã được populate
+        if (m.userId && typeof m.userId === "object") {
+          const u = m.userId;
+          if (currentUserId && String(u._id || m.userId) === String(currentUserId)) return null;
+          return {
+            _id: u._id || m.userId,
+            name: u.profile?.name || u.name || "Người dùng",
+            avatarUrl: u.profile?.avatarUrl || u.avatarUrl || "",
+            isAi: false,
+          };
+        }
+
+        // Nếu m.userId là một string (kết quả trực tiếp từ API getListMembers)
+        const userIdStr = typeof m.userId === "string" ? m.userId : (m._id || "");
+        if (currentUserId && String(userIdStr) === String(currentUserId)) return null;
+        return {
+          _id: userIdStr,
+          name: m.name || "Người dùng",
+          avatarUrl: m.avatarUrl || "",
+          isAi: false,
+        };
+      })
+      .filter(Boolean) as Array<{ _id: string; name: string; avatarUrl: string; isAi: boolean }>
+    : [];
+
+  const allCandidates = [
+    { _id: "zola_ai", name: "Zola AI", avatarUrl: "", isAi: true },
+    ...memberCandidates,
+  ];
+
+  const filteredCandidates = allCandidates.filter((c) =>
+    c.name.toLowerCase().includes(mentionQuery.toLowerCase())
+  );
   const [showEmoji, setShowEmoji] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [voiceModalVisible, setVoiceModalVisible] = useState(false);
@@ -306,6 +382,50 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
+  const renderFormattedText = (textVal: string) => {
+    if (!textVal) return null;
+
+    const validMentionNames = [
+      "Zola AI",
+      ...memberCandidates.map((c) => c?.name).filter(Boolean)
+    ];
+
+    const escapedNames = validMentionNames
+      .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .filter(Boolean)
+      .sort((a, b) => b.length - a.length);
+
+    if (escapedNames.length === 0) {
+      return textVal.split(/(\s+)/).map((part, index) => {
+        if (part.startsWith("@") && part.length > 1) {
+          return (
+            <Text key={index} style={{ color: "#0068ff" }}>
+              {part}
+            </Text>
+          );
+        }
+        return <Text key={index}>{part}</Text>;
+      });
+    }
+
+    const pattern = new RegExp(`(@(?:${escapedNames.join("|")}))`, "g");
+    const parts = textVal.split(pattern);
+
+    return parts.map((part, index) => {
+      if (part.startsWith("@")) {
+        const namePart = part.substring(1);
+        if (validMentionNames.includes(namePart)) {
+          return (
+            <Text key={index} style={{ color: "#0068ff" }}>
+              {part}
+            </Text>
+          );
+        }
+      }
+      return <Text key={index}>{part}</Text>;
+    });
+  };
+
   if (isSelectMode) {
     return (
       <View
@@ -387,6 +507,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
         </ScrollView>
       )}
 
+      {/* Giao diện popover danh sách tag nổi lên */}
+      <MentionSuggestions
+        visible={showMentionList}
+        candidates={filteredCandidates}
+        onSelect={handleSelectMention}
+        onClose={() => setShowMentionList(false)}
+      />
+
       <View
         className="flex-row items-center p-2 border-t border-[#e5e7eb]"
       >
@@ -408,17 +536,34 @@ const ChatInput: React.FC<ChatInputProps> = ({
               </Text>
             </View>
           )}
-          <TextInput
-            ref={inputRef}
-            className="text-[13px] p-0 m-0"
-            value={text}
-            onChangeText={setText}
-            multiline
-            onFocus={() => {
-              setShowEmoji(false);
-              setVoiceModalVisible(false);
-            }}
-          />
+          <View className="w-full relative justify-center">
+            <TextInput
+              ref={inputRef}
+              className="text-[13px] p-0 m-0 text-gray-800"
+              style={{
+                color: text === "" ? "#1f2937" : "transparent",
+                paddingVertical: 0,
+              }}
+              value={text}
+              onChangeText={handleTextChange}
+              multiline
+              onFocus={() => {
+                setShowEmoji(false);
+                setVoiceModalVisible(false);
+              }}
+            />
+            {text !== "" && (
+              <View
+                pointerEvents="none"
+                className="absolute inset-0 justify-center"
+                style={{ paddingVertical: 0 }}
+              >
+                <Text className="text-[13px] p-0 m-0 text-gray-800">
+                  {renderFormattedText(text)}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {!(text.trim() || selectedFiles.length > 0) ? (

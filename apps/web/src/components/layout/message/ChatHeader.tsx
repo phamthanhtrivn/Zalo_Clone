@@ -119,22 +119,26 @@ const ChatHeader = ({
         </div>
 
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon">
-            <MdGroupAdd />
-          </Button>
+          {conversation?.type !== "AI" && (
+            <>
+              <Button variant="ghost" size="icon">
+                <MdGroupAdd />
+              </Button>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleVideoCall}
-            disabled={isInitializingCall}
-          >
-            {isInitializingCall ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Video />
-            )}
-          </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleVideoCall}
+                disabled={isInitializingCall}
+              >
+                {isInitializingCall ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Video />
+                )}
+              </Button>
+            </>
+          )}
 
           <Button
             variant={isSearchOpen ? "default" : "ghost"}

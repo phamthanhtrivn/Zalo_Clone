@@ -920,6 +920,17 @@ export class ConversationsService {
                         $in: [userObjectId, { $ifNull: ['$deletedFor', []] }],
                       },
                     },
+                    {
+                      $or: [
+                        {
+                          $and: [
+                            { $ne: ['$type', 'AI_SUMMARY'] },
+                            { $ne: ['$type', 'PRIVATE'] }
+                          ]
+                        },
+                        { $eq: ['$targetUserId', userObjectId] },
+                      ],
+                    },
                   ],
                 },
               },
@@ -1084,6 +1095,18 @@ export class ConversationsService {
                       $or: [
                         { $eq: ['$$clearAt', null] },
                         { $gt: ['$createdAt', '$$clearAt'] },
+                      ],
+                    },
+                    // Không tính tin nhắn AI/PRIVATE của người khác
+                    {
+                      $or: [
+                        {
+                          $and: [
+                            { $ne: ['$type', 'AI_SUMMARY'] },
+                            { $ne: ['$type', 'PRIVATE'] }
+                          ]
+                        },
+                        { $eq: ['$targetUserId', '$$currentUser'] },
                       ],
                     },
                     // Chưa expiresAt

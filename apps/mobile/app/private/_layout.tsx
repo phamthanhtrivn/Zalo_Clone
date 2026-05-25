@@ -7,7 +7,7 @@ import ActiveCallOverlay from "@/components/video-call/ActiveCallOverlay";
 
 function CallOverlays() {
   const { callMode } = useVideoCall();
-  
+
   if (callMode === 'NONE') return null;
 
   return (
@@ -83,14 +83,13 @@ export default function PrivateLayout() {
           />
           <Stack.Screen name="social-notifications" />
           <Stack.Screen name="profile" />
-          <Stack.Screen name="setting" />
           <Stack.Screen name="search" />
           <Stack.Screen name="change-password" />
           <Stack.Screen name="update-profile" />
           <Stack.Screen name="qr-scanner" />
           <Stack.Screen name="confirm-qr-login" />
         </Stack>
-        
+
       </VideoCallProvider>
     </SocketProvider>
   );

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Vòng tròn nền xanh Zalo đặc trưng -->
+  <circle cx="64" cy="64" r="60" fill="#0068ff" />
+  
+  <!-- Chữ "z" màu trắng, cân đối ở chính giữa -->
+  <text x="64" y="84" 
+        fill="#FFFFFF" 
+        font-family="'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
+        font-size="78" 
+        font-weight="800" 
+        text-anchor="middle">z</text>
+</svg>

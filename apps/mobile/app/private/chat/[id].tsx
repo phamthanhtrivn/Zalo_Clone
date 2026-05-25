@@ -34,6 +34,7 @@ import { Image } from "expo-image";
 import { clearReplyingMessage, setConversations, setReplyingMessage, setCachedMessages } from "@/store/slices/conversationSlice";
 import { useVideoCall } from "@/contexts/VideoCallContext";
 import { userService } from "@/services/user.service";
+import { conversationService } from "@/services/conversation.service";
 import GroupAvatar from "@/components/ui/GroupAvatar";
 import AiTypingIndicator from "@/components/chat/AiTypingIndicator";
 import ChatModals from "@/components/chat/ChatModals";
@@ -77,7 +78,6 @@ export default function ChatWindow() {
   }, []);
 
   const conversation = conversations.find((c) => c.conversationId === id);
-
   // ✅ Use conversation.group as source of truth — conversation.type can be contaminated
   // by the last message type (e.g. "GROUP_CALL") and cause false negatives
   const isGroup = conversation?.type === "GROUP" || !!conversation?.group;
@@ -93,6 +93,7 @@ export default function ChatWindow() {
 
   // ===== STATE =====
   const [messages, setMessages] = useState<MessagesType[]>([]);
+  const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [pinnedMessages, setPinnedMessages] = useState<MessagesType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -709,8 +710,21 @@ export default function ChatWindow() {
       pendingJumpMessageIdRef.current = messageId ?? null;
       messageService.readReceipt(user.userId, id);
       dispatch(clearReplyingMessage());
+
+      // Fetch group members if it is group chat
+      if (isGroup) {
+        conversationService.getListMembers(id)
+          .then((res: any) => {
+            if (res?.success && res.data) {
+              setGroupMembers(res.data);
+            }
+          })
+          .catch((err) => console.error("Error fetching group members:", err));
+      } else {
+        setGroupMembers([]);
+      }
     }
-  }, [id, user?.userId, messageId]);
+  }, [id, user?.userId, messageId, isGroup]);
 
   useEffect(() => {
     prevCursorRef.current = prevCursor;
@@ -1129,11 +1143,12 @@ export default function ChatWindow() {
             isGroup={isGroup}
             onJoinGroupCall={joinGroupCall}
             onOpenStoryLink={handleOpenStoryLink}
+            members={isGroup ? groupMembers : []}
           />
         )}
       </View>
     );
-  }, [messages, authUserId, selectedMessages, isSelectMode, highlightedMessageId, isGroup, latestSentMessageId, handleJumpToMessage, handleOpenStoryLink, joinGroupCall, user?.userId]);
+  }, [messages, authUserId, selectedMessages, isSelectMode, highlightedMessageId, isGroup, latestSentMessageId, handleJumpToMessage, handleOpenStoryLink, joinGroupCall, user?.userId, groupMembers]);
 
   return (
     <Container
@@ -1328,6 +1343,7 @@ export default function ChatWindow() {
             }}
             isGroup={isGroup}
             conversationId={id}
+            members={isGroup ? groupMembers : [{ userId: { _id: effectiveOtherMemberId, profile: { name: conversation?.name, avatarUrl: conversation?.avatar } } }]}
           />
         )}
 

@@ -195,7 +195,7 @@ const CreatePollModal: React.FC<Props> = ({
                 <View style={styles.settingText}>
                   <Text style={styles.settingLabel}>Chọn nhiều phương án</Text>
                   <Text style={styles.settingDesc}>
-                    Cho phép chọn > 1 phương án
+                    Cho phép chọn &gt; 1 phương án
                   </Text>
                 </View>
                 <Switch

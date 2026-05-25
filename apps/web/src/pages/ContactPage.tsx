@@ -3,14 +3,12 @@ import { userService } from "../services/user.service.ts";
 import { useEffect, useMemo, useState } from "react";
 import { FriendItem } from "../components/layout/FriendItem.tsx";
 import { useSelector } from "react-redux";
-import { useSocket } from "@/contexts/SocketContext.tsx";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const ContactPage = () => {
   const [keyword, setKeyword] = useState<string>("");
   const [debouncedKeyword, setDebouncedKeyword] = useState<string>("");
   const userId = useSelector((item: any) => item.auth.user.userId);
-  const { socket } = useSocket();
   const queryClient = useQueryClient();
   const [sortOrder, setSortOrder] = useState<string>("a-z");
 
@@ -73,51 +71,9 @@ const ContactPage = () => {
     setKeyword(value);
   };
 
-  useEffect(() => {
-    if (!socket) return;
-    const updateAvatar = (data: any) => {
-      queryClient.setQueryData(["friends", debouncedKeyword, userId], (old: any) => {
-        if (!old) return old;
-        return old.map((group: any) => ({
-          ...group,
-          friends: group.friends.map((friend: any) =>
-            friend.friendId === data.userId
-              ? {
-                  ...friend,
-                  name: data.name ?? friend.name,
-                  avatarUrl: data.avatarUrl ?? friend.avatarUrl,
-                }
-              : friend,
-          ),
-        }));
-      });
-    };
-
-    const handleCancelFriendRequest = (friendId: string) => {
-      queryClient.setQueryData(["friends", debouncedKeyword, userId], (old: any) => {
-        if (!old) return old;
-        return old
-          .map((group: any) => ({
-            ...group,
-            friends: group.friends.filter(
-              (friend: any) => friend.friendId !== friendId,
-            ),
-          }))
-          .filter((group: any) => group.friends.length > 0);
-      });
-    };
-
-    socket.on("update_profile", updateAvatar);
-    socket.on("cancel_friend_request", handleCancelFriendRequest);
-    return () => {
-      socket.off("update_profile", updateAvatar);
-      socket.off("cancel_friend_request", handleCancelFriendRequest);
-    };
-  }, [socket, queryClient, debouncedKeyword, userId]);
-
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="flex h-[64px] shrink-0 items-center border-b border-[#e5e7eb] px-4">
+      <header className="flex h-16 shrink-0 items-center border-b border-[#e5e7eb] px-4">
         <div className="flex items-center gap-3">
           <Users className="h-5 w-5 text-gray-600" />
           <h1 className="text-[16px] font-semibold text-gray-800">

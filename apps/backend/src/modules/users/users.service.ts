@@ -30,7 +30,7 @@ export class UsersService {
     private readonly storageService: StorageService,
     private readonly chatGateway: ChatGateway,
     private readonly redisService: RedisService,
-  ) { }
+  ) {}
 
   async findByPhone(phone: string) {
     return this.userModel.findOne({ phone: phone }).exec();
@@ -87,6 +87,13 @@ export class UsersService {
     return await this.userModel.updateOne(
       { phone },
       { $set: { password: hashedPass } },
+    );
+  }
+
+  async updatePhone(userId: string, newPhone: string) {
+    return await this.userModel.updateOne(
+      { _id: new Types.ObjectId(userId) },
+      { $set: { phone: newPhone } },
     );
   }
 
@@ -360,6 +367,7 @@ export class UsersService {
     result.sort((a, b) => b.score - a.score);
     return result;
   }
+
   async updateInformationUser(
     body: InforUser,
     file?: Express.Multer.File,
@@ -526,11 +534,13 @@ export class UsersService {
   }
 
   async updateLastSeen(userId: string): Promise<void> {
-    await this.userModel.updateOne(
-      { _id: new Types.ObjectId(userId) },
-      { $set: { lastSeenAt: new Date() } },
-    ).exec();
-    console.log("Cập nhật ngày cập nhật cuôi của user: ", userId)
+    await this.userModel
+      .updateOne(
+        { _id: new Types.ObjectId(userId) },
+        { $set: { lastSeenAt: new Date() } },
+      )
+      .exec();
+    console.log('Cập nhật ngày cập nhật cuôi của user: ', userId);
   }
 
   async getBulkStatus(userIds: string[]) {
@@ -545,12 +555,15 @@ export class UsersService {
 
     const [results, users] = await Promise.all([
       pipeline.exec(),
-      this.userModel.find({
-        _id: { $in: userIds.map(id => new Types.ObjectId(id)) }
-      }).select('lastSeenAt').lean()
+      this.userModel
+        .find({
+          _id: { $in: userIds.map((id) => new Types.ObjectId(id)) },
+        })
+        .select('lastSeenAt')
+        .lean(),
     ]);
 
-    const userMap = new Map(users.map(u => [u._id.toString(), u]));
+    const userMap = new Map(users.map((u) => [u._id.toString(), u]));
 
     if (!results) {
       return userIds.map((id) => {
@@ -571,7 +584,7 @@ export class UsersService {
       return {
         userId: id,
         isOnline,
-        lastSeenAt: isOnline ? null : (u?.lastSeenAt || null),
+        lastSeenAt: isOnline ? null : u?.lastSeenAt || null,
       };
     });
   }

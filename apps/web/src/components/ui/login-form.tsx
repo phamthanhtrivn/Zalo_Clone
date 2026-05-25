@@ -112,12 +112,12 @@ export function LoginForm({
                   <div className="grid gap-2">
                     <div className="flex items-center">
                       <Label htmlFor="password">Mật khẩu</Label>
-                      <a
-                        href="#"
-                        className="ml-auto text-sm underline-offset-4 hover:underline"
+                      <Link
+                        to="/forgot-password"
+                        className="ml-auto text-sm text-blue-600 hover:text-blue-800 underline-offset-4 hover:underline"
                       >
                         Quên mật khẩu ?
-                      </a>
+                      </Link>
                     </div>
                     <Input
                       id="password"

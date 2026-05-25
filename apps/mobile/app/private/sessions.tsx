@@ -2,7 +2,7 @@ import Tips from "@/components/auth/Tips";
 import Container from "@/components/common/Container";
 import Header from "@/components/common/Header";
 import { useAppDispatch } from "@/store/store";
-import { getSessions, logOutDevice } from "@/store/auth/authThunk";
+import { getSessions, logOutDevice, logOutOther } from "@/store/auth/authThunk";
 import { Session } from "@/constants/types";
 import { getDeviceId } from "@/utils/device.util";
 import { formatMessageTime } from "@/utils/format-message-time.util";
@@ -65,6 +65,34 @@ export default function SessionsScreen() {
     );
   };
 
+  const handleLogoutOtherDevices = () => {
+    Alert.alert(
+      "Đăng xuất tất cả thiết bị khác",
+      "Bạn có chắc chắn muốn đăng xuất khỏi tất cả các thiết bị khác không?",
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Đăng xuất tất cả",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setLoading(true);
+              await dispatch(logOutOther()).unwrap();
+              setSessions((prev) => prev.filter((s) => s.deviceId === currentDeviceId));
+              showToast("Đã đăng xuất tất cả thiết bị khác thành công");
+            } catch (err: any) {
+              showToast(err.message || "Đăng xuất thất bại");
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const otherSessions = sessions.filter((s) => s.deviceId !== currentDeviceId);
+
   const renderItem = ({ item }: { item: Session }) => {
     const isThisDevice = item.deviceId === currentDeviceId;
 
@@ -123,6 +151,23 @@ export default function SessionsScreen() {
       />
 
       <Tips text="Bạn có thể đăng xuất khỏi các thiết bị không nhận ra hoặc không còn sử dụng." />
+
+      {otherSessions.length > 0 && !loading && (
+        <View className="px-4 py-3 bg-red-50 border-b border-gray-100 flex-row items-center justify-between">
+          <View className="flex-1 mr-2">
+            <Text className="text-[13px] font-semibold text-red-700">
+              Đang có {otherSessions.length} thiết bị khác đăng nhập
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={handleLogoutOtherDevices}
+            className="bg-red-500 px-3 py-2 rounded-lg"
+            activeOpacity={0.8}
+          >
+            <Text className="text-[12px] font-bold text-white">Đăng xuất tất cả</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {loading ? (
         <View className="flex-1 justify-center items-center">

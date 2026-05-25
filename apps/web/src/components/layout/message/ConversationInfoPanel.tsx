@@ -60,6 +60,8 @@ import { Switch } from "@/components/ui/switch";
 import ShareGroupQRModal from "./ShareGroupQRModal";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { ConversationStorageView } from "./ConversationStorageView";
+import { ImageViewer } from "./ImageViewer";
 
 // Services & Redux
 import { messageService } from "@/services/message.service";
@@ -184,6 +186,8 @@ const ConversationInfoPanel = ({
   const [showAllFiles, setShowAllFiles] = useState(false);
   const [showAllLinks, setShowAllLinks] = useState(false);
   const [showAllMembers, setShowAllMembers] = useState(false);
+  const [activePanelTab, setActivePanelTab] = useState<"info" | "storage">("info");
+  const [initialStorageTab, setInitialStorageTab] = useState<"media" | "files" | "links">("media");
 
   const [preview, setPreview] = useState<{ isOpen: boolean; index: number }>({
     isOpen: false,
@@ -366,22 +370,7 @@ const ConversationInfoPanel = ({
     };
   }, [socket, isOpen, currentConversation?.conversationId]);
 
-  // --- KEYBOARD NAVIGATION FOR PREVIEW ---
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (!preview.isOpen) return;
-      if (e.key === "Escape") setPreview({ isOpen: false, index: 0 });
-      if (e.key === "ArrowRight")
-        setPreview((p) => ({
-          ...p,
-          index: Math.min(p.index + 1, medias.length - 1),
-        }));
-      if (e.key === "ArrowLeft")
-        setPreview((p) => ({ ...p, index: Math.max(p.index - 1, 0) }));
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [preview.isOpen, medias.length]);
+
 
   // --- HANDLERS ---
   const fetchJoinRequests = async () => {
@@ -775,8 +764,22 @@ const ConversationInfoPanel = ({
 
   if (!isOpen) return <div className="w-0 overflow-hidden" />;
 
+  if (activePanelTab === "storage") {
+    return (
+      <div className="w-[340px] h-full bg-[#f7f8fa] border-l flex flex-col shrink-0 animate-in slide-in-from-right duration-300">
+        <ConversationStorageView
+          onBack={() => setActivePanelTab("info")}
+          initialTab={initialStorageTab}
+          conversationId={currentConversation?.conversationId || conversation?.conversationId || ""}
+          members={members}
+          currentUserId={currentUserId}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="w-[320px] h-full bg-[#f7f8fa] border-l flex flex-col shrink-0 animate-in slide-in-from-right duration-300">
+    <div className="w-[340px] h-full bg-[#f7f8fa] border-l flex flex-col shrink-0 animate-in slide-in-from-right duration-300">
       {/* HEADER */}
       <div className="h-14 bg-white flex items-center justify-between px-4 border-b shrink-0">
         <h2 className="text-[16px] font-semibold text-gray-800">
@@ -847,108 +850,110 @@ const ConversationInfoPanel = ({
         </div>
 
         {/* QUICK ACTIONS */}
-        <div className="bg-white py-4 flex items-start justify-between px-6 border-b">
-          {/* Mute Button */}
-          <div className="flex flex-col items-center gap-1.5 flex-1 relative">
+        {currentConversation?.type !== "AI" && (
+          <div className="bg-white py-4 flex items-start justify-between px-6 border-b">
+            {/* Mute Button */}
+            <div className="flex flex-col items-center gap-1.5 flex-1 relative">
+              <button
+                ref={refs.setReference}
+                onClick={() =>
+                  isMuted ? handleMute(0) : setShowMuteOptions(!showMuteOptions)
+                }
+                className="flex flex-col items-center gap-1.5 group cursor-pointer"
+              >
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isMuted
+                    ? "bg-blue-50 text-blue-600"
+                    : "bg-gray-100 text-gray-600 group-hover:bg-gray-200"
+                    }`}
+                >
+                  {isMuted ? <BellOff size={20} /> : <Bell size={20} />}
+                </div>
+                <span className="text-[11px] font-medium text-gray-600">
+                  Thông báo
+                </span>
+              </button>
+              {/* Popover Mute options */}
+              {showMuteOptions && (
+                <div
+                  ref={refs.setFloating}
+                  style={floatingStyles}
+                  className="z-50 bg-white border shadow-lg rounded-md w-48 py-1 text-sm font-medium"
+                >
+                  {MUTE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.duration}
+                      onClick={() => handleMute(opt.duration)}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors"
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Pin Button */}
             <button
-              ref={refs.setReference}
-              onClick={() =>
-                isMuted ? handleMute(0) : setShowMuteOptions(!showMuteOptions)
-              }
-              className="flex flex-col items-center gap-1.5 group cursor-pointer"
+              onClick={handlePin}
+              className="flex flex-col items-center gap-1.5 flex-1 group cursor-pointer"
             >
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isMuted
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isPinned
                   ? "bg-blue-50 text-blue-600"
                   : "bg-gray-100 text-gray-600 group-hover:bg-gray-200"
                   }`}
               >
-                {isMuted ? <BellOff size={20} /> : <Bell size={20} />}
+                {isPinned ? <PinOff size={20} /> : <Pin size={20} />}
               </div>
-              <span className="text-[11px] font-medium text-gray-600">
-                Thông báo
-              </span>
+              <span className="text-[11px] font-medium text-gray-600">Ghim</span>
             </button>
-            {/* Popover Mute options */}
-            {showMuteOptions && (
-              <div
-                ref={refs.setFloating}
-                style={floatingStyles}
-                className="z-50 bg-white border shadow-lg rounded-md w-48 py-1 text-sm font-medium"
-              >
-                {MUTE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.duration}
-                    onClick={() => handleMute(opt.duration)}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors"
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
 
-          {/* Pin Button */}
-          <button
-            onClick={handlePin}
-            className="flex flex-col items-center gap-1.5 flex-1 group cursor-pointer"
-          >
-            <div
-              className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isPinned
-                ? "bg-blue-50 text-blue-600"
-                : "bg-gray-100 text-gray-600 group-hover:bg-gray-200"
-                }`}
-            >
-              {isPinned ? <PinOff size={20} /> : <Pin size={20} />}
-            </div>
-            <span className="text-[11px] font-medium text-gray-600">Ghim</span>
-          </button>
-
-          {/* Add Member / Create Group Button */}
-          {isGroup ? (
-            canInvite && (
+            {/* Add Member / Create Group Button */}
+            {isGroup ? (
+              canInvite && (
+                <button
+                  onClick={() => setAddMemberModalOpen(true)}
+                  className="flex flex-col items-center gap-1.5 flex-1 group animate-in fade-in zoom-in duration-200 cursor-pointer"
+                >
+                  <div className="w-10 h-10 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center group-hover:bg-gray-200 transition-colors">
+                    <UserPlus size={20} />
+                  </div>
+                  <span className="text-[11px] font-medium text-gray-600">
+                    Thêm TV
+                  </span>
+                </button>
+              )
+            ) : (
               <button
                 onClick={() => setAddMemberModalOpen(true)}
                 className="flex flex-col items-center gap-1.5 flex-1 group animate-in fade-in zoom-in duration-200 cursor-pointer"
               >
                 <div className="w-10 h-10 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center group-hover:bg-gray-200 transition-colors">
-                  <UserPlus size={20} />
+                  <UsersIcon size={20} />
                 </div>
                 <span className="text-[11px] font-medium text-gray-600">
-                  Thêm TV
+                  Tạo nhóm
                 </span>
               </button>
-            )
-          ) : (
-            <button
-              onClick={() => setAddMemberModalOpen(true)}
-              className="flex flex-col items-center gap-1.5 flex-1 group animate-in fade-in zoom-in duration-200 cursor-pointer"
-            >
-              <div className="w-10 h-10 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center group-hover:bg-gray-200 transition-colors">
-                <UsersIcon size={20} />
-              </div>
-              <span className="text-[11px] font-medium text-gray-600">
-                Tạo nhóm
-              </span>
-            </button>
-          )}
+            )}
 
-          {/* Share QR Button */}
-          {isGroup && (
-            <button
-              onClick={() => setQrModalOpen(true)}
-              className="flex flex-col items-center gap-1.5 flex-1 group cursor-pointer"
-            >
-              <div className="w-10 h-10 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center group-hover:bg-gray-200 transition-colors">
-                <QrCode size={20} />
-              </div>
-              <span className="text-[11px] font-medium text-gray-600">
-                Mã QR
-              </span>
-            </button>
-          )}
-        </div>
+            {/* Share QR Button */}
+            {isGroup && (
+              <button
+                onClick={() => setQrModalOpen(true)}
+                className="flex flex-col items-center gap-1.5 flex-1 group cursor-pointer"
+              >
+                <div className="w-10 h-10 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center group-hover:bg-gray-200 transition-colors">
+                  <QrCode size={20} />
+                </div>
+                <span className="text-[11px] font-medium text-gray-600">
+                  Mã QR
+                </span>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* SECTION: PHÊ DUYỆT THÀNH VIÊN */}
         {isGroup && canManageMembers && joinRequests.length > 0 && (
@@ -1160,7 +1165,10 @@ const ConversationInfoPanel = ({
                 </p>
               )}
               {medias.length > 0 && (
-                <Button className="w-full bg-gray-100 text-gray-700 hover:bg-gray-200 mt-3 h-8 text-xs cursor-pointer" onClick={() => setShowAllMedia((prev) => !prev)}>
+                <Button className="w-full bg-gray-100 text-gray-700 hover:bg-gray-200 mt-3 h-8 text-xs cursor-pointer" onClick={() => {
+                  setActivePanelTab("storage");
+                  setInitialStorageTab("media");
+                }}>
                   Xem tất cả
                 </Button>
               )}
@@ -1223,7 +1231,10 @@ const ConversationInfoPanel = ({
                 </p>
               )}
               {files.length > 0 && (
-                <Button className="w-full bg-gray-100 text-gray-700 hover:bg-gray-200 mt-3 h-8 text-xs cursor-pointer" onClick={() => setShowAllFiles((prev) => !prev)}>
+                <Button className="w-full bg-gray-100 text-gray-700 hover:bg-gray-200 mt-3 h-8 text-xs cursor-pointer" onClick={() => {
+                  setActivePanelTab("storage");
+                  setInitialStorageTab("files");
+                }}>
                   Xem tất cả
                 </Button>
               )}
@@ -1290,7 +1301,10 @@ const ConversationInfoPanel = ({
                 </p>
               )}
               {links.length > 0 && (
-                <Button className="w-full bg-gray-100 text-gray-700 hover:bg-gray-200 mt-3 h-8 text-xs cursor-pointer" onClick={() => setShowAllLinks((prev) => !prev)}>
+                <Button className="w-full bg-gray-100 text-gray-700 hover:bg-gray-200 mt-3 h-8 text-xs cursor-pointer" onClick={() => {
+                  setActivePanelTab("storage");
+                  setInitialStorageTab("links");
+                }}>
                   Xem tất cả
                 </Button>
               )}
@@ -1583,63 +1597,16 @@ const ConversationInfoPanel = ({
       )}
 
       {/* Image Preview Overlay */}
-      {preview.isOpen && (
-        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center">
-          <button
-            onClick={() => setPreview({ isOpen: false, index: 0 })}
-            className="absolute top-5 right-5 text-white hover:opacity-70 cursor-pointer"
-          >
-            <CloseIcon size={30} />
-          </button>
-          <button
-            onClick={() => handleDownload(medias[preview.index]?.content?.file)}
-            className="absolute top-5 left-5 text-white hover:opacity-70 cursor-pointer"
-          >
-            <Download size={24} />
-          </button>
-
-          {preview.index > 0 && (
-            <button
-              onClick={() => setPreview((p) => ({ ...p, index: p.index - 1 }))}
-              className="absolute left-5 p-2 bg-white/10 rounded-full text-white cursor-pointer hover:bg-white/20 transition-colors"
-            >
-              <ChevronLeft size={30} />
-            </button>
-          )}
-          {preview.index < medias.length - 1 && (
-            <button
-              onClick={() => setPreview((p) => ({ ...p, index: p.index + 1 }))}
-              className="absolute right-5 p-2 bg-white/10 rounded-full text-white cursor-pointer hover:bg-white/20 transition-colors"
-            >
-              <ChevronRight size={30} />
-            </button>
-          )}
-
-          <div
-            className="max-w-[90%] max-h-[90%]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {(() => {
-              const file = medias[preview.index]?.content?.file;
-              if (!file) return null;
-              return file.type === "VIDEO" ? (
-                <video
-                  src={file.fileKey}
-                  controls
-                  autoPlay
-                  className="max-h-[85vh] rounded-lg shadow-2xl"
-                />
-              ) : (
-                <img
-                  src={file.fileKey}
-                  className="max-h-[85vh] rounded-lg object-contain shadow-2xl"
-                  alt=""
-                />
-              );
-            })()}
-          </div>
-        </div>
-      )}
+      <ImageViewer
+        isOpen={preview.isOpen}
+        onClose={() => setPreview({ isOpen: false, index: 0 })}
+        items={medias.map((m) => ({
+          url: m.content?.file?.fileKey || "",
+          type: m.content?.file?.type || "IMAGE",
+          fileName: m.content?.file?.fileName || "",
+        }))}
+        initialIndex={preview.index}
+      />
 
       {/* Alert Dialogs (Leave, Delete, Remove, Transfer) */}
       <AlertDialog

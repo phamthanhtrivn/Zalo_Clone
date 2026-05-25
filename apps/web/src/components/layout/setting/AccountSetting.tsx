@@ -93,13 +93,43 @@ function DeviceManagementView({ onBack }: { onBack: () => void }) {
     }
   };
 
+  const onLogoutOtherDevices = async () => {
+    if (!window.confirm("Bạn có chắc chắn muốn đăng xuất tất cả các thiết bị khác không?")) return;
+    try {
+      await dispatch(logOutOther()).unwrap();
+      const currentDevId = getDeviceId();
+      setSessions(sessions?.filter((session) => session.deviceId === currentDevId));
+      toast.success("Đăng xuất tất cả thiết bị khác thành công");
+    } catch (err: any) {
+      toast.error(err?.message || "Đăng xuất không thành công");
+    }
+  };
+
   useEffect(() => {
     fetchSessions();
   }, []);
 
+  const otherSessionsCount = sessions ? sessions.filter((s) => s.deviceId !== getDeviceId()).length : 0;
+
   return (
     // Bọc toàn bộ bằng Component mới, truyền title và onBack vào
     <NestedViewLayout title="Quản lý thiết bị đăng nhập" onBack={onBack}>
+      {otherSessionsCount > 0 && (
+        <div className="flex justify-between items-center px-4 py-3 bg-red-50 border border-red-100 rounded-lg mb-4">
+          <span className="text-xs text-red-700 font-medium">
+            Đang có {otherSessionsCount} thiết bị khác đăng nhập tài khoản của bạn.
+          </span>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={onLogoutOtherDevices}
+            disabled={loading}
+            className="text-xs px-3 py-1.5 h-auto bg-red-600 hover:bg-red-700 text-white rounded-md shrink-0 font-semibold"
+          >
+            Đăng xuất tất cả thiết bị khác
+          </Button>
+        </div>
+      )}
       <SettingSection>
         {loading ? (
           <>
@@ -164,7 +194,6 @@ function ChangePassword({ onBack }: { onBack: () => void }) {
   const [oldPassword, setOldPassword] = useState<string>("");
   const [newPassword, setNewPassword] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
-  const [logOutDevice, setLogoutDevice] = useState<boolean>(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [matchConfirmPass, setMatchConfirmPass] = useState<boolean>(true);
 
@@ -184,9 +213,7 @@ function ChangePassword({ onBack }: { onBack: () => void }) {
           newPassword: newPassword,
         }),
       ).unwrap();
-      if (logOutDevice) {
-        dispatch(logOutOther());
-      }
+
       onBack();
       toast.success("Đổi mật khẩu thành công");
     } catch (err: any) {
@@ -252,17 +279,6 @@ function ChangePassword({ onBack }: { onBack: () => void }) {
                 Mật khẩu xác nhận không khớp
               </p>
             ) : null}
-          </div>
-          <div className="flex gap-2 items-center">
-            <input
-              type="checkbox"
-              className="hover:cursor-pointer"
-              checked={logOutDevice}
-              onChange={(e) => setLogoutDevice(e.target.checked)}
-            />
-            <p className="text-sm">
-              Đăng xuất tài khoản khỏi các thiết bị khác
-            </p>
           </div>
           <Button className="w-44" onClick={onChangePassword}>
             Đổi mật khẩu

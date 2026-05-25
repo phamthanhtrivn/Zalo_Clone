@@ -473,6 +473,7 @@ export class MessagesService {
         );
         const mappedHistory = rawHistory.messages
           .filter((msg) => {
+            if (!msg.senderId || !msg.senderId._id) return false;
             const isBot = msg.senderId._id.toString() === this.BOT_ID;
             if (isPrivate && isBot) return false;
             return true;

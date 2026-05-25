@@ -114,6 +114,8 @@ export const restoreSession = createAsyncThunk(
 
       return user;
     } catch {
+      await SecureStore.deleteItemAsync("access_token");
+      await SecureStore.deleteItemAsync("refresh_token");
       return null;
     }
   },
@@ -161,6 +163,10 @@ export const changePassword = createAsyncThunk(
   async (payload: ChangePassword, thunkAPI) => {
     try {
       const res = await authService.changePassword(payload);
+
+      await SecureStore.deleteItemAsync("access_token");
+      await SecureStore.deleteItemAsync("refresh_token");
+
       return res;
     } catch (err: any) {
       return thunkAPI.rejectWithValue(err.response?.data);

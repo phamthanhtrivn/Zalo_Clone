@@ -60,6 +60,15 @@ api.interceptors.response.use(
       } catch (refreshError) {
         await SecureStore.deleteItemAsync("access_token");
         await SecureStore.deleteItemAsync("refresh_token");
+
+        try {
+          const { logout2 } = require("@/store/auth/authThunk");
+          const { store } = require("@/store/store");
+          store.dispatch(logout2());
+        } catch (dispatchErr) {
+          console.error("Failed to dispatch logout2 in Axios interceptor:", dispatchErr);
+        }
+
         return Promise.reject(refreshError);
       }
     }

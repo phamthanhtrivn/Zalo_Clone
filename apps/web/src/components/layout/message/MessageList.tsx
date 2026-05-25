@@ -35,6 +35,8 @@ type Props = {
   aiStatus?: "thinking" | "typing" | null;
   aiStreamingText?: string;
   aiAvatar?: string;
+  members?: any[];
+  onShowProfile?: (profileId: string) => void;
 };
 
 const MessageList = ({
@@ -58,6 +60,8 @@ const MessageList = ({
   aiStatus,
   aiStreamingText,
   aiAvatar,
+  members,
+  onShowProfile,
 }: Props) => {
   const [selectedMessageReactions, setSelectedMessageReactions] = useState<
     ReactionType[] | null
@@ -155,6 +159,8 @@ const MessageList = ({
                 toggleSelectMessage={toggleSelectMessage}
                 isGroup={isGroup}
                 onJumpToMessage={onJumpToMessage}
+                members={members}
+                onShowProfile={onShowProfile}
               />
             )}
 

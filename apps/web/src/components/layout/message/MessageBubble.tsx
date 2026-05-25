@@ -1,16 +1,10 @@
 import { formatTime } from "@/utils/format-message-time..util";
 import type { MessagesType } from "@/types/messages.type";
-import {
-  Download,
-  X,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
-import { getFileIcon } from "@/utils/file-icon.util";
+
 import { saveAs } from "file-saver";
 import { useEffect, useState } from "react";
-import { truncateFileName } from "@/utils/render-file";
 import { VoicePlayer } from "./VoicePlayer";
+import { ImageViewer } from "./ImageViewer";
 import PollMessage from "./PollMessage";
 import CallContent from "./sub-components/CallContent";
 import MediaGrid from "./sub-components/MediaGrid";
@@ -29,25 +23,96 @@ interface Props {
   selectedMessages: string[];
   toggleSelectMessage: (messageId: string) => void;
   onJumpToMessage?: (messageId: string) => void;
+  members?: any[];
+  onShowProfile?: (profileId: string) => void;
 }
 
-const renderTextWithLinks = (text: string) => {
+const renderTextWithLinks = (
+  text: string,
+  members?: any[],
+  onShowProfile?: (profileId: string) => void
+) => {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
-  return text.split(urlRegex).map((part, index) => {
+  const parts = text.split(urlRegex);
+
+  // Lấy danh sách tên thành viên hợp lệ trong phòng trò chuyện
+  const memberNames = [
+    "Zola AI",
+    ...(members || []).map((m: any) => {
+      if (!m) return "";
+      if (m.userId && typeof m.userId === "object") {
+        return (m.userId.profile?.name || m.userId.name || "").trim();
+      }
+      return (m.name || "").trim();
+    }).filter(Boolean)
+  ];
+
+  // Loại bỏ các tên trùng lặp và sắp xếp theo độ dài giảm dần để khớp tên dài trước
+  const uniqueNames = Array.from(new Set(memberNames)).sort((a, b) => b.length - a.length);
+
+  const handleMentionClick = (mentionText: string) => {
+    const cleanedName = mentionText.replace("@", "").trim();
+
+    if (cleanedName === "Zola AI") {
+      alert("Đây là trợ lý thông minh Zola AI.");
+      return;
+    }
+
+    const matchedMember = (members || []).find((m: any) => {
+      const name = m.name || m.userId?.profile?.name || m.userId?.name || "";
+      return name.trim().toLowerCase() === cleanedName.toLowerCase();
+    });
+
+    if (matchedMember) {
+      const friendId = matchedMember.userId?._id || matchedMember.userId || matchedMember._id;
+      if (friendId && onShowProfile) {
+        onShowProfile(friendId);
+      }
+    }
+  };
+
+  return parts.map((part, i) => {
     if (urlRegex.test(part)) {
       return (
         <a
-          key={index}
+          key={i}
           href={part}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-blue-500 underline hover:text-blue-600"
+          className="text-blue-500 underline hover:text-blue-600 cursor-pointer"
+          onClick={(e) => e.stopPropagation()}
         >
           {part}
         </a>
       );
     }
-    return <span key={index}>{part}</span>;
+
+    if (uniqueNames.length === 0) {
+      return <span key={i}>{part}</span>;
+    }
+
+    // Tạo regex động từ danh sách tên thành viên
+    const escapedNames = uniqueNames.map(name => name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'));
+    const mentionRegex = new RegExp(`(@(?:${escapedNames.join('|')}))(?=\\s|$|[,.!?;:])`, 'gu');
+    const subParts = part.split(mentionRegex);
+
+    return subParts.map((subPart, j) => {
+      if (subPart.startsWith("@") && uniqueNames.some(name => `@${name}` === subPart)) {
+        return (
+          <span
+            key={`mention-${i}-${j}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleMentionClick(subPart);
+            }}
+            className="text-blue-600 font-medium hover:underline cursor-pointer"
+          >
+            {subPart}
+          </span>
+        );
+      }
+      return <span key={`text-${i}-${j}`}>{subPart}</span>;
+    });
   });
 };
 
@@ -59,6 +124,8 @@ export const MessageBubble = ({
   selectedMessages,
   toggleSelectMessage,
   onJumpToMessage,
+  members,
+  onShowProfile,
 }: Props) => {
   const content = message.content;
   const call = message.call;
@@ -247,7 +314,7 @@ export const MessageBubble = ({
                     {content.text}
                   </ReactMarkdown>
                 ) : (
-                  <p>{renderTextWithLinks(content.text)}</p>
+                  <p>{renderTextWithLinks(content.text, members, onShowProfile)}</p>
                 )}
               </div>
             )}
@@ -330,65 +397,16 @@ export const MessageBubble = ({
       )}
 
       {/* IMAGE / VIDEO PREVIEW MODAL */}
-      {previewIndex !== null && mediaFiles[previewIndex] && (
-        <div
-          className="fixed inset-0 z-100 bg-black/90 flex items-center justify-center"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* CLOSE */}
-          <button
-            className="absolute top-4 right-4 text-white cursor-pointer hover:text-gray-300"
-            onClick={() => setPreviewIndex(null)}
-          >
-            <X size={28} />
-          </button>
-
-          <button
-            className="absolute top-4 left-4 text-white cursor-pointer hover:text-gray-300"
-            onClick={() => handleDownload(mediaFiles[previewIndex])}
-          >
-            <Download size={28} />
-          </button>
-
-          {/* PREV */}
-          {previewIndex > 0 && (
-            <button
-              className="absolute left-4 text-white cursor-pointer p-2 bg-black/50 rounded-full hover:bg-black/70"
-              onClick={() => setPreviewIndex(previewIndex - 1)}
-            >
-              <ChevronLeft size={32} />
-            </button>
-          )}
-
-          {/* NEXT */}
-          {previewIndex < mediaFiles.length - 1 && (
-            <button
-              className="absolute right-4 text-white cursor-pointer p-2 bg-black/50 rounded-full hover:bg-black/70"
-              onClick={() => setPreviewIndex(previewIndex + 1)}
-            >
-              <ChevronRight size={32} />
-            </button>
-          )}
-
-          {/* CONTENT */}
-          <div className="max-w-4xl w-full flex justify-center">
-            {mediaFiles[previewIndex].type === "IMAGE" ? (
-              <img
-                src={mediaFiles[previewIndex].fileKey}
-                className="max-h-[85vh] object-contain rounded"
-                alt="preview"
-              />
-            ) : (
-              <video
-                src={mediaFiles[previewIndex].fileKey}
-                controls
-                autoPlay
-                className="max-h-[85vh] rounded"
-              />
-            )}
-          </div>
-        </div>
-      )}
+      <ImageViewer
+        isOpen={previewIndex !== null}
+        onClose={() => setPreviewIndex(null)}
+        items={mediaFiles.map((m: any) => ({
+          url: m.fileKey,
+          type: m.type,
+          fileName: m.fileName,
+        }))}
+        initialIndex={previewIndex ?? 0}
+      />
     </div>
   );
 };
