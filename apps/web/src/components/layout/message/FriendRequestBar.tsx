@@ -1,11 +1,10 @@
-import React from "react";
-
 interface FriendRequestBarProps {
   isGroup: boolean;
   isFriend: boolean | null;
   friendStatus: string | null;
   onAccept: () => void;
   onSend: () => void;
+  onUnblock: () => void;
 }
 
 export const FriendRequestBar = ({
@@ -14,8 +13,12 @@ export const FriendRequestBar = ({
   friendStatus,
   onAccept,
   onSend,
+  onUnblock,
 }: FriendRequestBarProps) => {
   if (isGroup || isFriend !== false) return null;
+
+  const isBlocked =
+    friendStatus === "BLOCKED" || friendStatus === "BLOCKED_BY_OTHER";
 
   return (
     <div className="px-4 py-2.5 bg-white border-b border-gray-100 flex items-center gap-3 text-sm shrink-0 select-none">
@@ -40,15 +43,28 @@ export const FriendRequestBar = ({
 
       {/* Text */}
       <span className="flex-1 text-gray-600 text-[13px]">
-        {friendStatus === "REQUESTED"
-          ? "Người này đã gửi lời mời kết bạn cho bạn"
-          : friendStatus === "PENDING"
-            ? "Đã gửi lời mời kết bạn"
-            : "Gửi yêu cầu kết bạn tới người này"}
-      </span>
+        {isBlocked
+          ? friendStatus === "BLOCKED"
+            ? "Bạn đã chặn người này"
+            : "Người này đã chặn bạn"
+          : friendStatus === "REQUESTED"
+            ? "Người này đã gửi lời mời kết bạn cho bạn"
+            : friendStatus === "PENDING"
+              ? "Đã gửi lời mời kết bạn"
+              : "Gửi yêu cầu kết bạn tới người này"
+        }
+      </span >
 
       {/* Action button */}
-      {friendStatus === "REQUESTED" ? (
+      {isBlocked ? (
+        <button
+          onClick={onUnblock}
+          disabled={friendStatus === "BLOCKED_BY_OTHER"}
+          className={`shrink-0 px-4 py-1.5 text-[13px] font-medium rounded-md transition-colors shadow-sm ${friendStatus === "BLOCKED_BY_OTHER" ? "bg-gray-100 text-gray-500 cursor-not-allowed border border-gray-200" : "bg-[#0091ff] text-white hover:bg-[#0075dd]"}`}
+        >
+          {friendStatus === "BLOCKED_BY_OTHER" ? "Đã bị chặn" : "Gỡ chặn"}
+        </button>
+      ) : friendStatus === "REQUESTED" || friendStatus === "REJECTED" ? (
         <button
           onClick={onAccept}
           className="shrink-0 px-4 py-1.5 bg-[#0091ff] text-white text-[13px] font-medium rounded-md hover:bg-[#0075dd] transition-colors shadow-sm"
@@ -66,7 +82,8 @@ export const FriendRequestBar = ({
         >
           Gửi kết bạn
         </button>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 };

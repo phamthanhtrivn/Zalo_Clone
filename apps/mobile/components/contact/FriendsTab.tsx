@@ -1,7 +1,7 @@
 import { ScrollView, View, Text, TouchableOpacity } from "react-native";
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import FriendItem from "./FriendItem";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { userService } from "@/services/user.service";
 import { router } from "expo-router";
 import { useSocket } from "@/contexts/SocketContext";
@@ -40,7 +40,6 @@ export default function FriendsTab() {
   const [friends, setFriends] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"ALL" | "ONLINE">("ALL");
   const [onlineStatuses, setOnlineStatuses] = useState<Record<string, boolean>>({});
-  
   const { socket, friendRefreshKey } = useSocket();
   const { startDirectCall } = useVideoCall();
 
@@ -51,43 +50,64 @@ export default function FriendsTab() {
     );
   };
 
-  useEffect(() => {
-    const fetchFriends = async () => {
-      try {
-        const response = await userService.getListFriends();
-        setFriends(response.users);
-        
-        const allFriendIds = response.users.flatMap((group: any) => group.friends.map((f: any) => f.friendId));
-        if (allFriendIds.length > 0) {
-          const statuses = await userService.getBulkStatus(allFriendIds);
-          const statusMap = statuses.reduce((acc: any, s: any) => {
-             acc[s.userId] = s.isOnline;
-             return acc;
-          }, {});
-          setOnlineStatuses(statusMap);
-        }
-      } catch (error) {
-        console.error("Lỗi khi lấy danh sách bạn bè:", error);
-      }
-    };
+  const fetchFriends = useCallback(async () => {
+    try {
+      const response = await userService.getListFriends();
+      const friendGroups = response.users || [];
 
-    fetchFriends();
-  }, [friendRefreshKey]);
+      setFriends(friendGroups);
+
+      const allFriendIds = friendGroups.flatMap((group: any) =>
+        group.friends.map((friend: any) => friend.friendId),
+      );
+
+      if (allFriendIds.length > 0) {
+        const statuses = await userService.getBulkStatus(allFriendIds);
+        const statusMap = statuses.reduce((acc: any, status: any) => {
+          acc[status.userId] = status.isOnline;
+          return acc;
+        }, {});
+        setOnlineStatuses(statusMap);
+      } else {
+        setOnlineStatuses({});
+      }
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách bạn bè:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchFriends();
+  }, [friendRefreshKey, fetchFriends]);
 
   useEffect(() => {
     if (!socket) return;
-    
+
     const handleStatusChange = (data: { userId: string, isOnline: boolean }) => {
       setOnlineStatuses(prev => ({ ...prev, [data.userId]: data.isOnline }));
     };
-    
+
+    const refreshFriends = () => {
+      void fetchFriends();
+    };
+
     socket.on('user_status_change', handleStatusChange);
-    
+    socket.on('receive_friend_request', refreshFriends);
+    socket.on('friend_accepted', refreshFriends);
+    socket.on('cancel_friend_request', refreshFriends);
+    socket.on('blocked', refreshFriends);
+    socket.on('blocked_by', refreshFriends);
+
     return () => {
       socket.off('user_status_change', handleStatusChange);
+      socket.off('receive_friend_request', refreshFriends);
+      socket.off('friend_accepted', refreshFriends);
+      socket.off('cancel_friend_request', refreshFriends);
+      socket.off('blocked', refreshFriends);
+      socket.off('blocked_by', refreshFriends);
     };
-  }, [socket]);
-  
+  }, [socket, fetchFriends]);
+
   const handleStartConversation = async (targetUserId: string) => {
     try {
       const conversationId = await getDirectConversationId(targetUserId);
@@ -131,7 +151,7 @@ export default function FriendsTab() {
 
   const displayGroups = useMemo(() => {
     if (activeTab === "ALL") return friends;
-    
+
     return friends.map((group: any) => ({
       ...group,
       friends: group.friends.filter((f: any) => onlineStatuses[f.friendId])
@@ -190,13 +210,13 @@ export default function FriendsTab() {
       <View className="h-2 bg-gray-100" />
       {/* Bộ lọc */}
       <View className="flex-row p-4 gap-x-3">
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => setActiveTab("ALL")}
           className={`px-4 py-1.5 rounded-full ${activeTab === 'ALL' ? 'border border-gray-300 bg-gray-50' : 'bg-gray-100'}`}
         >
           <Text className={activeTab === 'ALL' ? 'font-bold' : 'text-gray-600'}>Tất cả {allCount}</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => setActiveTab("ONLINE")}
           className={`px-4 py-1.5 rounded-full ${activeTab === 'ONLINE' ? 'border border-gray-300 bg-gray-50' : 'bg-gray-100'}`}
         >

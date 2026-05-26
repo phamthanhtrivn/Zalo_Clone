@@ -30,7 +30,7 @@ export class UsersService {
     private readonly storageService: StorageService,
     private readonly chatGateway: ChatGateway,
     private readonly redisService: RedisService,
-  ) { }
+  ) {}
 
   async findByPhone(phone: string) {
     return this.userModel.findOne({ phone: phone }).exec();
@@ -166,11 +166,17 @@ export class UsersService {
   // [POST] /api/users/accept-friend
   async acceptFriend(body: RequestFriendDto) {
     const { userId, friendId } = body;
-    const check = await checkFriendStatus(
+    const check1 = await checkFriendStatus(
       this.userModel,
       userId,
       friendId,
       FriendStatus.REQUESTED,
+    );
+    const check2 = await checkFriendStatus(
+      this.userModel,
+      userId,
+      friendId,
+      FriendStatus.REJECTED,
     );
 
     const user = await this.userModel
@@ -187,7 +193,7 @@ export class UsersService {
 
     this.chatGateway.server.to(body.friendId).emit('friend_accepted', payload);
 
-    if (check) {
+    if (check1 || check2) {
       // update status user
       await updateFriendStatus(
         this.userModel,
@@ -240,6 +246,17 @@ export class UsersService {
       userId,
       FriendStatus.BLOCKED_BY_OTHER,
     );
+    // Emit socket events so frontend can update realtime
+    try {
+      // Notify the blocked user that they were blocked by userId
+      this.chatGateway.server
+        .to(friendId)
+        .emit('blocked_by', { userId, friendId });
+      // Notify the blocker (userId) that block succeeded
+      this.chatGateway.server.to(userId).emit('blocked', { userId, friendId });
+    } catch (err) {
+      console.error('Error emitting block events:', err);
+    }
     return { userId, friendId };
   }
   //  [POST] /api/users/cancel-friend

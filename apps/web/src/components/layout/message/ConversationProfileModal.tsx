@@ -4,6 +4,8 @@ import { useCall } from "@/contexts/VideoCallContext";
 import { CallType } from "@/constants/types";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useEffect, useState } from "react";
+import { userService } from "@/services/user.service";
 
 interface ConversationProfileModalProps {
   selectedProfileId: string | null;
@@ -16,6 +18,20 @@ export const ConversationProfileModal = ({
 }: ConversationProfileModalProps) => {
   const navigate = useNavigate();
   const { startDirectCall } = useCall();
+  const [friendStatus, setFriendStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedProfileId) return;
+    (async () => {
+      try {
+        const res = await userService.checkFriendStatus(selectedProfileId);
+        const fd = res?.data?.data ?? res?.data;
+        setFriendStatus(fd?.status ?? null);
+      } catch (err) {
+        setFriendStatus(null);
+      }
+    })();
+  }, [selectedProfileId]);
 
   if (!selectedProfileId) return null;
 
@@ -45,6 +61,10 @@ export const ConversationProfileModal = ({
         }
       }}
       onCall={async () => {
+        if (friendStatus === "BLOCKED" || friendStatus === "BLOCKED_BY_OTHER") {
+          toast.error("Không thể gọi khi bị chặn.");
+          return;
+        }
         try {
           const res = await conversationService.getOrCreateDirect(selectedProfileId);
           const conversationId =

@@ -1,6 +1,6 @@
-import { MoreHorizontal } from "lucide-react";
+import { Ban, MoreHorizontal, MessageCircle, Trash2, UserRound } from "lucide-react";
 import AppAvatar from "../common/AppAvatar";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { userService } from "@/services/user.service";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +14,17 @@ export const FriendItem = ({ item, setFriends }: any) => {
   const [selectedFriendId, setSelectedFriendId] = useState<string>("");
   const navigate = useNavigate();
   const userId = useSelector((item: any) => item.auth.user.userId);
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpenId("");
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, []);
 
   const handleStartConversation = async (targetUserId: string) => {
     try {
@@ -117,38 +128,65 @@ export const FriendItem = ({ item, setFriends }: any) => {
 
           <div className="relative">
             <button
+              type="button"
               onClick={() => setOpenId(openId == f.friendId ? "" : f.friendId)}
+              className="rounded-full p-1 transition-colors hover:bg-gray-100"
             >
               <MoreHorizontal className="text-gray-500" />
             </button>
             {openId === f.friendId && (
-              <div className="absolute right-0 -mt-0.5 w-48 rounded-xl border bg-white shadow-lg">
-                <div className="cursor-pointer p-3 hover:bg-gray-50">
-                  <button onClick={() => handleOpenProfile(f.friendId)}>
+              <>
+                <button
+                  type="button"
+                  aria-label="Đóng menu"
+                  className="fixed inset-0 z-40 cursor-default bg-black/20 backdrop-blur-[1px]"
+                  onClick={() => setOpenId("")}
+                />
+
+                <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.16)]">
+                  <div className="px-3 pt-3 pb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    Tùy chọn
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenProfile(f.friendId)}
+                    className="flex w-full items-center gap-3 px-3 py-3 text-left text-[14px] text-gray-800 transition-colors hover:bg-gray-50"
+                  >
+                    <UserRound size={16} className="text-gray-500" />
                     Xem thông tin
                   </button>
-                </div>
-                <div className="cursor-pointer p-3 hover:bg-gray-50">
-                  <button onClick={() => handleStartConversation(f.friendId)}>
+
+                  <button
+                    type="button"
+                    onClick={() => handleStartConversation(f.friendId)}
+                    className="flex w-full items-center gap-3 px-3 py-3 text-left text-[14px] text-gray-800 transition-colors hover:bg-gray-50"
+                  >
+                    <MessageCircle size={16} className="text-gray-500" />
                     Nhắn tin
                   </button>
-                </div>
-                {/* <div className="cursor-pointer p-0">
-                  <CategoryFilterButton
-                    variant="inline"
-                  />
-                </div> */}
-                <div className="cursor-pointer p-3 hover:bg-gray-50">
-                  <button onClick={() => handelBock(f.friendId)}>
+
+                  <button
+                    type="button"
+                    onClick={() => handelBock(f.friendId)}
+                    className="flex w-full items-center gap-3 px-3 py-3 text-left text-[14px] text-gray-800 transition-colors hover:bg-gray-50"
+                  >
+                    <Ban size={16} className="text-gray-500" />
                     Chặn người này
                   </button>
-                </div>
-                <div className="cursor-pointer p-3 text-red-500 hover:bg-gray-50">
-                  <button onClick={() => handelDeleteFriend(f.friendId)}>
+
+                  <div className="border-t border-gray-100" />
+
+                  <button
+                    type="button"
+                    onClick={() => handelDeleteFriend(f.friendId)}
+                    className="flex w-full items-center gap-3 px-3 py-3 text-left text-[14px] font-medium text-red-500 transition-colors hover:bg-red-50"
+                  >
+                    <Trash2 size={16} />
                     Xóa bạn
                   </button>
                 </div>
-              </div>
+              </>
             )}
           </div>
         </div>

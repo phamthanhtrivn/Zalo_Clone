@@ -11,13 +11,14 @@ interface ChatHeaderProps {
   conversation: any;
   isFriend: boolean | null;
   handleVideoCall: () => void;
+  friendStatus?: string | null;
   router: any;
   id: string;
   setShowInfoSheet: (val: boolean) => void;
 }
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({
-  conversation, isFriend, handleVideoCall, router, id, setShowInfoSheet
+  conversation, isFriend, handleVideoCall, friendStatus, router, id, setShowInfoSheet
 }) => {
   // Lấy trạng thái live trực tiếp từ Redux để re-render tức thì
   const liveConversation = useAppSelector((state) =>
@@ -114,7 +115,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       }
       rightChild={
         <View className="flex-row items-center gap-3">
-          {!isAI && (
+          {!isAI && !(friendStatus === "BLOCKED" || friendStatus === "BLOCKED_BY_OTHER") && (
             <TouchableOpacity className="p-1" onPress={handleVideoCall}>
               <Ionicons name="videocam-outline" size={moderateScale(24)} color="white" />
             </TouchableOpacity>

@@ -47,6 +47,7 @@ export default function FriendProfileModal({
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<UserInformation | null>(null);
   const [commonGroupsCount, setCommonGroupsCount] = useState(0);
+  const [friendStatus, setFriendStatus] = useState<string | null>(null);
   const userId = useSelector((item: any) => item.auth.user.userId);
   const { startDirectCall } = useCall();
 
@@ -64,6 +65,13 @@ export default function FriendProfileModal({
         console.log("Profile response:", profileRes);
         setProfile(profileRes.data ?? null);
         setCommonGroupsCount(commonGroupsRes?.count ?? 0);
+        try {
+          const statusRes = await userService.checkFriendStatus(profileId);
+          const fd = statusRes?.data?.data ?? statusRes?.data;
+          setFriendStatus(fd?.status ?? null);
+        } catch (err) {
+          setFriendStatus(null);
+        }
       } catch (error) {
         console.log(error);
         setProfile(null);
@@ -194,13 +202,15 @@ export default function FriendProfileModal({
 
               {/* Action buttons */}
               <div className="mb-3 grid grid-cols-2 gap-2.5">
-                <button
-                  onClick={handleVoiceCall}
-                  className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-gray-50 py-[7px] text-[13px] font-semibold text-gray-700 transition-colors hover:bg-gray-100"
-                >
-                  <Phone size={15} />
-                  Gọi điện
-                </button>
+                {!(friendStatus === "BLOCKED" || friendStatus === "BLOCKED_BY_OTHER") && (
+                  <button
+                    onClick={handleVoiceCall}
+                    className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-gray-50 py-[7px] text-[13px] font-semibold text-gray-700 transition-colors hover:bg-gray-100"
+                  >
+                    <Phone size={15} />
+                    Gọi điện
+                  </button>
+                )}
                 <button
                   onClick={onMessage}
                   className="flex items-center justify-center gap-1.5 rounded-lg bg-[#e5efff] py-[7px] text-[13px] font-semibold text-[#0068ff] transition-colors hover:bg-[#d6e5ff]"

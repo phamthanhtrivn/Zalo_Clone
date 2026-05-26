@@ -1,5 +1,5 @@
 import { View, Text, Image, TouchableOpacity, ToastAndroid } from "react-native";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { userService } from "@/services/user.service";
 import { useSelector } from "react-redux";
 import { useSocket } from "@/contexts/SocketContext";
@@ -7,20 +7,45 @@ import GroupAvatar from "../ui/GroupAvatar";
 
 export default function ReceivedTab() {
   const [receivedUsers, setReceivedUsers] = useState<any>([]);
-  const { friendRefreshKey } = useSocket();
-  useEffect(() => {
-    const fetchReceivedRequests = async () => {
-      try {
-        let data = await userService.receivedFriendRequests();
-        if (data) {
-          setReceivedUsers(data.users);
-        }
-      } catch (err) {
-        console.log(err);
+  const { friendRefreshKey, socket } = useSocket();
+
+  const fetchReceivedRequests = useCallback(async () => {
+    try {
+      let data = await userService.receivedFriendRequests();
+      if (data) {
+        setReceivedUsers(data.users);
+      } else {
+        setReceivedUsers([]);
       }
+    } catch (err) {
+      console.log(err);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchReceivedRequests();
+  }, [friendRefreshKey, fetchReceivedRequests]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const refresh = () => {
+      void fetchReceivedRequests();
     };
-    fetchReceivedRequests();
-  }, [friendRefreshKey]);
+
+    socket.on("receive_friend_request", refresh);
+    socket.on("friend_accepted", refresh);
+    socket.on("cancel_friend_request", refresh);
+    socket.on("blocked", refresh);
+    socket.on("blocked_by", refresh);
+
+    return () => {
+      socket.off("receive_friend_request", refresh);
+      socket.off("friend_accepted", refresh);
+      socket.off("cancel_friend_request", refresh);
+      socket.off("blocked", refresh);
+      socket.off("blocked_by", refresh);
+    };
+  }, [socket, fetchReceivedRequests]);
 
   return (
     <View className="flex-1">

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import {
   View,
   FlatList,
@@ -169,6 +169,32 @@ export default function ChatWindow() {
     conversation?.group?.allowMembersSendMessages ||
     isOwner ||
     isAdmin;
+  const isMessageBlocked = friendStatus === "BLOCKED" || friendStatus === "BLOCKED_BY_OTHER";
+
+  const refreshFriendStatus = useCallback(async () => {
+    if (isGroup || !effectiveOtherMemberId || !user?.userId) {
+      setIsFriend(null);
+      setFriendStatus(null);
+      return;
+    }
+
+    try {
+      const res = await userService.checkFriendStatus(effectiveOtherMemberId);
+      const friendData = res?.data?.data ?? res?.data;
+
+      if (friendData) {
+        setIsFriend(!!friendData.isFriend);
+        setFriendStatus(friendData.status ?? null);
+      } else {
+        setIsFriend(false);
+        setFriendStatus(null);
+      }
+    } catch (err) {
+      console.error("Check friend status failed:", err);
+      setIsFriend(false);
+      setFriendStatus(null);
+    }
+  }, [effectiveOtherMemberId, isGroup, user?.userId]);
 
   const scrollToBottom = (animated = true) => {
     flatListRef.current?.scrollToOffset({ offset: 0, animated });
@@ -521,6 +547,17 @@ export default function ChatWindow() {
     }
   };
 
+  const handleUnblockFriend = async () => {
+    if (!effectiveOtherMemberId || !user?.userId) return;
+    try {
+      await userService.cancelFriend(effectiveOtherMemberId, user.userId);
+      setIsFriend(false);
+      setFriendStatus(null);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleConversationCleared = () => {
     setMessages([]);
     setPinnedMessages([]);
@@ -790,31 +827,30 @@ export default function ChatWindow() {
 
   // --- FRIEND STATUS CHECK ---
   useEffect(() => {
-    if (isGroup || !effectiveOtherMemberId || !user?.userId) {
-      setIsFriend(null);
-      setFriendStatus(null);
-      return;
-    }
-    let cancelled = false;
-    const check = async () => {
-      try {
-        const res = await userService.checkFriendStatus(effectiveOtherMemberId);
-        // Handle double nested response if necessary, similar to web
-        const friendData = res?.data?.data ?? res?.data;
-        if (!cancelled && friendData) {
-          setIsFriend(!!friendData.isFriend);
-          setFriendStatus(friendData.status ?? null);
-        }
-      } catch (err) {
-        console.error("Check friend status failed:", err);
-        if (!cancelled) setIsFriend(false);
-      }
+    void refreshFriendStatus();
+  }, [id, refreshFriendStatus]);
+
+  useEffect(() => {
+    if (!socket || isGroup || !effectiveOtherMemberId || !user?.userId) return;
+
+    const refreshOnFriendEvent = () => {
+      void refreshFriendStatus();
     };
-    check();
+
+    socket.on("receive_friend_request", refreshOnFriendEvent);
+    socket.on("friend_accepted", refreshOnFriendEvent);
+    socket.on("cancel_friend_request", refreshOnFriendEvent);
+    socket.on("blocked", refreshOnFriendEvent);
+    socket.on("blocked_by", refreshOnFriendEvent);
+
     return () => {
-      cancelled = true;
+      socket.off("receive_friend_request", refreshOnFriendEvent);
+      socket.off("friend_accepted", refreshOnFriendEvent);
+      socket.off("cancel_friend_request", refreshOnFriendEvent);
+      socket.off("blocked", refreshOnFriendEvent);
+      socket.off("blocked_by", refreshOnFriendEvent);
     };
-  }, [id, effectiveOtherMemberId, isGroup, user?.userId]);
+  }, [socket, isGroup, effectiveOtherMemberId, user?.userId, refreshFriendStatus]);
 
   // ===== SOCKET =====
   useEffect(() => {
@@ -1161,6 +1197,7 @@ export default function ChatWindow() {
         conversation={conversation}
         isFriend={isFriend}
         handleVideoCall={handleVideoCall}
+        friendStatus={friendStatus}
         router={router}
         id={id}
         setShowInfoSheet={setShowInfoSheet}
@@ -1178,10 +1215,12 @@ export default function ChatWindow() {
         />
 
         <FriendBanner
+          isGroup={isGroup}
           isFriend={isFriend}
           friendStatus={friendStatus}
           handleAcceptFriend={handleAcceptFriend}
           handleAddFriend={handleAddFriend}
+          handleUnblockFriend={handleUnblockFriend}
         />
 
         <View className="flex-1 bg-[#F1F2F4]">
@@ -1330,6 +1369,14 @@ export default function ChatWindow() {
               Chỉ Trưởng/Phó nhóm mới được gửi tin nhắn
             </Text>
           </View>
+        ) : isMessageBlocked && !isSelectMode ? (
+          <View className="bg-white px-4 py-3 border-t border-[#e5e7eb] items-center">
+            <Text className="text-[#6b7280] text-[13px] text-center">
+              {friendStatus === "BLOCKED"
+                ? "Bạn đã chặn người này, hãy gỡ chặn để gửi tin nhắn."
+                : "Người này đã chặn bạn, bạn không thể gửi tin nhắn."}
+            </Text>
+          </View>
         ) : (
           <ChatInput
             chatName={conversation?.name}
@@ -1345,6 +1392,7 @@ export default function ChatWindow() {
             }}
             isGroup={isGroup}
             conversationId={id}
+            disabled={isMessageBlocked}
             members={isGroup ? groupMembers : [{ userId: { _id: effectiveOtherMemberId, profile: { name: conversation?.name, avatarUrl: conversation?.avatar } } }]}
           />
         )}

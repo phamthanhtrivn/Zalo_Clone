@@ -6,27 +6,52 @@ import {
   ToastAndroid,
 } from "react-native";
 import { userService } from "@/services/user.service";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useSocket } from "@/contexts/SocketContext";
 import GroupAvatar from "../ui/GroupAvatar";
 
 export default function SentTab() {
   const [sentUsers, setSentUsers] = useState<any>([]);
-  const { friendRefreshKey } = useSocket();
-  useEffect(() => {
-    const fetchSentRequests = async () => {
-      try {
-        let data = await userService.sentFriendRequests();
-        if (data) {
-          setSentUsers(data.users);
-        }
-      } catch (err) {
-        console.log(err);
+  const { friendRefreshKey, socket } = useSocket();
+
+  const fetchSentRequests = useCallback(async () => {
+    try {
+      let data = await userService.sentFriendRequests();
+      if (data) {
+        setSentUsers(data.users);
+      } else {
+        setSentUsers([]);
       }
+    } catch (err) {
+      console.log(err);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchSentRequests();
+  }, [friendRefreshKey, fetchSentRequests]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const refresh = () => {
+      void fetchSentRequests();
     };
-    fetchSentRequests();
-  }, [friendRefreshKey]);
+
+    socket.on("receive_friend_request", refresh);
+    socket.on("friend_accepted", refresh);
+    socket.on("cancel_friend_request", refresh);
+    socket.on("blocked", refresh);
+    socket.on("blocked_by", refresh);
+
+    return () => {
+      socket.off("receive_friend_request", refresh);
+      socket.off("friend_accepted", refresh);
+      socket.off("cancel_friend_request", refresh);
+      socket.off("blocked", refresh);
+      socket.off("blocked_by", refresh);
+    };
+  }, [socket, fetchSentRequests]);
 
   return (
     <View className="flex-1">
@@ -65,7 +90,7 @@ function SentItem({ item, message, setSentUsers }: SentItemProps) {
         const data = await userService.cancelFriend(id, userId);
         if (data) {
           setSentUsers((prev: any) =>
-            prev.filter((item: any) => item.friendId != id),
+            prev.filter((item: any) => item.friendId !== id),
           );
 
           ToastAndroid.show(

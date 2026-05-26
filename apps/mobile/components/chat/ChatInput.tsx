@@ -48,6 +48,7 @@ interface ChatInputProps {
   isGroup?: boolean;
   conversationId?: string;
   members?: any[];
+  disabled?: boolean;
 }
 
 type VoiceMode = "audio";
@@ -73,6 +74,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   isGroup = false,
   conversationId = "",
   members = [],
+  disabled = false,
 }) => {
   const insets = useSafeAreaInsets();
   const [text, setText] = useState("");
@@ -163,6 +165,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const recordingRef = useRef<Audio.Recording | null>(null);
 
   const handleSend = () => {
+    if (disabled) return;
     if (text.trim()) {
       onSendMessage(text.trim());
       setText("");
@@ -548,8 +551,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
               }}
               value={text}
               onChangeText={handleTextChange}
+              editable={!disabled}
               multiline
               onFocus={() => {
+                if (disabled) return;
                 setShowEmoji(false);
                 setVoiceModalVisible(false);
               }}
@@ -570,15 +575,15 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
         {!(text.trim() || selectedFiles.length > 0) ? (
           <View className="flex-row items-center">
-            <TouchableOpacity onPress={pickImages} className="p-1.5">
+            <TouchableOpacity onPress={pickImages} className="p-1.5" disabled={disabled}>
               <MaterialIcons name="image" size={moderateScale(25)} color="#6b7280" />
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={pickDocuments} className="p-1.5">
+            <TouchableOpacity onPress={pickDocuments} className="p-1.5" disabled={disabled}>
               <Ionicons name="attach-outline" size={moderateScale(25)} color="#6b7280" />
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={openVoiceModal} className="p-1.5">
+            <TouchableOpacity onPress={openVoiceModal} className="p-1.5" disabled={disabled}>
               <Ionicons name="mic-outline" size={moderateScale(25)} color={COLORS.primary} />
             </TouchableOpacity>
 
@@ -587,6 +592,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               <TouchableOpacity
                 onPress={() => setShowPollModal(true)}
                 className="p-1.5"
+                disabled={disabled}
               >
                 <Ionicons name="bar-chart-outline" size={moderateScale(25)} color="#6b7280" />
               </TouchableOpacity>
@@ -596,6 +602,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           <View className="h-[40px] justify-center">
             <TouchableOpacity
               onPress={handleSend}
+              disabled={disabled}
               className="w-[38px] h-[38px] items-center justify-center"
             >
               <Ionicons
