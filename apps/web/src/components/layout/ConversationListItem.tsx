@@ -859,15 +859,6 @@ const ConversationListItem = ({
               )}
               <span className="flex min-w-0 items-center gap-1 text-[13px] text-gray-500">
                 <span className="shrink-0">{previewSenderPrefix}</span>
-                <span className="hidden">
-                  {!previewData.showSender
-                    ? ""
-                    : conversation.type === "DIRECT" &&
-                      conversation.lastMessage?.senderName !== "Bạn"
-                      ? ""
-                      : `${conversation.lastMessage?.senderName ?? ""}: `}
-                </span>
-
                 <span
                   className={cn(
                     "flex min-w-0 items-center gap-1 truncate",
