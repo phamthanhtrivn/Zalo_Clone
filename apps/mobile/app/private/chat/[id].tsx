@@ -1075,8 +1075,6 @@ export default function ChatWindow() {
     });
     return mine?._id || null;
   }, [messages, authUserId]);
-
-  // ================= RENDER =================
   const renderItem = React.useCallback(({ item, index }: any) => {
     // Cơ chế INVERTED: 
     // index lớn hơn là tin nhắn CŨ hơn (older)
