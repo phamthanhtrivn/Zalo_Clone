@@ -49,4 +49,5 @@ export interface Session {
   deviceType: string;
   location: string;
   createdAt: Date;
+  isOnline?: boolean;
 }

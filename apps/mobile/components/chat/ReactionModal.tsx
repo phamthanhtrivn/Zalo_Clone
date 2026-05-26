@@ -7,9 +7,10 @@ import {
   FlatList,
   Pressable,
 } from "react-native";
-import { Image } from "expo-image";
 import { EMOJI_MAP, type EmojiType } from "@/constants/emoji.constant";
 import type { ReactionType } from "@/types/messages.type";
+import GroupAvatar from "../ui/GroupAvatar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Props {
   visible: boolean;
@@ -18,6 +19,7 @@ interface Props {
 }
 
 const ReactionModal: React.FC<Props> = ({ visible, onClose, reactions }) => {
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<"all" | EmojiType>("all");
 
   const { emojiCounts, totalReactions } = useMemo(() => {
@@ -142,7 +144,11 @@ const ReactionModal: React.FC<Props> = ({ visible, onClose, reactions }) => {
           <FlatList
             data={filteredReactions}
             keyExtractor={(_, i) => i.toString()}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}
+            contentContainerStyle={{
+              paddingHorizontal: 16,
+              paddingTop: 8,
+              paddingBottom: 8 + insets.bottom
+            }}
             renderItem={({ item }) => {
               const emojisToShow =
                 activeTab === "all"
@@ -160,20 +166,11 @@ const ReactionModal: React.FC<Props> = ({ visible, onClose, reactions }) => {
                 >
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                     {/* Avatar */}
-                    <View
-                      style={{
-                        width: 42,
-                        height: 42,
-                        borderRadius: 21,
-                        overflow: "hidden",
-                        backgroundColor: "#e5e7eb",
-                      }}
-                    >
-                      <Image
-                        source={{ uri: item.userId.profile?.avatarUrl }}
-                        style={{ width: 42, height: 42 }}
-                      />
-                    </View>
+                    <GroupAvatar
+                      uri={item.userId.profile?.avatarUrl}
+                      name={item.userId.profile?.name || "Người dùng"}
+                      size={42}
+                    />
                     <Text style={{ fontSize: 14, fontWeight: "500", color: "#111" }}>
                       {item.userId.profile?.name}
                     </Text>

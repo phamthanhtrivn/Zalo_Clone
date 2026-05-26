@@ -94,7 +94,6 @@ export const userService = {
     return response.data;
   },
 
-
   searchFriendByPhone: async (userId: string, phone: string) => {
     const response = await apiClient.post("/api/users/search-friend-phone", { userId, phone });
     return response.data;
@@ -106,5 +105,9 @@ export const userService = {
   getBulkStatus: async (userIds: string[]) => {
     const response = await apiClient.post("/api/users/status/bulk", { userIds });
     return response.data?.data || [];
+  },
+  getBlockedFriends: async () => {
+    const response = await apiClient.get("/api/users/blocked-friends");
+    return response.data;
   }
 };

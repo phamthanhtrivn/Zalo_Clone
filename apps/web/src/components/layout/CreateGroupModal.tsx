@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Search } from "lucide-react";
 import { useSelector } from "react-redux";
+import AppAvatar from "@/components/common/AppAvatar";
 
 type Friend = {
   friendId: string;
@@ -225,10 +226,10 @@ const CreateGroupModal = ({
                       checked={selectedMemberIds.includes(friend.friendId)}
                       onChange={() => toggleMember(friend.friendId)}
                     />
-                    <img
-                      src={friend.avatarUrl || "/default-avatar.png"}
-                      alt={friend.name}
-                      className="h-9 w-9 rounded-full object-cover border"
+                    <AppAvatar
+                      src={friend.avatarUrl}
+                      name={friend.name}
+                      className="h-9 w-9"
                     />
                     <span className="text-sm font-medium">{friend.name}</span>
                   </label>

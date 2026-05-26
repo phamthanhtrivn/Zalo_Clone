@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Shield, Lock, Layout, Bell } from "lucide-react";
 import AccountSetting from "./AccountSetting";
+import PrivacySetting from "./PrivacySetting";
 
 // Định nghĩa danh sách các tab để dễ dàng map ra UI
 const SETTING_TABS = [
@@ -51,11 +52,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center px-3 py-3 mx-2 rounded-md transition-colors hover:cursor-pointer ${
-                      isActive
-                        ? "bg-[#e5efff] text-[#0f6bf5]"
-                        : "text-gray-700 hover:bg-gray-100"
-                    }`}
+                    className={`flex items-center px-3 py-3 mx-2 rounded-md transition-colors hover:cursor-pointer ${isActive
+                      ? "bg-[#e5efff] text-[#0f6bf5]"
+                      : "text-gray-700 hover:bg-gray-100"
+                      }`}
                   >
                     <Icon
                       size={18}
@@ -72,6 +72,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* CỘT PHẢI: Content Area */}
         <div className="flex-1 overflow-y-auto px-5 py-7 relative custom-scrollbar">
           {activeTab === "account" && <AccountSetting />}
+          {activeTab === "privacy" && <PrivacySetting />}
         </div>
       </div>
     </div>,

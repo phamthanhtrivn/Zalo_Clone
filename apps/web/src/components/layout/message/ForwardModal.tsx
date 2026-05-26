@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { TbMessageUp } from "react-icons/tb";
+import AppAvatar from "@/components/common/AppAvatar";
 
 type Conversation = {
   conversationId: string;
@@ -78,9 +79,10 @@ const ForwardModal = ({
                 onClick={(e) => e.stopPropagation()}
               />
 
-              <img
+              <AppAvatar
                 src={conv.avatar}
-                className="w-9 h-9 rounded-full object-cover"
+                name={conv.name}
+                className="w-9 h-9"
               />
 
               <span className="text-sm">{conv.name}</span>

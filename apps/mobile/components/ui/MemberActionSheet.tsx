@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import GroupAvatar from "./GroupAvatar";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -44,6 +45,7 @@ const MemberActionSheet: React.FC<Props> = ({
   onTransferOwner,
   onRemove,
 }) => {
+  const insets = useSafeAreaInsets();
   if (!member) return null;
 
   const isOwner = userRole === "OWNER";
@@ -96,7 +98,7 @@ const MemberActionSheet: React.FC<Props> = ({
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.overlay}>
           <TouchableWithoutFeedback>
-            <View style={styles.sheet}>
+            <View style={[styles.sheet, { paddingBottom: 24 + insets.bottom }]}>
               <View style={styles.header}>
                 <GroupAvatar
                   uri={member.avatarUrl}

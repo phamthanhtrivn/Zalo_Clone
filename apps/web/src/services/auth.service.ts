@@ -65,4 +65,12 @@ export const authService = {
     const res = await apiClient.post("/api/auth/qr-login/exchange", { ticket });
     return res.data.data;
   },
+  requestUpdatePhone: async (phone: string) => {
+    const res = await apiClient.post("/api/auth/update-phone/request", { phone });
+    return res.data.data;
+  },
+  verifyUpdatePhone: async (phone: string, otp: string) => {
+    const res = await apiClient.post("/api/auth/update-phone/verify", { phone, otp });
+    return res.data.data;
+  },
 };

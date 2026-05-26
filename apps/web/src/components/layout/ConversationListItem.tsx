@@ -639,7 +639,7 @@ const ConversationListItem = ({
               className={cn(
                 "flex min-w-0 flex-1 items-center gap-2 text-sm",
                 conversation.unreadCount > 0
-                  ? "font-semibold text-black"
+                  ? "font-medium text-black"
                   : "font-normal text-gray-900",
                 isActive ? "text-black" : "",
               )}
@@ -662,14 +662,6 @@ const ConversationListItem = ({
                 <span className="max-w-full break-words text-right text-[11px] leading-3 text-gray-400 transition-opacity group-hover:opacity-0">
                   {formatMessageTime(conversation.lastMessageAt)}
                 </span>
-
-                {conversation.unreadCount > 0 && (
-                  <span className="mt-1 rounded-full bg-red-500 px-2 py-[1px] text-[10px] text-white">
-                    {conversation.unreadCount > 99
-                      ? "99+"
-                      : conversation.unreadCount}
-                  </span>
-                )}
               </div>
 
               <div ref={menuContainerRef}>
@@ -744,7 +736,7 @@ const ConversationListItem = ({
                             ))}
                             <div className="border-t" />
                             <div className="cursor-pointer p-3 hover:bg-gray-100 font-normal">
-                                Quản lý thẻ phân loại
+                              Quản lý thẻ phân loại
                             </div>
                           </div>
                         )}
@@ -852,31 +844,50 @@ const ConversationListItem = ({
             </div>
           </div>
 
-          <div className="mt-0.5 flex min-w-0 items-center gap-2 text-[13px] text-gray-500">
-            {conversation.category && (
-              <span
-                className={cn(
-                  "relative inline-flex shrink-0 items-center rounded-l-md px-2 py-[2px] text-[10px] font-medium text-white",
-                  "before:absolute before:right-[-6px] before:top-0 before:h-full before:w-3 before:skew-x-[-30deg]",
-                  CATEGORY_STYLE[conversation.category],
-                )}
-              >
-                {CATEGORY_SHORT_DISPLAY[conversation.category]}
+          <div className="mt-0.5 flex min-w-0 items-center justify-between gap-2 text-[13px] text-gray-500">
+            <div className="flex min-w-0 items-center gap-2 flex-1">
+              {conversation.category && (
+                <span
+                  className={cn(
+                    "relative inline-flex shrink-0 items-center rounded-l-md px-2 py-[2px] text-[10px] font-medium text-white",
+                    "before:absolute before:right-[-6px] before:top-0 before:h-full before:w-3 before:skew-x-[-30deg]",
+                    CATEGORY_STYLE[conversation.category],
+                  )}
+                >
+                  {CATEGORY_SHORT_DISPLAY[conversation.category]}
+                </span>
+              )}
+              <span className="flex min-w-0 items-center gap-1 text-[13px] text-gray-500">
+                <span className="shrink-0">{previewSenderPrefix}</span>
+                <span className="hidden">
+                  {!previewData.showSender
+                    ? ""
+                    : conversation.type === "DIRECT" &&
+                      conversation.lastMessage?.senderName !== "Bạn"
+                      ? ""
+                      : `${conversation.lastMessage?.senderName ?? ""}: `}
+                </span>
+
+                <span
+                  className={cn(
+                    "flex min-w-0 items-center gap-1 truncate",
+                    conversation.unreadCount > 0
+                      ? "font-medium text-gray-900"
+                      : "text-gray-500",
+                  )}
+                >
+                  {previewDisplay.content}
+                </span>
+              </span>
+            </div>
+
+            {conversation.unreadCount > 0 && (
+              <span className="shrink-0 rounded-full bg-red-500 px-1.5 py-[1px] text-[10px] font-medium text-white min-w-[18px] text-center">
+                {conversation.unreadCount > 99
+                  ? "99+"
+                  : conversation.unreadCount}
               </span>
             )}
-            <span className="flex min-w-0 items-center gap-1 text-[13px] text-gray-500">
-              <span className="shrink-0">{previewSenderPrefix}</span>
-              <span
-                className={cn(
-                  "flex min-w-0 items-center gap-1 truncate",
-                  conversation.unreadCount > 0
-                    ? "font-semibold text-gray-900"
-                    : "text-gray-500",
-                )}
-              >
-                {previewDisplay.content}
-              </span>
-            </span>
           </div>
         </div>
       </div>

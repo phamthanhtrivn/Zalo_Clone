@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
     Modal, View, Text, Pressable, FlatList, StyleSheet, TextInput, ActivityIndicator
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { musicService } from "../../services/social.service";
 import { Audio } from "expo-av";
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export default function MusicSheet({ visible, onClose, onSelect }: Props) {
+    const insets = useSafeAreaInsets();
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [query, setQuery] = useState("");
     const [loading, setLoading] = useState(false);
@@ -107,7 +109,7 @@ export default function MusicSheet({ visible, onClose, onSelect }: Props) {
             <View style={styles.container}>
                 <Pressable style={styles.backdrop} onPress={onClose} />
 
-                <View style={styles.sheet}>
+                <View style={[styles.sheet, { paddingBottom: 30 + insets.bottom }]}>
                     {/* Header */}
                     <View style={styles.header}>
                         <Pressable onPress={onClose}>

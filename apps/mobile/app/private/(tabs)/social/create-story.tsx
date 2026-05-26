@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { CameraView, useCameraPermissions } from "expo-camera";
@@ -30,6 +31,7 @@ const SAMPLE_THUMBS = [
 ];
 
 export default function CreateStoryScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const cameraRef = useRef<CameraView | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
@@ -234,7 +236,7 @@ export default function CreateStoryScreen() {
   if (!permission) return <View style={{ flex: 1, backgroundColor: "black" }} />;
   if (!permission.granted) {
     return (
-      <Container className="bg-black">
+      <Container className="bg-black" edges={["top", "left", "right", "bottom"]}>
         <View className="flex-1 items-center justify-center px-6">
           <Text className="mb-4 text-center text-[16px] text-white">Cần quyền camera để tạo story</Text>
           <Pressable onPress={requestPermission} className="rounded-full bg-[#0ea5e9] px-5 py-3">
@@ -246,7 +248,7 @@ export default function CreateStoryScreen() {
   }
 
   return (
-    <Container className="bg-black">
+    <Container className="bg-black" edges={["top", "left", "right", "bottom"]}>
       <View className="flex-1 bg-black">
         {activeMode === "text" ? (
           <Image
@@ -414,7 +416,10 @@ export default function CreateStoryScreen() {
 
         <Modal visible={showPrivacySheet} transparent animationType="slide">
           <View className="flex-1 justify-end bg-black/40">
-            <View className="max-h-[82%] rounded-t-3xl bg-white p-5 pb-8">
+            <View
+              className="max-h-[82%] rounded-t-3xl bg-white p-5"
+              style={{ paddingBottom: 32 + insets.bottom }}
+            >
               <View className="mb-4 h-1.5 w-14 self-center rounded-full bg-[#d1d5db]" />
               <Text className="mb-4 text-[24px] font-semibold">Ai được xem khoảnh khắc này?</Text>
               <ScrollView showsVerticalScrollIndicator={false}>
@@ -468,7 +473,10 @@ export default function CreateStoryScreen() {
 
         <Modal visible={showFriendPicker} transparent animationType="slide">
           <View className="flex-1 justify-end bg-black/40">
-            <View className="h-[75%] rounded-t-3xl bg-white p-4">
+            <View
+              className="h-[75%] rounded-t-3xl bg-white px-4 pt-4"
+              style={{ paddingBottom: 16 + insets.bottom }}
+            >
               <View className="mb-3 flex-row items-center justify-between">
                 <Text className="text-[20px] font-semibold">
                   {friendPickerMode === "include" ? "Chọn bạn bè được xem" : "Chọn bạn bè không được xem"}
@@ -504,7 +512,10 @@ export default function CreateStoryScreen() {
 
         <Modal visible={showMusicSheet} transparent animationType="slide">
           <View className="flex-1 justify-end bg-black/40">
-            <View className="h-[75%] rounded-t-3xl bg-white p-4">
+            <View
+              className="h-[75%] rounded-t-3xl bg-white px-4 pt-4"
+              style={{ paddingBottom: 16 + insets.bottom }}
+            >
               <View className="mb-3 h-1.5 w-14 self-center rounded-full bg-[#d1d5db]" />
               <View className="mb-3 rounded-full bg-[#f3f4f6] px-4 py-2">
                 <TextInput placeholder="Tìm bài hát hoặc nghệ sĩ" value={musicKeyword} onChangeText={setMusicKeyword} />

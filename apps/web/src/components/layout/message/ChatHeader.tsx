@@ -11,6 +11,7 @@ import { useCall } from "@/contexts/VideoCallContext";
 import { useAppSelector } from "@/store";
 import { CallType } from "@/constants/types";
 import { formatLastSeen } from "@/utils/lastSeen.util";
+import CreateGroupModal from "@/components/layout/CreateGroupModal";
 
 type ChatHeaderProps = {
   conversation: ConversationItemType;
@@ -36,6 +37,7 @@ const ChatHeader = ({
   const { startGroupCall, startDirectCall } = useCall();
   const currentUserId = useAppSelector((state) => state.auth.user?.userId);
   const [isInitializingCall, setIsInitializingCall] = useState(false);
+  const [addMemberModalOpen, setAddMemberModalOpen] = useState(false);
   const [, setTick] = useState(0);
 
   // Tự động cập nhật lại thời gian "Hoạt động X phút trước" mỗi 30 giây
@@ -121,9 +123,15 @@ const ChatHeader = ({
         <div className="flex items-center gap-1">
           {conversation?.type !== "AI" && (
             <>
-              <Button variant="ghost" size="icon">
-                <MdGroupAdd />
-              </Button>
+              {conversation.type === "GROUP" && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setAddMemberModalOpen(true)}
+                >
+                  <MdGroupAdd size={20} />
+                </Button>
+              )}
 
               <Button
                 variant="ghost"
@@ -166,6 +174,14 @@ const ChatHeader = ({
         pinnedMessages={pinnedMessages}
         handlePinnedMessage={handlePinnedMessage}
         onClickMessage={handleJumpToMessage}
+      />
+
+      <CreateGroupModal
+        open={addMemberModalOpen}
+        onOpenChange={setAddMemberModalOpen}
+        mode="ADD_MEMBER"
+        conversationId={conversation.conversationId || ""}
+        excludeUserIds={conversation.participants || []}
       />
     </>
   );

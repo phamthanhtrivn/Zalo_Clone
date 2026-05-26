@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Text, View, StyleSheet, TouchableOpacity, ToastAndroid } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
@@ -10,7 +10,8 @@ export default function ScanQRScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const router = useRouter();
-  
+  const isScanningRef = useRef(false);
+
   const userId = useSelector((state: any) => state.auth.user.userId);
 
   useEffect(() => {
@@ -21,12 +22,14 @@ export default function ScanQRScreen() {
 
   // Hàm xử lý khi camera bắt được mã QR
   const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
+    if (isScanningRef.current || scanned) return;
+    isScanningRef.current = true;
     setScanned(true); // Tạm khóa quét để không gọi API liên tục nhiều lần
-    
+
     try {
       // Dữ liệu từ mã QR (chính là số điện thoại mà ta đã truyền vào value của thẻ QRCode)
-      const phoneFromQR = data.trim(); 
-      
+      const phoneFromQR = data.trim();
+
       ToastAndroid.show("Đang tìm kiếm...", ToastAndroid.SHORT);
 
       // Gọi API tìm kiếm bạn bè
@@ -35,7 +38,10 @@ export default function ScanQRScreen() {
       if (!friendData) {
         ToastAndroid.show("Không tìm thấy người dùng", ToastAndroid.SHORT);
         // Đợi 2 giây sau đó cho phép quét lại nếu không tìm thấy
-        setTimeout(() => setScanned(false), 2000); 
+        setTimeout(() => {
+          isScanningRef.current = false;
+          setScanned(false);
+        }, 2000);
         return;
       }
 
@@ -54,18 +60,21 @@ export default function ScanQRScreen() {
 
     } catch (err) {
       ToastAndroid.show(
-        (err as any)?.response?.data?.message || "Mã QR không hợp lệ hoặc lỗi kết nối", 
+        (err as any)?.response?.data?.message || "Mã QR không hợp lệ hoặc lỗi kết nối",
         ToastAndroid.SHORT
       );
       console.error("Error scanning QR:", err);
       // Đợi 2 giây sau đó cho phép quét lại nếu lỗi
-      setTimeout(() => setScanned(false), 2000); 
+      setTimeout(() => {
+        isScanningRef.current = false;
+        setScanned(false);
+      }, 2000);
     }
   };
 
   // UI khi đang check quyền
   if (!permission) {
-    return <View className="flex-1 bg-black" />; 
+    return <View className="flex-1 bg-black" />;
   }
 
   // UI khi người dùng chưa cấp quyền Camera
@@ -75,7 +84,7 @@ export default function ScanQRScreen() {
         <Text className="text-white text-center mb-4 text-[16px]">
           Zalo cần quyền truy cập Camera để quét mã QR
         </Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           className="bg-[#0091ff] px-8 py-3 rounded-full"
           onPress={requestPermission}
         >
@@ -95,9 +104,9 @@ export default function ScanQRScreen() {
         }}
         style={StyleSheet.absoluteFillObject}
       />
-      
+
       {/* Nút Back ở góc trái trên */}
-      <TouchableOpacity 
+      <TouchableOpacity
         className="absolute top-12 left-4 w-10 h-10 bg-black/50 rounded-full items-center justify-center z-10"
         onPress={() => router.back()}
       >

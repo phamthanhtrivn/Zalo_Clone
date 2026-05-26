@@ -406,7 +406,7 @@ export default function ViewStoryScreen() {
   };
 
   return (
-    <Container className="bg-black">
+    <Container className="bg-black" edges={["top", "left", "right", "bottom"]}>
       <View className="flex-1 bg-black">
         <View className="absolute top-12 left-4 right-4 z-20">
           <View className="flex-row gap-1 mb-4">

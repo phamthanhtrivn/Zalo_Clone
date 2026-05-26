@@ -15,6 +15,7 @@ import {
     StyleSheet,
     Keyboard,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAppDispatch, useAppSelector } from "@/store/store";
@@ -52,6 +53,7 @@ export default function CommentSheet({
     onCommentAdded,
     onCommentDeleted,
 }: Props) {
+    const insets = useSafeAreaInsets();
     const dispatch = useAppDispatch();
     const comments: CommentItem[] = useAppSelector(
         (s: any) => s.diary?.commentsByPost?.[postId] ?? EMPTY_COMMENTS
@@ -212,7 +214,13 @@ export default function CommentSheet({
             <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
 
             <Animated.View
-                style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}
+                style={[
+                    styles.sheet,
+                    {
+                        paddingBottom: (Platform.OS === "ios" ? 24 : 12) + insets.bottom,
+                        transform: [{ translateY: slideAnim }],
+                    },
+                ]}
             >
                 {/* Handle bar */}
                 <View style={styles.handleBar} />

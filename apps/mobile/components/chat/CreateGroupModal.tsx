@@ -16,6 +16,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { conversationService } from "@/services/conversation.service";
 import { userService } from "@/services/user.service";
 import { useRouter } from "expo-router"; // Sửa lại router
+import Container from "../common/Container";
+import GroupAvatar from "../ui/GroupAvatar";
+import Header from "../common/Header";
 
 interface Props {
   visible: boolean;
@@ -144,143 +147,151 @@ const CreateGroupModal: React.FC<Props> = ({
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
-      <SafeAreaView style={{ flex: 0, backgroundColor: "#0068ff" }} />
-      <View style={styles.container}>
-        {/* HEADER */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleClose} style={styles.headerBtn}>
-            <Text style={styles.headerBtnText}>Hủy</Text>
-          </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>
-              {isAddMode ? "Thêm vào nhóm" : "Nhóm mới"}
-            </Text>
-            <Text style={styles.headerSubTitle}>
-              Đã chọn: {selectedFriends.length}
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={handleAction}
-            disabled={
-              submitting ||
-              (isAddMode
-                ? selectedFriends.length < 1
-                : selectedFriends.length < 2)
+      <Container>
+        <View style={styles.container}>
+          {/* HEADER */}
+          <Header
+            gradient
+            leftChild={
+              <TouchableOpacity onPress={handleClose} style={styles.headerBtn}>
+                <Text style={styles.headerBtnText}>Hủy</Text>
+              </TouchableOpacity>
             }
-            style={[
-              styles.headerBtn,
-              {
-                opacity: (
-                  isAddMode
-                    ? selectedFriends.length < 1
-                    : selectedFriends.length < 2
-                )
-                  ? 0.5
-                  : 1,
-              },
-            ]}
-          >
-            {submitting ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <Text style={styles.headerBtnText}>
-                {isAddMode ? "Thêm" : "Tạo"}
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* TOP SECTION */}
-        <View style={styles.topSection}>
-          {!isAddMode && (
-            <View style={styles.groupInputRow}>
-              <View style={styles.cameraIcon}>
-                <Ionicons name="camera" size={20} color="#666" />
+            centerChild={
+              <View style={styles.headerTitleContainer}>
+                <Text style={styles.headerTitle}>
+                  {isAddMode ? "Thêm vào nhóm" : "Nhóm mới"}
+                </Text>
+                <Text style={styles.headerSubTitle}>
+                  Đã chọn: {selectedFriends.length}
+                </Text>
               </View>
+            }
+            rightChild={
+              <TouchableOpacity
+                onPress={handleAction}
+                disabled={
+                  submitting ||
+                  (isAddMode
+                    ? selectedFriends.length < 1
+                    : selectedFriends.length < 2)
+                }
+                style={[
+                  styles.headerBtn,
+                  {
+                    opacity: (
+                      isAddMode
+                        ? selectedFriends.length < 1
+                        : selectedFriends.length < 2
+                    )
+                      ? 0.5
+                      : 1,
+                  },
+                ]}
+              >
+                {submitting ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <Text style={styles.headerBtnText}>
+                    {isAddMode ? "Thêm" : "Tạo"}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            }
+          />
+
+          {/* TOP SECTION */}
+          <View style={styles.topSection}>
+            {!isAddMode && (
+              <View style={styles.groupInputRow}>
+                <View style={styles.cameraIcon}>
+                  <Ionicons name="camera" size={20} color="#666" />
+                </View>
+                <TextInput
+                  style={styles.inputName}
+                  placeholder="Đặt tên nhóm (không bắt buộc)"
+                  value={groupName}
+                  onChangeText={setGroupName}
+                />
+              </View>
+            )}
+            <View style={styles.searchBar}>
+              <Ionicons name="search" size={18} color="#999" />
               <TextInput
-                style={styles.inputName}
-                placeholder="Đặt tên nhóm (không bắt buộc)"
-                value={groupName}
-                onChangeText={setGroupName}
+                style={styles.searchInput}
+                placeholder="Tìm tên bạn bè"
+                value={searchText}
+                onChangeText={setSearchText}
+              />
+            </View>
+          </View>
+
+          {/* SELECTED LIST */}
+          {selectedFriends.length > 0 && (
+            <View style={styles.selectedContainer}>
+              <FlatList
+                horizontal
+                data={selectedFriends}
+                keyExtractor={(item) => "sel-" + item.id}
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item }) => (
+                  <View style={styles.selectedAvatarWrapper}>
+                    <GroupAvatar
+                      uri={item.avatar}
+                      name={item.name}
+                      size={44}
+                    />
+                    <TouchableOpacity
+                      onPress={() => toggleSelect(item)}
+                      style={styles.removeIcon}
+                    >
+                      <Ionicons name="close-circle" size={18} color="#999" />
+                    </TouchableOpacity>
+                  </View>
+                )}
               />
             </View>
           )}
-          <View style={styles.searchBar}>
-            <Ionicons name="search" size={18} color="#999" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Tìm tên bạn bè"
-              value={searchText}
-              onChangeText={setSearchText}
-            />
-          </View>
-        </View>
 
-        {/* SELECTED LIST */}
-        {selectedFriends.length > 0 && (
-          <View style={styles.selectedContainer}>
+          {/* FRIENDS LIST */}
+          {loading ? (
+            <ActivityIndicator style={{ flex: 1 }} color="#0068ff" />
+          ) : (
             <FlatList
-              horizontal
-              data={selectedFriends}
-              keyExtractor={(item) => "sel-" + item.id}
-              showsHorizontalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <View style={styles.selectedAvatarWrapper}>
-                  <Image
-                    source={{
-                      uri: item.avatar || "https://via.placeholder.com/150",
-                    }}
-                    style={styles.selectedAvatar}
-                  />
+              data={filteredFriends}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => {
+                const isSelected = selectedFriends.some((f) => f.id === item.id);
+                return (
                   <TouchableOpacity
+                    style={styles.friendRow}
                     onPress={() => toggleSelect(item)}
-                    style={styles.removeIcon}
                   >
-                    <Ionicons name="close-circle" size={18} color="#999" />
+                    <View
+                      style={[
+                        styles.checkbox,
+                        isSelected && styles.checkboxSelected,
+                      ]}
+                    >
+                      {isSelected && (
+                        <Ionicons name="checkmark" size={16} color="white" />
+                      )}
+                    </View>
+                    <View style={{ marginLeft: 16 }}>
+                      <GroupAvatar
+                        uri={item.avatar}
+                        name={item.name}
+                        size={48}
+                      />
+                    </View>
+                    <Text style={styles.friendName}>{item.name}</Text>
                   </TouchableOpacity>
-                </View>
-              )}
+                );
+              }}
             />
-          </View>
-        )}
-
-        {/* FRIENDS LIST */}
-        {loading ? (
-          <ActivityIndicator style={{ flex: 1 }} color="#0068ff" />
-        ) : (
-          <FlatList
-            data={filteredFriends}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => {
-              const isSelected = selectedFriends.some((f) => f.id === item.id);
-              return (
-                <TouchableOpacity
-                  style={styles.friendRow}
-                  onPress={() => toggleSelect(item)}
-                >
-                  <View
-                    style={[
-                      styles.checkbox,
-                      isSelected && styles.checkboxSelected,
-                    ]}
-                  >
-                    {isSelected && (
-                      <Ionicons name="checkmark" size={16} color="white" />
-                    )}
-                  </View>
-                  <Image
-                    source={{
-                      uri: item.avatar || "https://via.placeholder.com/150",
-                    }}
-                    style={styles.avatar}
-                  />
-                  <Text style={styles.friendName}>{item.name}</Text>
-                </TouchableOpacity>
-              );
-            }}
-          />
-        )}
-      </View>
+          )}
+        </View>
+      </Container>
     </Modal>
   );
 };
@@ -296,9 +307,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   headerBtn: { minWidth: 40 },
-  headerBtnText: { color: "white", fontSize: 16, fontWeight: "500" },
-  headerTitleContainer: { flex: 1, alignItems: "center" },
-  headerTitle: { color: "white", fontSize: 17, fontWeight: "bold" },
+  headerBtnText: { color: "white", fontSize: 15, fontWeight: "500" },
+  headerTitleContainer: { flex: 1, alignItems: "center", justifyContent: "center" },
+  headerTitle: { color: "white", fontSize: 16, fontWeight: "bold" },
   headerSubTitle: { color: "white", fontSize: 12, opacity: 0.8 },
   topSection: {
     padding: 16,

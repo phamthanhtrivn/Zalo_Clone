@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   FlatList,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import GroupAvatar from "../ui/GroupAvatar";
 import type { MessagesType } from "@/types/messages.type";
 
@@ -17,6 +18,7 @@ interface Props {
 }
 
 const MessageDetailModal: React.FC<Props> = ({ visible, onClose, message }) => {
+  const insets = useSafeAreaInsets();
   if (!message) return null;
 
   return (
@@ -32,6 +34,7 @@ const MessageDetailModal: React.FC<Props> = ({ visible, onClose, message }) => {
             borderTopLeftRadius: 20,
             borderTopRightRadius: 20,
             maxHeight: "60%",
+            paddingBottom: 16 + insets.bottom,
           }}
         >
           {/* Header */}

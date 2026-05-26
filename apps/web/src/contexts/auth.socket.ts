@@ -21,18 +21,21 @@ export const requestQrCode = () => {
 };
 
 export const onQrGenerated = (cb: (qrToken: string) => void) => {
+  authSocket?.off("qr_code_generated");
   authSocket?.on("qr_code_generated", (data) => {
     cb(data.qrToken);
   });
 };
 
 export const onQrScanned = (cb: (user: any) => void) => {
+  authSocket?.off("qr_scanned");
   authSocket?.on("qr_scanned", (data) => {
     cb(data.user);
   });
 };
 
 export const onQrLoginSuccess = (cb: (ticket: string) => void) => {
+  authSocket?.off("qr_login_success");
   authSocket?.on("qr_login_success", (data) => {
     cb(data.ticket);
   });

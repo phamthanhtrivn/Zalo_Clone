@@ -12,4 +12,5 @@ export interface Session {
   location: string;
 
   createdAt: Date;
+  isOnline?: boolean;
 }
