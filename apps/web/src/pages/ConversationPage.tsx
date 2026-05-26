@@ -88,6 +88,7 @@ const ConversationPage = () => {
 
   const [isFriend, setIsFriend] = useState<boolean | null>(null);
   const [friendStatus, setFriendStatus] = useState<string | null>(null);
+  const friendStatusRequestIdRef = useRef(0);
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const lastMessageId = messages[messages.length - 1]?._id;
@@ -102,6 +103,8 @@ const ConversationPage = () => {
   const selectedMessageId = new URLSearchParams(location.search).get(
     "messageId",
   );
+  const isMessageBlocked =
+    friendStatus === "BLOCKED" || friendStatus === "BLOCKED_BY_OTHER";
 
   const toastAlert = useCallback((message: string) => {
     toast(message, {
@@ -154,38 +157,60 @@ const ConversationPage = () => {
     return () => setActiveConversationId(null);
   }, [id, setActiveConversationId]);
 
-  // --- FRIEND STATUS CHECK ---
-  useEffect(() => {
+  const refreshFriendStatus = useCallback(async () => {
     if (isGroup || !effectiveOtherMemberId || !currentUserId) {
       setIsFriend(null);
       setFriendStatus(null);
       return;
     }
-    let cancelled = false;
-    const check = async () => {
-      try {
-        const res = await userService.checkFriendStatus(effectiveOtherMemberId);
-        const friendData = res?.data?.data ?? res?.data;
-        if (!cancelled && friendData) {
-          setIsFriend(!!friendData.isFriend);
-          setFriendStatus(friendData.status ?? null);
-        } else if (!cancelled) {
-          setIsFriend(false);
-          setFriendStatus(null);
-        }
-      } catch (err) {
-        console.error("[FriendStatus] API error:", err);
-        if (!cancelled) {
-          setIsFriend(false);
-          setFriendStatus(null);
-        }
+    const requestId = ++friendStatusRequestIdRef.current;
+    try {
+      const res = await userService.checkFriendStatus(effectiveOtherMemberId);
+      if (requestId !== friendStatusRequestIdRef.current) return;
+
+      const friendData = res?.data?.data ?? res?.data;
+      if (friendData) {
+        setIsFriend(!!friendData.isFriend);
+        setFriendStatus(friendData.status ?? null);
+      } else {
+        setIsFriend(false);
+        setFriendStatus(null);
       }
+    } catch (err) {
+      if (requestId !== friendStatusRequestIdRef.current) return;
+      console.error("[FriendStatus] API error:", err);
+      setIsFriend(false);
+      setFriendStatus(null);
+    }
+  }, [effectiveOtherMemberId, isGroup, currentUserId]);
+
+  // --- FRIEND STATUS CHECK ---
+  useEffect(() => {
+    void refreshFriendStatus();
+  }, [id, refreshFriendStatus]);
+
+  // --- REALTIME FRIEND STATUS REFRESH ---
+  useEffect(() => {
+    if (!socket || isGroup || !effectiveOtherMemberId || !currentUserId) return;
+
+    const refreshOnFriendEvent = () => {
+      void refreshFriendStatus();
     };
-    check();
+
+    socket.on("receive_friend_request", refreshOnFriendEvent);
+    socket.on("friend_accepted", refreshOnFriendEvent);
+    socket.on("cancel_friend_request", refreshOnFriendEvent);
+    socket.on("blocked", refreshOnFriendEvent);
+    socket.on("blocked_by", refreshOnFriendEvent);
+
     return () => {
-      cancelled = true;
+      socket.off("receive_friend_request", refreshOnFriendEvent);
+      socket.off("friend_accepted", refreshOnFriendEvent);
+      socket.off("cancel_friend_request", refreshOnFriendEvent);
+      socket.off("blocked", refreshOnFriendEvent);
+      socket.off("blocked_by", refreshOnFriendEvent);
     };
-  }, [id, effectiveOtherMemberId, isGroup, currentUserId]);
+  }, [socket, isGroup, effectiveOtherMemberId, currentUserId, refreshFriendStatus]);
   const handleSendFriendRequest = async () => {
     if (!effectiveOtherMemberId || !currentUserId) return;
     try {
@@ -204,6 +229,17 @@ const ConversationPage = () => {
       setFriendStatus("ACCEPTED");
     } catch (err) {
       console.error("Chấp nhận kết bạn thất bại:", err);
+    }
+  };
+
+  const handleUnblockFriendRequest = async () => {
+    if (!effectiveOtherMemberId || !currentUserId) return;
+    try {
+      await userService.cancelFriend(effectiveOtherMemberId, currentUserId);
+      setIsFriend(false);
+      setFriendStatus(null);
+    } catch (err) {
+      console.error("Gỡ chặn thất bại:", err);
     }
   };
 
@@ -851,6 +887,7 @@ const ConversationPage = () => {
             setIsSearchOpen(!isSearchOpen);
             setIsInfoOpen(false);
           }}
+          friendStatus={friendStatus}
         />
         {/* Thanh gửi yêu cầu kết bạn */}
         <FriendRequestBar
@@ -859,6 +896,7 @@ const ConversationPage = () => {
           friendStatus={friendStatus}
           onAccept={handleAcceptFriendRequest}
           onSend={handleSendFriendRequest}
+          onUnblock={handleUnblockFriendRequest}
         />
         <MessageList
           messages={messages}
@@ -916,6 +954,7 @@ const ConversationPage = () => {
           setSelectedMessages={setSelectedMessages}
           onOpenForwardModal={() => setShowForwardModal(true)}
           conversationId={conversation.conversationId}
+          isMessageBlocked={isMessageBlocked}
         />
 
         {showScrollToBottomBtn && (

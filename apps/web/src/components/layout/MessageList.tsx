@@ -57,6 +57,9 @@ const MessageList = ({
   const [isFriend, setIsFriend] = useState(false);
   const [friendRequestSent, setFriendRequestSent] = useState(false);
   const [hasReceivedRequest, setHasReceivedRequest] = useState(false); // New state for received request
+  const [friendStatus, setFriendStatus] = useState<string | null>(null);
+  const isBlocked =
+    friendStatus === "BLOCKED" || friendStatus === "BLOCKED_BY_OTHER";
 
   // Kiểm tra trạng thái bạn bè thực tế từ Server
   useEffect(() => {
@@ -67,6 +70,7 @@ const MessageList = ({
           const res = await userService.checkFriendStatus(finalOtherUserId);
           if (res.success && res.data) {
             setIsFriend(res.data.isFriend);
+            setFriendStatus(res.data.status ?? null);
             // Nếu chưa là bạn
             if (!res.data.isFriend) {
               // Kiểm tra nếu mình đã gửi lời mời
@@ -105,8 +109,22 @@ const MessageList = ({
       await userService.acceptFriend(finalOtherUserId, user.userId);
       setIsFriend(true); // Cập nhật trạng thái là bạn bè
       setHasReceivedRequest(false); // Ẩn thông báo lời mời
+      setFriendStatus("ACCEPTED");
     } catch (error) {
       console.error("Failed to accept friend request:", error);
+    }
+  };
+
+  const handleUnblockFriend = async () => {
+    if (!finalOtherUserId || !user?.userId) return;
+    try {
+      await userService.cancelFriend(finalOtherUserId, user.userId);
+      setIsFriend(false);
+      setFriendRequestSent(false);
+      setHasReceivedRequest(false);
+      setFriendStatus(null);
+    } catch (error) {
+      console.error("Failed to unblock friend:", error);
     }
   };
 
@@ -135,7 +153,7 @@ const MessageList = ({
   }, [targetMessageId, messages, setSearchParams]);
 
   // Logic tự động render lại khi có tin nhắn hết hạn trong danh sách hiện tại
-  const [, setTick] = useState(0);
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     const now = Date.now();
     // Tìm các tin nhắn chưa hết hạn nhưng có thời gian hết hạn trong tương lai
@@ -177,7 +195,11 @@ const MessageList = ({
 
           {/* Text */}
           <span className="flex-1 text-gray-600 text-[13px]">
-            {hasReceivedRequest
+            {isBlocked
+              ? friendStatus === "BLOCKED"
+                ? "Bạn đã chặn người này"
+                : "Người này đã chặn bạn"
+              : hasReceivedRequest
               ? "Người này đã gửi lời mời kết bạn cho bạn"
               : friendRequestSent
                 ? "Đã gửi lời mời kết bạn"
@@ -185,7 +207,14 @@ const MessageList = ({
           </span>
 
           {/* Action button */}
-          {hasReceivedRequest ? (
+          {isBlocked ? (
+            <button
+              onClick={handleUnblockFriend}
+              className="shrink-0 px-4 py-1.5 bg-[#0091ff] text-white text-[13px] font-medium rounded-md hover:bg-[#0075dd] transition-colors"
+            >
+              Gỡ chặn
+            </button>
+          ) : hasReceivedRequest ? (
             <button
               onClick={handleAcceptFriend}
               className="shrink-0 px-4 py-1.5 bg-[#0091ff] text-white text-[13px] font-medium rounded-md hover:bg-[#0075dd] transition-colors"

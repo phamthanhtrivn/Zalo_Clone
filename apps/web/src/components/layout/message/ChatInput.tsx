@@ -37,6 +37,7 @@ type Props = {
   selectedMessages: string[];
   setSelectedMessages: (messageIds: string[]) => void;
   onOpenForwardModal: () => void;
+  isMessageBlocked?: boolean;
 };
 
 const ChatInput = ({
@@ -50,6 +51,7 @@ const ChatInput = ({
   selectedMessages,
   setSelectedMessages,
   onOpenForwardModal,
+  isMessageBlocked = false,
 }: Props) => {
   const dispatch = useAppDispatch();
   const replyingMessage = useAppSelector(
@@ -169,6 +171,7 @@ const ChatInput = ({
   };
 
   const handleSend = () => {
+    if (isMessageBlocked) return;
     if (text.trim()) {
       onSendMessage(text);
       setText("");
@@ -179,6 +182,7 @@ const ChatInput = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (isMessageBlocked) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -374,6 +378,17 @@ const ChatInput = ({
       </div>
     );
   }
+
+  if (isMessageBlocked) {
+    return (
+      <div className="w-full p-4 bg-gray-50 border-t flex items-center justify-center h-16">
+        <p className="text-[14px] font-medium text-gray-500">
+          Không thể gửi tin nhắn vì cuộc trò chuyện đang bị chặn.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white border-t relative">
       <MentionSuggestions
@@ -471,6 +486,7 @@ const ChatInput = ({
           onClick={() => fileInputRef.current?.click()}
           variant="ghost"
           className="w-10 h-10 text-gray-500 cursor-pointer"
+          disabled={isMessageBlocked}
           title="Đính kèm file"
         >
           <Paperclip className="w-10 h-10" />
@@ -488,6 +504,7 @@ const ChatInput = ({
           onClick={() => imageInputRef.current?.click()}
           variant="ghost"
           className="w-10 h-10 text-gray-500 cursor-pointer"
+          disabled={isMessageBlocked}
           title="Gửi hình ảnh"
         >
           <ImageIcon className="w-10 h-10" />
@@ -497,6 +514,7 @@ const ChatInput = ({
           onClick={openVoiceModal}
           variant="ghost"
           className="w-10 h-10 text-gray-500 cursor-pointer"
+          disabled={isMessageBlocked}
           title="Ghi âm"
         >
           <Mic className="w-10 h-10" />
@@ -518,7 +536,7 @@ const ChatInput = ({
           {/* Highlight overlay */}
           <div
             id="textarea-highlight-overlay"
-            className="absolute inset-0 p-2 text-sm leading-6 pointer-events-none whitespace-pre-wrap break-words text-gray-800 select-none overflow-y-auto max-h-60 font-sans border border-transparent bg-transparent"
+            className="absolute inset-0 p-2 text-sm leading-6 pointer-events-none whitespace-pre-wrap wrap-break-word text-gray-800 select-none overflow-y-auto max-h-60 font-sans border border-transparent bg-transparent"
             style={{
               fontFamily: "inherit",
               fontSize: "inherit",
@@ -542,6 +560,7 @@ const ChatInput = ({
             }}
             placeholder={`Nhắn tin tới ${chatName}`}
             rows={1}
+            disabled={isMessageBlocked}
             className="
               w-full
               resize-none 
@@ -573,6 +592,7 @@ const ChatInput = ({
           variant="ghost"
           size="icon"
           className="w-10 h-10 text-[#0068ff] hover:text-[#005AE0] cursor-pointer"
+          disabled={isMessageBlocked}
         >
           <span className="font-bold text-sm ">
             {text.trim().length > 0 ? <SendHorizontal /> : "GỬI"}
@@ -631,7 +651,7 @@ const ChatInput = ({
                         setRecordingDurationMs(0);
                         void startRecordingVoice();
                       }}
-                      disabled={isSendingVoice}
+                      disabled={isSendingVoice || isMessageBlocked}
                       variant="outline"
                       className="flex-1 rounded-2xl cursor-pointer"
                     >
@@ -639,7 +659,7 @@ const ChatInput = ({
                     </Button>
                     <Button
                       onClick={sendRecordedVoice}
-                      disabled={isSendingVoice}
+                      disabled={isSendingVoice || isMessageBlocked}
                       className="flex-1 rounded-2xl bg-[#0068ff] hover:bg-[#005ae0] cursor-pointer"
                     >
                       {isSendingVoice ? "Đang gửi..." : "Gửi"}
@@ -656,6 +676,7 @@ const ChatInput = ({
                         void startRecordingVoice();
                       }
                     }}
+                    disabled={isMessageBlocked}
                     className={`h-24 w-24 rounded-full flex items-center justify-center shadow-xl transition-all cursor-pointer ${isRecordingVoice ? "bg-red-500 text-white scale-95" : "bg-[#0068ff] text-white hover:scale-105"}`}
                   >
                     {isRecordingVoice ? (

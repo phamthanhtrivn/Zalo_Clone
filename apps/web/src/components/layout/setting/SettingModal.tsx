@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Shield, Lock, Layout, Bell } from "lucide-react";
+import { X, Shield, Lock } from "lucide-react";
 import AccountSetting from "./AccountSetting";
 import PrivacySetting from "./PrivacySetting";
 
@@ -8,8 +8,6 @@ import PrivacySetting from "./PrivacySetting";
 const SETTING_TABS = [
   { id: "account", label: "Tài khoản và bảo mật", icon: Shield },
   { id: "privacy", label: "Quyền riêng tư", icon: Lock },
-  { id: "appearance", label: "Giao diện", icon: Layout },
-  { id: "notifications", label: "Thông báo", icon: Bell },
 ];
 
 interface SettingsModalProps {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,14 +8,11 @@ import {
   ActivityIndicator,
   Alert,
   Share,
-  Dimensions,
+  Image,
 } from "react-native";
-import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { conversationService } from "@/services/conversation.service";
 import { useAppSelector } from "@/store/store";
-
-const { width } = Dimensions.get("window");
 
 interface Props {
   visible: boolean;
@@ -47,20 +44,19 @@ const ShareGroupQRModal: React.FC<Props> = ({
   const myRole = roleFromProp || conversation?.myRole || "MEMBER";
   const isManager = myRole === "OWNER" || myRole === "ADMIN";
 
-  useEffect(() => {
-    if (visible && !token && isManager) {
-      handleRefreshToken();
-    }
-  }, [visible, token, isManager]);
+  // keep localToken in sync with incoming token
+  const [localToken, setLocalToken] = useState<string | null>(token || null);
+  const [attemptedAutoRefresh, setAttemptedAutoRefresh] = useState(false);
 
-  const handleRefreshToken = async () => {
+  const handleRefreshToken = useCallback(async () => {
     if (!isManager) return;
     setLoading(true);
     try {
       const res: any = await conversationService.refreshGroupJoinToken(conversationId);
       if (res.success) {
-        
         onTokenRefreshed(res.joinToken);
+        // also update local token immediately so the QR updates
+        setLocalToken(res.joinToken);
       }
     } catch (error) {
       console.error("Refresh QR error (Mobile):", error);
@@ -68,7 +64,17 @@ const ShareGroupQRModal: React.FC<Props> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [isManager, conversationId, onTokenRefreshed]);
+
+  useEffect(() => {
+    setLocalToken(token || null);
+
+    if (visible && !token && isManager && !attemptedAutoRefresh) {
+      setAttemptedAutoRefresh(true);
+      handleRefreshToken();
+    }
+  }, [visible, token, isManager, handleRefreshToken, attemptedAutoRefresh]);
+
 
   const handleShare = async () => {
     if (!token) return;
@@ -84,8 +90,11 @@ const ShareGroupQRModal: React.FC<Props> = ({
 
   if (!visible) return null;
 
-  const qrValue = `zaloclone://group?id=${conversationId}&token=${token}`;
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrValue)}`;
+  const qrValue = `zaloclone://group?id=${conversationId}&token=${localToken}`;
+  // append timestamp to force reload when token changes
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
+    qrValue
+  )}&_=${localToken || ""}`;
 
   return (
     <Modal transparent visible={visible} animationType="fade">
@@ -108,8 +117,8 @@ const ShareGroupQRModal: React.FC<Props> = ({
               {token ? (
                 <Image
                   source={{ uri: qrImageUrl }}
-                  style={styles.qrImage}
-                  contentFit="contain"
+                  style={[styles.qrImage, { transform: [{ rotate: "0deg" }] }]}
+                  resizeMode="contain"
                 />
               ) : (
                 <View style={styles.loader}>
@@ -126,9 +135,7 @@ const ShareGroupQRModal: React.FC<Props> = ({
                 </View>
               )}
               {loading && token && (
-                <View style={styles.loadingOverlay}>
-                  <ActivityIndicator size="small" color="#0068ff" />
-                </View>
+                <View style={[styles.loadingOverlay, { backgroundColor: 'rgba(255,255,255,0.3)' }]} />
               )}
             </View>
 

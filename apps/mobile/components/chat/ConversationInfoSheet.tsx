@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -51,6 +51,7 @@ import { pollService } from "@/services/poll.service";
 import ConversationPinModal from "./ConversationPinModal";
 import { ConversationStorageSheet } from "./ConversationStorageSheet";
 import { MobileImageViewer } from "../ui/MobileImageViewer";
+import { userService } from "@/services/user.service";
 
 const { width } = Dimensions.get("window");
 
@@ -154,6 +155,37 @@ const ConversationInfoSheet: React.FC<Props> = ({
 
   const [isReady, setIsReady] = useState(false);
   const [isUnhiding, setIsUnhiding] = useState(false);
+  const [isFriend, setIsFriend] = useState<boolean | null>(null);
+  const [friendStatus, setFriendStatus] = useState<string | null>(null);
+  const [friendActionLoading, setFriendActionLoading] = useState<"delete" | "block" | null>(null);
+  const effectiveOtherMemberId = (currentConversation as any)?.otherMemberId || (conversation as any)?.otherMemberId;
+  const isDirectChat = !isGroup && !!effectiveOtherMemberId && !isAI;
+  const isBlockedFriend = friendStatus === "BLOCKED" || friendStatus === "BLOCKED_BY_OTHER";
+
+  const refreshFriendStatus = useCallback(async () => {
+    if (!isDirectChat || !effectiveOtherMemberId || !currentUserId) {
+      setIsFriend(null);
+      setFriendStatus(null);
+      return;
+    }
+
+    try {
+      const res = await userService.checkFriendStatus(effectiveOtherMemberId);
+      const friendData = res?.data?.data ?? res?.data;
+
+      if (friendData) {
+        setIsFriend(!!friendData.isFriend);
+        setFriendStatus(friendData.status ?? null);
+      } else {
+        setIsFriend(false);
+        setFriendStatus(null);
+      }
+    } catch (error) {
+      console.error("Refresh friend status failed:", error);
+      setIsFriend(false);
+      setFriendStatus(null);
+    }
+  }, [currentUserId, effectiveOtherMemberId, isDirectChat]);
 
   useEffect(() => {
     if (!visible) {
@@ -240,6 +272,32 @@ const ConversationInfoSheet: React.FC<Props> = ({
       socket.off("new_media", handleNewMedia);
     };
   }, [socket, visible, conversation?.conversationId]);
+
+  useEffect(() => {
+    void refreshFriendStatus();
+  }, [refreshFriendStatus, visible, currentConversation?.conversationId]);
+
+  useEffect(() => {
+    if (!socket || !visible || !isDirectChat) return;
+
+    const refreshOnFriendEvent = () => {
+      void refreshFriendStatus();
+    };
+
+    socket.on("receive_friend_request", refreshOnFriendEvent);
+    socket.on("friend_accepted", refreshOnFriendEvent);
+    socket.on("cancel_friend_request", refreshOnFriendEvent);
+    socket.on("blocked", refreshOnFriendEvent);
+    socket.on("blocked_by", refreshOnFriendEvent);
+
+    return () => {
+      socket.off("receive_friend_request", refreshOnFriendEvent);
+      socket.off("friend_accepted", refreshOnFriendEvent);
+      socket.off("cancel_friend_request", refreshOnFriendEvent);
+      socket.off("blocked", refreshOnFriendEvent);
+      socket.off("blocked_by", refreshOnFriendEvent);
+    };
+  }, [socket, visible, isDirectChat, refreshFriendStatus]);
 
   const myMemberInfo = members.find((m) => m.userId === currentUserId);
   const isOwner = myMemberInfo?.role === "OWNER";
@@ -843,6 +901,60 @@ const ConversationInfoSheet: React.FC<Props> = ({
     );
   };
 
+  const handleDeleteFriend = () => {
+    if (!effectiveOtherMemberId || !currentUserId) return;
+
+    Alert.alert(
+      "Xác nhận",
+      "Bạn chắc chắn muốn xóa kết bạn với người này?",
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Xóa",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setFriendActionLoading("delete");
+              await userService.cancelFriend(effectiveOtherMemberId, currentUserId);
+              setIsFriend(false);
+            } catch (error) {
+              Alert.alert("Lỗi", "Không thể xóa kết bạn lúc này");
+            } finally {
+              setFriendActionLoading(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleBlockFriend = () => {
+    if (!effectiveOtherMemberId || !currentUserId) return;
+
+    Alert.alert(
+      "Xác nhận",
+      "Bạn chắc chắn muốn chặn người này?",
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Chặn",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setFriendActionLoading("block");
+              await userService.blockFriend(effectiveOtherMemberId, currentUserId);
+              setIsFriend(false);
+            } catch (error) {
+              Alert.alert("Lỗi", "Không thể chặn người này lúc này");
+            } finally {
+              setFriendActionLoading(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <Modal
       transparent
@@ -1267,6 +1379,36 @@ const ConversationInfoSheet: React.FC<Props> = ({
                       })
                     )}
                   </View>
+                )}
+              </View>
+            )}
+
+            {isDirectChat && isFriend !== null && (
+              <View className="bg-white mb-2 py-1">
+                {isFriend && !isBlockedFriend && (
+                  <TouchableOpacity
+                    className="flex-row items-center px-4 py-4 border-b border-[#f3f4f6]"
+                    onPress={handleDeleteFriend}
+                    disabled={friendActionLoading !== null}
+                  >
+                    <Ionicons name="person-remove-outline" size={20} color="#ef4444" />
+                    <Text className="ml-3 text-[15px] text-[#ef4444] font-semibold">
+                      {friendActionLoading === "delete" ? "Đang xóa..." : "Xóa kết bạn"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {!isBlockedFriend && (
+                  <TouchableOpacity
+                    className="flex-row items-center px-4 py-4"
+                    onPress={handleBlockFriend}
+                    disabled={friendActionLoading !== null}
+                  >
+                    <Ionicons name="remove-circle-outline" size={20} color="#ef4444" />
+                    <Text className="ml-3 text-[15px] text-[#ef4444] font-semibold">
+                      {friendActionLoading === "block" ? "Đang chặn..." : "Chặn"}
+                    </Text>
+                  </TouchableOpacity>
                 )}
               </View>
             )}

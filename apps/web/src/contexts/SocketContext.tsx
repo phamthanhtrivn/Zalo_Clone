@@ -351,7 +351,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
               requireInteraction: true,
               data: { url: targetUrl },
             };
-            
+
             await registration.showNotification(params.title, options);
             console.log("🚀 [DEBUG] showNotification resolved for:", params.title);
             return true;
@@ -598,6 +598,9 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         return arr;
       });
+      // Also refresh friend suggestions and friends list
+      queryClient.invalidateQueries({ queryKey: ["friendSuggestions", currentUserId], refetchActive: true, refetchInactive: true });
+      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'friends', refetchActive: true, refetchInactive: true });
       toast.info("Bạn có lời mời kết bạn mới");
     } catch (err) {
       console.error("handleReceiveFriendRequest error", err);
@@ -612,8 +615,10 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       const friendId = payload?.friendId;
 
       // Invalidate received request list and all friends queries (so ContactPage refetches)
-      queryClient.invalidateQueries({ queryKey: ["friendRequests", "received", currentUserId] });
-      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === "friends" });
+      queryClient.invalidateQueries({ queryKey: ["friendRequests", "received", currentUserId], refetchActive: true, refetchInactive: true });
+      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === "friends", refetchActive: true, refetchInactive: true });
+      // Also refresh suggestions so accepted user removed
+      queryClient.invalidateQueries({ queryKey: ["friendSuggestions", currentUserId], refetchActive: true, refetchInactive: true });
 
       // Invalidate friend queries so ContactPage refetches and shows updated list
 
@@ -627,19 +632,52 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const currentUserId = user?.userId;
       if (!currentUserId) return;
+      // payload can be either an object { friendId } or a string userId (backend emits body.userId)
+      const targetId = typeof payload === 'string' ? payload : payload?.friendId || payload?.userId;
+      if (!targetId) return;
+
       // Remove from received list
       queryClient.setQueryData(["friendRequests", "received", currentUserId], (old: any) => {
-        return (old || []).filter((i: any) => i.friendId !== payload.friendId);
+        return (old || []).filter((i: any) => i.friendId !== targetId);
       });
       // Remove from sent list
       queryClient.setQueryData(["friendRequests", "sent", currentUserId], (old: any) => {
-        return (old || []).filter((i: any) => i.friendId !== payload.friendId);
+        return (old || []).filter((i: any) => i.friendId !== targetId);
       });
-      toast.info("Lời mời kết bạn đã bị hủy");
+
+      // Invalidate friends and suggestions so ContactPage / ContactRequest update immediately
+      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'friends' });
+      queryClient.invalidateQueries({ queryKey: ["friendSuggestions", currentUserId] });
     } catch (err) {
       console.error("handleCancelFriendRequest error", err);
     }
   }, [queryClient, user?.userId]);
+
+  const handleBlocked = useCallback((_payload: any) => {
+    try {
+      const currentUserId = user?.userId;
+      if (!currentUserId) return;
+
+      // Invalidate friends / requests queries so UI refreshes
+      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && (query.queryKey[0] === 'friends' || query.queryKey[0] === 'friendRequests') });
+    } catch (err) {
+      console.error('handleBlocked error', err);
+    }
+  }, [queryClient, user?.userId]);
+
+  const handleBlockedBy = useCallback((_payload: any) => {
+    try {
+      const currentUserId = user?.userId;
+      if (!currentUserId) return;
+
+      // Invalidate relevant queries so UI updates
+      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && (query.queryKey[0] === 'friends' || query.queryKey[0] === 'friendRequests') });
+    } catch (err) {
+      console.error('handleBlockedBy error', err);
+    }
+  }, [queryClient, user?.userId]);
+
+
 
   // --- INITIALIZE SOCKET & ATTACH LISTENERS ---
   useEffect(() => {
@@ -975,6 +1013,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
     socketInstance.on("receive_friend_request", handleReceiveFriendRequest);
     socketInstance.on("friend_accepted", handleFriendAccepted);
     socketInstance.on("cancel_friend_request", handleCancelFriendRequest);
+    socketInstance.on('blocked', handleBlocked);
+    socketInstance.on('blocked_by', handleBlockedBy);
 
     return () => {
       socketInstance.off("connect", onConnect);
@@ -1017,6 +1057,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       socketInstance.off("receive_friend_request", handleReceiveFriendRequest);
       socketInstance.off("friend_accepted", handleFriendAccepted);
       socketInstance.off("cancel_friend_request", handleCancelFriendRequest);
+      socketInstance.off('blocked', handleBlocked);
+      socketInstance.off('blocked_by', handleBlockedBy);
 
       socketInstance.disconnect();
       socketRef.current = null;
