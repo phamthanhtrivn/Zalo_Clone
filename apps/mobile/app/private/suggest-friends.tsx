@@ -2,6 +2,7 @@ import Container from "@/components/common/Container";
 import Header from "@/components/common/Header";
 import { userService } from "@/services/user.service";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import GroupAvatar from "@/components/ui/GroupAvatar";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -93,7 +94,7 @@ export default function SuggestFriendsScreen() {
         gradient
         back
         centerChild={
-          <Text className="text-white text-[20px] font-semibold">Có thể bạn quen</Text>
+          <Text className="text-white text-sm font-semibold">Có thể bạn quen</Text>
         }
         rightChild={
           <TouchableOpacity>
@@ -147,16 +148,11 @@ function SuggestFriendItem({
   return (
     <View className="bg-white px-4 py-4 mx-4 mt-2 rounded-2xl border border-gray-100">
       <View className="flex-row items-center">
-        {item.avatarUrl ? (
-          <Image
-            source={{ uri: item.avatarUrl }}
-            className="w-14 h-14 rounded-full border border-gray-200"
-          />
-        ) : (
-          <View className="w-14 h-14 rounded-full border border-gray-200 bg-gray-100 items-center justify-center">
-            <Ionicons name="person" size={24} color="#6b7280" />
-          </View>
-        )}
+        <GroupAvatar
+          uri={item.avatarUrl}
+          name={item.name || "Người dùng"}
+          size={56}
+        />
 
         <View className="ml-3 flex-1 pr-2">
           <Text className="text-[16px] font-semibold text-gray-900" numberOfLines={1}>
@@ -177,9 +173,8 @@ function SuggestFriendItem({
         <TouchableOpacity
           disabled={isAdding}
           onPress={() => onAddFriend(item.friendId)}
-          className={`flex-1 py-2.5 rounded-full items-center ${
-            isAdding ? "bg-[#cce8ff]" : "bg-[#e7f3ff]"
-          }`}
+          className={`flex-1 py-2.5 rounded-full items-center ${isAdding ? "bg-[#cce8ff]" : "bg-[#e7f3ff]"
+            }`}
         >
           {isAdding ? (
             <ActivityIndicator size="small" color="#0091ff" />

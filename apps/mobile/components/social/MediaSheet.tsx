@@ -10,6 +10,7 @@ import {
     Alert,
     StyleSheet,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Dimensions } from "react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -37,6 +38,7 @@ export default function MediaSheet({
     onConfirm,
     onClose,
 }: Props) {
+    const insets = useSafeAreaInsets();
     const [loading, setLoading] = useState(false);
 
     const openCamera = async () => {
@@ -116,7 +118,7 @@ export default function MediaSheet({
             <View style={styles.container}>
                 <Pressable style={styles.backdrop} onPress={onClose} />
 
-                <View style={styles.sheet}>
+                <View style={[styles.sheet, { paddingBottom: 30 + insets.bottom }]}>
                     <View style={styles.handle} />
 
                     <View style={styles.optionsContainer}>

@@ -235,12 +235,12 @@ const PollMessage: React.FC<Props> = ({
     if (isVoting) return true;
 
     const currentVotes = poll.isAnonymous && cachedMyVotes.length > 0 ? cachedMyVotes : storeVotes;
-    
+
     if (selectedOptionIds.length !== currentVotes.length) return false;
-    
+
     const sortedSelected = [...selectedOptionIds].sort();
     const sortedCurrent = [...currentVotes].sort();
-    
+
     return sortedSelected.every((id, idx) => id === sortedCurrent[idx]);
   }, [selectedOptionIds, storeVotes, cachedMyVotes, isVoting, poll.isAnonymous]);
 
@@ -326,11 +326,11 @@ const PollMessage: React.FC<Props> = ({
           const isSelected = selectedOptionIds.includes(option._id);
           const percent = showResults ? percentages[index] || 0 : 0;
 
-          
+
           const displayVoteCount =
             poll.isAnonymous &&
-            cachedMyVotes.includes(option._id) &&
-            option.voteCount === 0
+              cachedMyVotes.includes(option._id) &&
+              option.voteCount === 0
               ? 1
               : option.voteCount;
 
@@ -387,12 +387,12 @@ const PollMessage: React.FC<Props> = ({
               </View>
 
               {/* Progress Bar Background */}
-                <View style={styles.progressBarBg}>
-                  <AnimatedProgressBar
-                    percent={percent}
-                    isSelected={isSelected}
-                    showResults={showResults}
-                  />
+              <View style={styles.progressBarBg}>
+                <AnimatedProgressBar
+                  percent={percent}
+                  isSelected={isSelected}
+                  showResults={showResults}
+                />
 
                 {/* Stacked Avatars */}
                 {!poll.isAnonymous && showResults && option.voters && (
@@ -456,7 +456,7 @@ const PollMessage: React.FC<Props> = ({
                         style={[
                           styles.submitOptionButton,
                           (!newOptionText.trim() || isSubmittingOption) &&
-                            styles.buttonDisabled,
+                          styles.buttonDisabled,
                         ]}
                       >
                         {isSubmittingOption ? (
@@ -516,8 +516,8 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: "white",
     borderRadius: 12,
-    padding: 16,
-    width: SCREEN_WIDTH * 0.85,
+    padding: 10,
+    width: SCREEN_WIDTH * 0.72,
     borderWidth: 1,
     borderColor: "#f0f0f0",
   },

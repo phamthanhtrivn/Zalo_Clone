@@ -15,6 +15,7 @@ import {
   TextInput,
   InteractionManager,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { Video } from "expo-av";
@@ -95,6 +96,7 @@ const ConversationInfoSheet: React.FC<Props> = ({
   openedFromSearch = false,
   onConversationCleared,
 }) => {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { socket } = useSocket();
   const user = useAppSelector((state) => state.auth.user);
@@ -1384,7 +1386,7 @@ const ConversationInfoSheet: React.FC<Props> = ({
               <View className="flex-1 bg-black/40 justify-end">
                 <View
                   className="bg-white rounded-t-[24px] max-h-[82%]"
-                  style={{ paddingBottom: 20 }}
+                  style={{ paddingBottom: 20 + insets.bottom }}
                 >
                   <View className="flex-row items-center justify-between px-4 py-4 border-b border-[#f3f4f6]">
                     <Text className="text-base font-semibold text-[#1f2937]">
@@ -1584,7 +1586,8 @@ const ConversationInfoSheet: React.FC<Props> = ({
         >
           <Pressable
             onPress={(e) => e.stopPropagation()}
-            className="absolute bottom-0 w-full bg-white rounded-t-2xl pb-7"
+            className="absolute bottom-0 w-full bg-white rounded-t-2xl"
+            style={{ paddingBottom: 28 + insets.bottom }}
           >
             <Text className="text-center text-[15px] font-semibold py-3.5">
               Tắt thông báo

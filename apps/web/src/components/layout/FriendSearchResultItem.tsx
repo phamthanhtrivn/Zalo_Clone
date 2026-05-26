@@ -1,6 +1,7 @@
 import { userService } from "@/services/user.service";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
+import AppAvatar from "../common/AppAvatar";
 interface UserSearchResultProps {
   setUserSearch: any;
   setSuggestUsers: any;
@@ -151,13 +152,10 @@ const FriendSearchResultItem = ({
       {/* Thông tin User */}
       <div className="flex items-center gap-3">
         <div className="relative">
-          <img
-            src={
-              user?.avatarUrl ||
-              "https://www.vietnamworks.com/hrinsider/wp-content/uploads/2023/12/anh-den-ngau.jpeg"
-            }
-            alt={user.name}
-            className="w-12 h-12 rounded-full object-cover border border-gray-200"
+          <AppAvatar
+            src={user?.avatarUrl}
+            name={user.name}
+            className="w-12 h-12"
           />
         </div>
         <div className="flex flex-col">

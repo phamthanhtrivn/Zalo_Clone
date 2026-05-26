@@ -2,7 +2,7 @@ name: Deploy Zola System
 
 on:
   push:
-    branches: [ "develop" ]
+    branches: [ "main" ]
     paths:
       - 'apps/backend/**'
       - 'apps/web/**'

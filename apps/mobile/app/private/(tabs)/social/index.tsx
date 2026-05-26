@@ -111,11 +111,11 @@ export default function SocialScreen() {
             g.authorId !== payload.authorId
               ? g
               : {
-                  ...g,
-                  stories: (g.stories || []).filter(
-                    (s: any) => String(s.id) !== String(payload.storyId),
-                  ),
-                },
+                ...g,
+                stories: (g.stories || []).filter(
+                  (s: any) => String(s.id) !== String(payload.storyId),
+                ),
+              },
           )
           .filter((g: any) => (g.stories || []).length > 0);
         return pruneExpiredStories(next);

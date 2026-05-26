@@ -1,12 +1,13 @@
 import Tips from "@/components/auth/Tips";
 import Container from "@/components/common/Container";
 import Header from "@/components/common/Header";
-import { useAppDispatch } from "@/store/store";
+import { useAppDispatch, useAppSelector } from "@/store/store";
 import { getSessions, logOutDevice, logOutOther } from "@/store/auth/authThunk";
 import { Session } from "@/constants/types";
 import { getDeviceId } from "@/utils/device.util";
 import { formatMessageTime } from "@/utils/format-message-time.util";
 import { useEffect, useState } from "react";
+import { useSocket } from "@/contexts/SocketContext";
 import {
   ActivityIndicator,
   FlatList,
@@ -20,6 +21,9 @@ import { showToast } from "@/utils/toast";
 
 export default function SessionsScreen() {
   const dispatch = useAppDispatch();
+  const { socket } = useSocket();
+  const user = useAppSelector((state) => state.auth.user);
+
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
@@ -41,6 +45,31 @@ export default function SessionsScreen() {
   useEffect(() => {
     fetchSessions();
   }, []);
+
+  useEffect(() => {
+    if (!socket || !user?.userId) return;
+
+    const handleDeviceStatusChange = (data: {
+      userId: string;
+      deviceId: string;
+      isOnline: boolean;
+    }) => {
+      if (data.userId === user.userId) {
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.deviceId === data.deviceId
+              ? { ...s, isOnline: data.isOnline }
+              : s
+          )
+        );
+      }
+    };
+
+    socket.on("device_status_change", handleDeviceStatusChange);
+    return () => {
+      socket.off("device_status_change", handleDeviceStatusChange);
+    };
+  }, [socket, user?.userId]);
 
   const handleLogoutDevice = (deviceId: string, deviceName: string) => {
     Alert.alert(
@@ -109,13 +138,16 @@ export default function SessionsScreen() {
         </View>
 
         <View className="flex-1 ml-4">
-          <View className="flex-row items-center">
-            <Text className="text-[15px] font-bold text-gray-900" numberOfLines={1}>
+          <View className="flex-row items-center flex-wrap gap-1">
+            <Text className="text-xs font-bold text-gray-900" numberOfLines={1}>
               {item.deviceName}
             </Text>
+            {item.isOnline && (
+              <View className="ml-1.5 w-2 h-2 rounded-full bg-green-500" />
+            )}
             {isThisDevice && (
-              <View className="ml-2 bg-blue-100 px-2 py-0.5 rounded-full">
-                <Text className="text-[10px] font-bold text-blue-600">Thiết bị này</Text>
+              <View className="ml-1 bg-blue-100 px-2 py-0.5 rounded-full">
+                <Text className="text-[9px] font-bold text-blue-600">Thiết bị này</Text>
               </View>
             )}
           </View>
@@ -124,7 +156,7 @@ export default function SessionsScreen() {
             Đăng nhập: {formatMessageTime(item.createdAt.toString())}
           </Text>
           <Text className="text-[12px] text-gray-500" numberOfLines={1}>
-            Vị trí: {item.location || "Không xác định"} (IP: {item.ip})
+            Vị trí: {item.location || "Không xác định"}
           </Text>
         </View>
 

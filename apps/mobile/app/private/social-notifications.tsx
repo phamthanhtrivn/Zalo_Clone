@@ -13,6 +13,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { Image } from "expo-image";
 import Container from "@/components/common/Container";
 import { useSocket } from "@/contexts/SocketContext";
+import GroupAvatar from "@/components/ui/GroupAvatar";
 import {
   getSocialNotifications,
   getStories,
@@ -268,13 +269,10 @@ export default function SocialNotificationsScreen() {
               }`}
             >
               <View className="flex-row items-start">
-                <Image
-                  source={{
-                    uri:
-                      item.actorAvatar ||
-                      "https://images.unsplash.com/photo-1544005313-94ddf0286df2",
-                  }}
-                  style={{ width: 48, height: 48, borderRadius: 24 }}
+                <GroupAvatar
+                  uri={item.actorAvatar}
+                  name={item.actorName || "Người dùng"}
+                  size={48}
                 />
                 <View className="flex-1 ml-3">
                   <View className="flex-row items-center justify-between">

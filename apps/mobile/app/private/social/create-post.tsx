@@ -10,7 +10,7 @@ import {
     Pressable,
     Text,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as ExpoLocation from "expo-location";
@@ -30,7 +30,9 @@ import MusicSheet from "@/components/social/MusicSheet";
 import { createPost } from "@/services/social.service";
 
 export default function CreatePostScreen() {
+    const insets = useSafeAreaInsets();
     const router = useRouter();
+
     const {
         mode,
         assetUri,
@@ -364,6 +366,7 @@ export default function CreatePostScreen() {
                                 borderTopLeftRadius: 20,
                                 borderTopRightRadius: 20,
                                 padding: 16,
+                                paddingBottom: 16 + insets.bottom,
                             }}
                         >
                             <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 12 }}>

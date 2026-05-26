@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Text,
   View,
@@ -27,6 +27,7 @@ export default function QRScannerScreen() {
   const [showModal, setShowModal] = useState(false);
   const [scannedId, setScannedId] = useState("");
   const [joinToken, setJoinToken] = useState("");
+  const isScanningRef = useRef(false);
 
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -54,7 +55,8 @@ export default function QRScannerScreen() {
   }
 
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
-    if (scanned || loading) return;
+    if (isScanningRef.current || scanned || loading) return;
+    isScanningRef.current = true;
     setScanned(true);
 
     // --- CASE 1: THAM GIA NHÓM (zaloclone://group?id={id}&token={token}) ---
@@ -71,11 +73,11 @@ export default function QRScannerScreen() {
         }
 
         const res: any = await conversationService.getGroupInfoByToken(id, token);
-        
+
         console.log("[Mobile] DỮ LIỆU TỪ API QR:", JSON.stringify(res, null, 2));
 
         const info = res?.data?.data || res?.data || res;
-      
+
         if (info) {
           setScannedId(id);
           setGroupInfo({
@@ -90,6 +92,7 @@ export default function QRScannerScreen() {
         }
       } catch (error: any) {
         Alert.alert("Lỗi", error.response?.data?.message || "Mã QR nhóm không hợp lệ hoặc đã hết hạn");
+        isScanningRef.current = false;
         setScanned(false);
       } finally {
         setLoading(false);
@@ -106,7 +109,10 @@ export default function QRScannerScreen() {
         const friendData = await userService.searchFriendByPhone(userId, phoneFromQR);
         if (!friendData) {
           ToastAndroid.show("Không tìm thấy người dùng", ToastAndroid.SHORT);
-          setTimeout(() => setScanned(false), 2000);
+          setTimeout(() => {
+            isScanningRef.current = false;
+            setScanned(false);
+          }, 2000);
           return;
         }
 
@@ -125,7 +131,10 @@ export default function QRScannerScreen() {
           err?.response?.data?.message || "Lỗi khi tìm kiếm người dùng",
           ToastAndroid.SHORT
         );
-        setTimeout(() => setScanned(false), 2000);
+        setTimeout(() => {
+          isScanningRef.current = false;
+          setScanned(false);
+        }, 2000);
       } finally {
         setLoading(false);
       }
@@ -144,14 +153,15 @@ export default function QRScannerScreen() {
         error.response?.data?.message || "Mã QR không hợp lệ",
         ToastAndroid.LONG,
       );
+      isScanningRef.current = false;
       setScanned(false);
     }
   };
 
   const handleJoinGroup = async () => {
     if (!scannedId || !joinToken) {
-       Alert.alert("Lỗi", "Dữ liệu QR bị mất, vui lòng quét lại.");
-       return;
+      Alert.alert("Lỗi", "Dữ liệu QR bị mất, vui lòng quét lại.");
+      return;
     }
     setLoading(true);
     try {
@@ -159,13 +169,13 @@ export default function QRScannerScreen() {
       if (res.success) {
         setShowModal(false);
         if (res.isPending) {
-           Alert.alert("Thông báo", "Yêu cầu tham gia đã được gửi. Vui lòng chờ quản trị viên duyệt.");
-           router.back();
+          Alert.alert("Thông báo", "Yêu cầu tham gia đã được gửi. Vui lòng chờ quản trị viên duyệt.");
+          router.back();
         } else {
-           router.replace({
-             pathname: "/private/chat",
-             params: { id: scannedId }
-           });
+          router.replace({
+            pathname: "/private/chat",
+            params: { id: scannedId }
+          });
         }
       }
     } catch (error: any) {
@@ -189,19 +199,19 @@ export default function QRScannerScreen() {
         <View style={{ flex: 1, justifyContent: 'space-between', alignItems: 'center', paddingVertical: 24 }}>
           {/* Top Header */}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingHorizontal: 24, zIndex: 10 }}>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => router.back()}
               style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' }}
             >
               <Ionicons name="close" size={28} color="white" />
             </TouchableOpacity>
-            
+
             <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(0,0,0,0.4)', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 100, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
               <FontAwesome5 name="user" size={14} color="white" />
               <Text style={{ color: 'white', fontSize: 14, fontWeight: '500' }}>Mã QR của tôi</Text>
             </TouchableOpacity>
 
-            <View style={{ width: 44 }} /> 
+            <View style={{ width: 44 }} />
           </View>
 
           {/* Scanner Frame */}
@@ -211,7 +221,7 @@ export default function QRScannerScreen() {
             <View style={styles.scannerCornerTR} />
             <View style={styles.scannerCornerBL} />
             <View style={styles.scannerCornerBR} />
-            
+
             {loading && !showModal && (
               <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center' }}>
                 <ActivityIndicator size="large" color="#0068ff" />
@@ -238,6 +248,7 @@ export default function QRScannerScreen() {
         animationType="fade"
         onRequestClose={() => {
           setShowModal(false);
+          isScanningRef.current = false;
           setScanned(false);
         }}
       >
@@ -247,10 +258,10 @@ export default function QRScannerScreen() {
               <View style={styles.modalContent}>
                 {/* Avatar Nhóm */}
                 <View style={styles.avatarWrapper}>
-                  <GroupAvatar 
-                    uri={groupInfo.avatarUrl} 
-                    name={groupInfo.name || "Nhóm"} 
-                    size={100} 
+                  <GroupAvatar
+                    uri={groupInfo.avatarUrl}
+                    name={groupInfo.name || "Nhóm"}
+                    size={100}
                   />
                 </View>
 
@@ -268,7 +279,7 @@ export default function QRScannerScreen() {
                 <View style={styles.infoBox}>
                   <Ionicons name="information-circle" size={20} color="#0068ff" />
                   <Text style={styles.infoText}>
-                    {groupInfo.approvalRequired 
+                    {groupInfo.approvalRequired
                       ? "Bạn cần được Trưởng/Phó nhóm phê duyệt để tham gia nhóm này."
                       : "Bạn sẽ tham gia nhóm ngay lập tức sau khi xác nhận."}
                   </Text>
@@ -276,18 +287,19 @@ export default function QRScannerScreen() {
 
                 {/* Buttons */}
                 <View style={styles.buttonRow}>
-                  <TouchableOpacity 
-                    style={styles.cancelBtn} 
+                  <TouchableOpacity
+                    style={styles.cancelBtn}
                     onPress={() => {
                       setShowModal(false);
+                      isScanningRef.current = false;
                       setScanned(false);
                     }}
                   >
                     <Text style={styles.cancelText}>Hủy</Text>
                   </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={[styles.joinBtn, loading && { opacity: 0.7 }]} 
+
+                  <TouchableOpacity
+                    style={[styles.joinBtn, loading && { opacity: 0.7 }]}
                     onPress={handleJoinGroup}
                     disabled={loading}
                   >
@@ -311,20 +323,20 @@ export default function QRScannerScreen() {
 
 const styles = StyleSheet.create({
   scannerCornerTL: {
-    position: 'absolute', top: 0, left: 0, width: 48, height: 48, 
-    borderTopWidth: 4, borderLeftWidth: 4, borderColor: '#0068ff', borderTopLeftRadius: 16 
+    position: 'absolute', top: 0, left: 0, width: 48, height: 48,
+    borderTopWidth: 4, borderLeftWidth: 4, borderColor: '#0068ff', borderTopLeftRadius: 16
   },
   scannerCornerTR: {
-    position: 'absolute', top: 0, right: 0, width: 48, height: 48, 
-    borderTopWidth: 4, borderRightWidth: 4, borderColor: '#0068ff', borderTopRightRadius: 16 
+    position: 'absolute', top: 0, right: 0, width: 48, height: 48,
+    borderTopWidth: 4, borderRightWidth: 4, borderColor: '#0068ff', borderTopRightRadius: 16
   },
   scannerCornerBL: {
-    position: 'absolute', bottom: 0, left: 0, width: 48, height: 48, 
-    borderBottomWidth: 4, borderLeftWidth: 4, borderColor: '#0068ff', borderBottomLeftRadius: 16 
+    position: 'absolute', bottom: 0, left: 0, width: 48, height: 48,
+    borderBottomWidth: 4, borderLeftWidth: 4, borderColor: '#0068ff', borderBottomLeftRadius: 16
   },
   scannerCornerBR: {
-    position: 'absolute', bottom: 0, right: 0, width: 48, height: 48, 
-    borderBottomWidth: 4, borderRightWidth: 4, borderColor: '#0068ff', borderBottomRightRadius: 16 
+    position: 'absolute', bottom: 0, right: 0, width: 48, height: 48,
+    borderBottomWidth: 4, borderRightWidth: 4, borderColor: '#0068ff', borderBottomRightRadius: 16
   },
   modalOverlay: {
     flex: 1,
@@ -404,10 +416,10 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: "center",
   },
-  cancelText: { 
-    color: "#4d4d4d", 
-    fontWeight: "700", 
-    fontSize: 16 
+  cancelText: {
+    color: "#4d4d4d",
+    fontWeight: "700",
+    fontSize: 16
   },
   joinBtn: {
     flex: 2,
@@ -421,9 +433,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
-  joinText: { 
-    color: "white", 
-    fontWeight: "700", 
-    fontSize: 16 
+  joinText: {
+    color: "white",
+    fontWeight: "700",
+    fontSize: 16
   },
 });

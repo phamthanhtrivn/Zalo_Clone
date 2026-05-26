@@ -5,6 +5,7 @@ import { fetchConversations } from "@/store/slices/conversationSlice";
 import { useAppDispatch } from "@/store/store";
 import { showToast } from "@/utils/toast";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import GroupAvatar from "@/components/ui/GroupAvatar";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
@@ -246,13 +247,10 @@ export default function SearchProfileScreen() {
             </View>
 
             <View className="absolute top-20 left-4 bg-black/25 rounded-lg px-2 py-1 flex-row items-center">
-              <Image
-                source={{
-                  uri:
-                    profileAvatar ||
-                    "https://images.unsplash.com/photo-1503023345310-bd7c1de61c7d?q=80&w=800&auto=format&fit=crop",
-                }}
-                className="w-9 h-9 rounded"
+              <GroupAvatar
+                uri={profileAvatar}
+                name={profileName}
+                size={36}
               />
               <Text
                 className="text-white text-[15px] font-semibold ml-2 max-w-[170px]"
@@ -264,14 +262,13 @@ export default function SearchProfileScreen() {
           </ImageBackground>
 
           <View className="absolute -bottom-16 left-0 right-0 items-center">
-            <Image
-              source={{
-                uri:
-                  profileAvatar ||
-                  "https://images.unsplash.com/photo-1503023345310-bd7c1de61c7d?q=80&w=800&auto=format&fit=crop",
-              }}
-              className="w-40 h-40 rounded-full border-[5px] border-white"
-            />
+            <View className="border-[5px] border-white rounded-full overflow-hidden">
+              <GroupAvatar
+                uri={profileAvatar}
+                name={profileName}
+                size={150}
+              />
+            </View>
           </View>
         </View>
 

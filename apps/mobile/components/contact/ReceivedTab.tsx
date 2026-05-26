@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { userService } from "@/services/user.service";
 import { useSelector } from "react-redux";
 import { useSocket } from "@/contexts/SocketContext";
+import GroupAvatar from "../ui/GroupAvatar";
 
 export default function ReceivedTab() {
   const [receivedUsers, setReceivedUsers] = useState<any>([]);
@@ -44,7 +45,7 @@ export default function ReceivedTab() {
 type ReceivedItemProps = {
   item: any;
   message: string;
-  setReceivedUsers : any
+  setReceivedUsers: any
 };
 
 function ReceivedItem({ item, message, setReceivedUsers }: ReceivedItemProps) {
@@ -68,7 +69,7 @@ function ReceivedItem({ item, message, setReceivedUsers }: ReceivedItemProps) {
         console.log(err);
         ToastAndroid.show(
           (err as any)?.response?.data?.message ||
-            "Không thể chấp nhận lời mời kết bạn",
+          "Không thể chấp nhận lời mời kết bạn",
           ToastAndroid.SHORT,
         );
         console.log(err);
@@ -93,7 +94,7 @@ function ReceivedItem({ item, message, setReceivedUsers }: ReceivedItemProps) {
       } catch (err) {
         ToastAndroid.show(
           (err as any)?.response?.data?.message ||
-            "Không thể từ chối lời mời kết bạn",
+          "Không thể từ chối lời mời kết bạn",
           ToastAndroid.SHORT,
         );
         console.log(err);
@@ -105,9 +106,10 @@ function ReceivedItem({ item, message, setReceivedUsers }: ReceivedItemProps) {
   return (
     <View className="bg-white px-4 py-4 mx-4 mt-2 rounded-2xl border border-gray-100">
       <View className="flex-row items-center">
-        <Image
-          source={{ uri: item.avatarUrl }}
-          className="w-14 h-14 rounded-full border border-gray-200"
+        <GroupAvatar
+          uri={item.avatarUrl}
+          name={item.name || "Người dùng"}
+          size={56}
         />
         <View className="ml-3 flex-1">
           <Text className="text-[16px] font-semibold text-gray-900">
@@ -117,7 +119,7 @@ function ReceivedItem({ item, message, setReceivedUsers }: ReceivedItemProps) {
         </View>
       </View>
       <View className="flex-row gap-x-2 mt-3">
-        <TouchableOpacity 
+        <TouchableOpacity
           className="flex-1 bg-gray-100 py-2.5 rounded-full items-center"
           onPress={() => handelReject(item.friendId)}
         >
@@ -125,7 +127,7 @@ function ReceivedItem({ item, message, setReceivedUsers }: ReceivedItemProps) {
             TỪ CHỐI
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           className="flex-1 bg-[#e7f3ff] py-2.5 rounded-full items-center"
           onPress={() => handelAccept(item.friendId)}
         >

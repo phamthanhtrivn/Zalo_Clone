@@ -21,4 +21,7 @@ export class SessionResponseDTO {
 
   @Expose()
   createdAt!: Date;
+
+  @Expose()
+  isOnline?: boolean;
 }

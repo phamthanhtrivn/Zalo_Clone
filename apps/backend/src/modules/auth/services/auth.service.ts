@@ -19,6 +19,7 @@ import { ChatGateway } from 'src/modules/chat/chat.gateway';
 import { StorageService } from 'src/common/storage/storage.service';
 import { AuthGateway } from '../auth.gateway';
 import { IClientInfo } from '../decorator/client-info.decorator';
+import axios from 'axios';
 @Injectable()
 export class AuthService {
   constructor(
@@ -30,6 +31,48 @@ export class AuthService {
     private authGateway: AuthGateway,
     private readonly storageService: StorageService,
   ) { }
+
+  private async sendInfiniReachSms(toPhone: string, otp: string): Promise<boolean> {
+    const apiKey = process.env.INFINIREACH_API_KEY;
+    const fromPhone = process.env.INFINIREACH_FROM_NUMBER;
+    const message = `[Zola] Ma OTP xac thuc cua ban la: ${otp}. Vui long khong chia se ma nay.`;
+
+    if (!apiKey || !fromPhone) {
+      console.log(`Chưa cấu hình INFINIREACH_API_KEY hoặc INFINIREACH_FROM_NUMBER. Bỏ qua gửi SMS thật. [FALLBACK MOCK OTP]: ${otp}`);
+      return false;
+    }
+
+    try {
+      let formattedPhone = toPhone;
+      if (formattedPhone.startsWith('0')) {
+        formattedPhone = '+84' + formattedPhone.slice(1);
+      } else if (!formattedPhone.startsWith('+')) {
+        formattedPhone = '+' + formattedPhone;
+      }
+
+      await axios.post(
+        'https://api.infinireach.io/api/v1/messages',
+        {
+          to: formattedPhone,
+          from: fromPhone,
+          message,
+          channel: 'sms',
+        },
+        {
+          headers: {
+            'X-API-Key': apiKey,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      console.log(`Đã gửi SMS thành công tới ${formattedPhone}`);
+      return true;
+    } catch (error: any) {
+      console.error('Lỗi khi gửi SMS InfiniReach:', error.response?.data || error.message);
+      console.log(`[FALLBACK MOCK OTP do lỗi gửi SMS]: ${otp}`);
+      return false;
+    }
+  }
 
   //tạo key để lưu otp trong redis
   private otpKey(phone: string) {
@@ -52,8 +95,9 @@ export class AuthService {
       );
     }
 
-    // Giả lập gửi otp
-    console.log(`Otp for ${phone} is ${otp}`);
+    // Gọi hàm gửi SMS bất đồng bộ hoàn toàn (không await)!
+    // Lệnh này chạy song song ở chế độ nền, server lập tức trả về phản hồi cho client để chuyển trang không bị trễ.
+    this.sendInfiniReachSms(phone, otp);
 
     //lưu otp
     await this.redisService.set(

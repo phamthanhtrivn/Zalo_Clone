@@ -30,7 +30,7 @@ export class UsersService {
     private readonly storageService: StorageService,
     private readonly chatGateway: ChatGateway,
     private readonly redisService: RedisService,
-  ) {}
+  ) { }
 
   async findByPhone(phone: string) {
     return this.userModel.findOne({ phone: phone }).exec();
@@ -587,5 +587,15 @@ export class UsersService {
         lastSeenAt: isOnline ? null : u?.lastSeenAt || null,
       };
     });
+  }
+
+  async getBlockedFriends(userId: string) {
+    const users = await getListUserForStatus(
+      this.userModel,
+      FriendStatus.BLOCKED,
+      this.storageService,
+      userId,
+    );
+    return { users };
   }
 }
