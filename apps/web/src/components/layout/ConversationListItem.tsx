@@ -687,7 +687,7 @@ const ConversationListItem = ({
                     <div
                       ref={refs.setFloating}
                       style={floatingStyles}
-                      className="z-50 w-56 rounded-xl border bg-white text-sm shadow-lg overflow-hidden"
+                      className="z-50 w-56 rounded-xl border bg-white text-sm shadow-lg overflow-visible"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div
@@ -712,7 +712,7 @@ const ConversationListItem = ({
                             style={subFloatingStyles}
                             onMouseEnter={() => setHoverMenu("category")}
                             onMouseLeave={closeSubMenu}
-                            className="w-56 rounded-xl border bg-white text-sm shadow-lg overflow-hidden"
+                            className="z-[60] w-56 rounded-xl border bg-white text-sm shadow-lg overflow-hidden"
                           >
                             {CATEGORY_VALUES.map((cat) => (
                               <div
@@ -764,7 +764,7 @@ const ConversationListItem = ({
                             <div
                               onMouseEnter={() => setHoverMenu("mute")}
                               onMouseLeave={closeSubMenu}
-                              className="absolute left-full top-0 ml-1 w-48 rounded-xl border bg-white shadow-lg overflow-hidden"
+                              className="absolute left-full top-0 z-[60] ml-1 w-48 rounded-xl border bg-white shadow-lg overflow-hidden"
                             >
                               {[
                                 { label: "Trong 1 giờ", duration: 60 },
@@ -807,7 +807,7 @@ const ConversationListItem = ({
                       >
                         Tin nhắn tự xóa <span>›</span>
                         {hoverMenu === "delete" && (
-                          <div className="absolute left-full top-0 ml-1 w-44 rounded-xl border bg-white shadow-lg overflow-hidden">
+                          <div className="absolute left-full top-0 z-[60] ml-1 w-44 rounded-xl border bg-white shadow-lg overflow-hidden">
                             {[
                               { label: "1 ngày", days: 1 },
                               { label: "7 ngày", days: 7 },
