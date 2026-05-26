@@ -9,7 +9,6 @@ export const ContactMenu = () => {
     { icon: Users, label: 'Danh sách bạn bè', path: '/contacts' },
     { icon: Users, label: 'Danh sách nhóm và cộng đồng', path: '/contacts/groups' },
     { icon: UserPlus, label: 'Lời mời kết bạn', path: '/contacts/requests' },
-    { icon: UserPlus, label: 'Lời mời vào nhóm và cộng đồng', path: '/contacts/group-requests' },
   ]
 
   return (

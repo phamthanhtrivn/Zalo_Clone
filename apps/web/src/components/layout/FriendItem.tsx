@@ -139,7 +139,7 @@ export const FriendItem = ({ item, setFriends }: any) => {
                 <button
                   type="button"
                   aria-label="Đóng menu"
-                  className="fixed inset-0 z-40 cursor-default bg-black/20 backdrop-blur-[1px]"
+                  className="fixed inset-0 z-40 cursor-default border border-gray-500"
                   onClick={() => setOpenId("")}
                 />
 
