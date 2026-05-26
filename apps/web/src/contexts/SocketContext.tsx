@@ -745,7 +745,12 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       const isMuted = Boolean(currentConversation?.muted);
       const isActiveConversation =
         activeConversationIdRef.current === conversationId;
-      const isOwnMessage = senderName === "Báº¡n";
+      const sidebarSenderId =
+        data?.senderId?._id ||
+        data?.lastMessage?.senderId?._id ||
+        data?.lastMessage?.senderId;
+      const isOwnMessage =
+        String(sidebarSenderId || "") === String(user?.userId || "");
 
       if (isMuted || isActiveConversation || isOwnMessage) {
         return;
