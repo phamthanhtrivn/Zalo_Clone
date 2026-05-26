@@ -1,4 +1,4 @@
-import { Search, UserPlus, Users, X, MessageSquare, User, FileText, Layers } from "lucide-react";
+import { Search, UserPlus, Users, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
@@ -29,6 +29,7 @@ export const SidebarSearch = ({
   const [isOpenModelAddFriend, setIsOpenAddFriend] = useState<boolean>(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const user = useAppSelector((state) => state.auth.user);
+
   useEffect(() => {
     const isSearching = keyword.trim().length > 0;
     onSearchStateChange(isSearching);
@@ -39,8 +40,8 @@ export const SidebarSearch = ({
     }
     if (!user?.userId || !/^[0-9a-fA-F]{24}$/.test(user.userId)) {
       console.error("Invalid or missing user ID, cannot perform search:", user?.userId);
-      onResultsChange(null); // Clear results if user ID becomes invalid
-      onSearchStateChange(false); // Not searching
+      onResultsChange(null);
+      onSearchStateChange(false);
       return;
     }
 

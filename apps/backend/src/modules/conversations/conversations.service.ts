@@ -32,6 +32,10 @@ import { MessagesService } from '../messages/messages.service';
 import { UpdateGroupDto } from './dto/udate-group.dto';
 import { SearchConversationsDto } from './dto/search-conversations.dto';
 import { FriendStatus } from 'src/common/types/enums/friend-status';
+import {
+  ConversationSetting,
+  ConversationSettingDocument,
+} from '../conversation-settings/schemas/conversation-setting.schema';
 
 @Injectable()
 export class ConversationsService {
@@ -40,6 +44,8 @@ export class ConversationsService {
     private conversationModel: Model<Conversation>,
     @InjectModel(Member.name) private memberModel: Model<Member>,
     @InjectModel(Message.name) private messageModel: Model<Message>,
+    @InjectModel(ConversationSetting.name)
+    private conversationSettingModel: Model<ConversationSettingDocument>,
     @InjectModel('User') private userModel: Model<User>,
 
     @InjectConnection() private connection: Connection,
@@ -1242,7 +1248,25 @@ export class ConversationsService {
       participants: { $all: [u1, u2] },
     });
 
-    if (conversation) return conversation;
+    if (conversation) {
+      await this.conversationSettingModel.findOneAndUpdate(
+        {
+          userId: u1,
+          conversationId: conversation._id,
+        },
+        {
+          $set: {
+            deletedAt: null,
+          },
+        },
+        {
+          upsert: true,
+          new: true,
+        },
+      );
+
+      return conversation;
+    }
 
     const session = await this.connection.startSession();
     session.startTransaction();
@@ -1908,14 +1932,33 @@ export class ConversationsService {
           .limit(limit)
           .lean();
       } else {
-        // Tìm theo tên, chỉ trong danh sách bạn bè ACCEPTED
-        const friendObjectIds = Array.from(acceptedFriendIds).map(
+        // Tìm theo tên trong:
+        // 1. Danh sách bạn bè ACCEPTED
+        // 2. Người đã có cuộc trò chuyện trực tiếp, kể cả chưa kết bạn
+        const directConversationUserIds = Array.from(
+          new Set(
+            conversationItems
+              .filter(
+                (conversation) =>
+                  conversation.type === ConversationType.DIRECT &&
+                  !!conversation.otherMemberId,
+              )
+              .map((conversation) => conversation.otherMemberId!.toString()),
+          ),
+        );
+
+        const searchableUserIds = Array.from(
+          new Set([...acceptedFriendIds, ...directConversationUserIds]),
+        );
+
+        const searchableObjectIds = searchableUserIds.map(
           (id) => new Types.ObjectId(id),
         );
-        if (friendObjectIds.length > 0) {
+
+        if (searchableObjectIds.length > 0) {
           matchedUsers = await this.userModel
             .find({
-              _id: { $in: friendObjectIds },
+              _id: { $in: searchableObjectIds },
               'profile.name': regex,
             })
             .limit(limit)

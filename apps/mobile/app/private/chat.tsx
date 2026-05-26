@@ -18,7 +18,7 @@ import { useSocket } from "@/contexts/SocketContext";
 export default function ChatScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { socket } = useSocket();
+  const { socket, setActiveConversationId } = useSocket();
 
   const conversationId =
     (typeof params.id === "string" ? params.id : undefined) ||
@@ -44,6 +44,11 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState("");
   const listRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    setActiveConversationId(conversationId || null);
+    return () => setActiveConversationId(null);
+  }, [conversationId, setActiveConversationId]);
 
   useEffect(() => {
     if (!conversationId || !currentUserId) return;

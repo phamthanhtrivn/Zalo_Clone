@@ -61,8 +61,8 @@ const ConversationPage = () => {
     (state) => state.message.messagesByConversation[id || ""] ?? EMPTY_MESSAGES,
   );
 
-  const conversation =
-    stateConversation || conversations.find((c) => c.conversationId === id);
+  const storeConversation = conversations.find((c) => c.conversationId === id);
+  const conversation = storeConversation || stateConversation;
   const isGroup = conversation?.type === "GROUP";
 
   const effectiveOtherMemberId = !isGroup
@@ -818,6 +818,17 @@ const ConversationPage = () => {
     if (!id || conversation || isConversationLoading) return;
     navigate("/", { replace: true });
   }, [conversation, id, isConversationLoading, navigate]);
+
+  useEffect(() => {
+    if (!id || !conversation?.hidden) return;
+    if (openedFromSearch) return;
+    navigate("/", { replace: true });
+  }, [conversation?.hidden, id, navigate, openedFromSearch]);
+
+  useEffect(() => {
+    if (!openedFromSearch || !conversation?.hidden) return;
+    setIsInfoOpen(true);
+  }, [conversation?.hidden, openedFromSearch]);
 
   if (!conversation) {
     return <HomePage />;

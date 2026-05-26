@@ -4,7 +4,10 @@ import { ContactMenu } from "./ContactMenu";
 import ConversationList from "./ConversationList";
 import { useEffect, useState } from "react";
 import { conversationService } from "@/services/conversation.service";
-import { setConversations } from "@/store/slices/conversationSlice";
+import {
+  fetchConversations,
+  setConversations,
+} from "@/store/slices/conversationSlice";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { MessageSquare, Search, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -57,6 +60,8 @@ export const SidebarSecondary = () => {
           console.error("Failed to get or create direct conversation for new contact.");
           return;
         }
+
+        await dispatch(fetchConversations()).unwrap();
       } catch (error) {
         console.error("Error creating direct conversation:", error);
         return;

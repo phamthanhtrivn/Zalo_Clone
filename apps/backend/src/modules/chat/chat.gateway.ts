@@ -22,10 +22,14 @@ import { TokenService } from 'src/common/jwt-token/jwt.service';
 import { MessagesCallService } from '../messages/services/call.service';
 import { CallStatus } from 'src/common/types/enums/call-status';
 import { UsersService } from '../users/users.service';
+
+const socketCors = {
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  credentials: true,
+};
+
 @WebSocketGateway({
-  cors: {
-    origin: '*',
-  },
+  cors: socketCors,
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()

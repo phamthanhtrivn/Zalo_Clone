@@ -1,11 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ChevronDown, MoreHorizontal, UserRound, X } from "lucide-react";
 import { Button } from "../ui/button";
 import ConversationListItem from "./ConversationListItem";
 import { useAppDispatch, useAppSelector } from "@/store";
-import { fetchConversations } from "@/store/slices/conversationSlice";
-import type { ConversationCategory } from "@/types/conversation-item.type";
+import {
+  fetchConversations,
+  updateConversationSetting,
+} from "@/store/slices/conversationSlice";
+import type {
+  ConversationCategory,
+  ConversationItemType,
+} from "@/types/conversation-item.type";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -15,6 +21,12 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import ConversationPinDialog from "./ConversationPinDialog";
+import {
+  hideConversation,
+  unhideConversation,
+} from "@/services/conversation-settings.service";
+import { toast } from "react-toastify";
 
 type InboxTab = "all" | "unread";
 type FilterCategory = Exclude<ConversationCategory, null>;
@@ -34,8 +46,10 @@ const CATEGORY_FILTERS: Array<{
 
 const ConversationList = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
+  const user = useAppSelector((state) => state.auth.user);
   const conversations = useAppSelector(
     (state) => state.conversation.conversations,
   );
@@ -48,6 +62,9 @@ const ConversationList = () => {
     FilterCategory[]
   >([]);
   const [onlyStrangers, setOnlyStrangers] = useState(false);
+  const [hideTargetConversation, setHideTargetConversation] =
+    useState<ConversationItemType | null>(null);
+  const [hidePinLoading, setHidePinLoading] = useState(false);
 
   useEffect(() => {
     dispatch(fetchConversations());
@@ -88,8 +105,82 @@ const ConversationList = () => {
     );
   };
 
+  const handleRequestHideConversation = (conversation: ConversationItemType) => {
+    setHideTargetConversation(conversation);
+  };
+
+  const handleSubmitHideConversationPin = async (pin: string) => {
+    if (!hideTargetConversation || !user?.userId) return;
+
+    const newHidden = !hideTargetConversation.hidden;
+    setHidePinLoading(true);
+
+    try {
+      const res = newHidden
+        ? await hideConversation(
+            user.userId,
+            hideTargetConversation.conversationId,
+            pin,
+          )
+        : await unhideConversation(
+            user.userId,
+            hideTargetConversation.conversationId,
+            pin,
+          );
+
+      if (!res?.success) {
+        throw new Error(res?.message || "Hide conversation failed");
+      }
+
+      dispatch(
+        updateConversationSetting({
+          conversationId: hideTargetConversation.conversationId,
+          hidden: newHidden,
+        }),
+      );
+
+      const shouldNavigateHome =
+        newHidden && id === hideTargetConversation.conversationId;
+
+      setHideTargetConversation(null);
+
+      if (shouldNavigateHome) {
+        navigate("/", { replace: true });
+      }
+    } catch (error) {
+      console.error("Hide failed:", error);
+      toast.error(
+        (error as any)?.response?.data?.message ||
+          "Không thể cập nhật trạng thái ẩn trò chuyện",
+      );
+    } finally {
+      setHidePinLoading(false);
+    }
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-col">
+      <ConversationPinDialog
+        open={!!hideTargetConversation}
+        title={
+          hideTargetConversation?.hidden
+            ? "Nhập mã PIN để gỡ ẩn trò chuyện"
+            : "Nhập mã PIN để ẩn trò chuyện"
+        }
+        description={
+          hideTargetConversation?.hidden
+            ? "Nhập đúng mã PIN 4 số để xác nhận gỡ ẩn cuộc trò chuyện."
+            : "Nếu đây là lần đầu, mã PIN 4 số này sẽ được dùng cho các lần ẩn hoặc gỡ ẩn tiếp theo."
+        }
+        confirmLabel={hideTargetConversation?.hidden ? "Gỡ ẩn" : "Ẩn"}
+        loading={hidePinLoading}
+        onClose={() => {
+          if (hidePinLoading) return;
+          setHideTargetConversation(null);
+        }}
+        onSubmit={handleSubmitHideConversationPin}
+      />
+
       <div className="flex items-center justify-between border-b border-gray-200 px-4 py-2">
         <div className="flex items-center gap-4">
           <button
@@ -276,6 +367,7 @@ const ConversationList = () => {
             isActive={id === conversation.conversationId}
             openMenu={openMenu}
             setOpenMenu={setOpenMenu}
+            onRequestHideConversation={handleRequestHideConversation}
           />
         ))}
       </div>

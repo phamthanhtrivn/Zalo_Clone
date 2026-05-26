@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -30,6 +30,45 @@ type SocialNotificationItem = {
   storyId?: string | null;
   readAt?: string | null;
   createdAt: string;
+};
+
+const formatNotificationTitle = (item: SocialNotificationItem) => {
+  switch (item.type) {
+    case "POST_COMMENT":
+      return "Bình luận mới";
+    case "POST_REACTION":
+      return item.title?.toLowerCase().includes("chia")
+        ? "Bài đăng được chia sẻ"
+        : "Cảm xúc mới trên bài đăng";
+    case "STORY_REACTION":
+      return "Cảm xúc mới trên story";
+    case "STORY_REPLY":
+      return "Có phản hồi story mới";
+    default:
+      return item.title || "Thông báo mới";
+  }
+};
+
+const formatNotificationBody = (item: SocialNotificationItem) => {
+  switch (item.type) {
+    case "POST_COMMENT":
+      return "đã bình luận bài đăng của bạn";
+    case "POST_REACTION":
+      if (item.title?.toLowerCase().includes("chia")) {
+        return "đã chia sẻ bài đăng của bạn";
+      }
+      return item.body?.toLowerCase().includes("tim")
+        ? "đã thả tim vào bài đăng của bạn"
+        : "đã thả cảm xúc vào bài đăng của bạn";
+    case "STORY_REACTION":
+      return item.body?.toLowerCase().includes("tim")
+        ? "đã thả tim vào story của bạn"
+        : "đã thả cảm xúc vào story của bạn";
+    case "STORY_REPLY":
+      return "đã trả lời story của bạn";
+    default:
+      return item.body || "";
+  }
 };
 
 const timeAgo = (dateStr: string) => {
@@ -127,9 +166,9 @@ export default function SocialNotificationsScreen() {
           }
         }
 
-        Alert.alert("Thông báo", "Story này đã hết hạn hoac không còn tồn tại.");
+        Alert.alert("Thông báo", "Story này đã hết hạn hoặc không còn tồn tại.");
       } catch {
-        Alert.alert("Loi", "Không mở được story lúc này.");
+        Alert.alert("Lỗi", "Không mở được story lúc này.");
       }
     },
     [router],
@@ -174,7 +213,7 @@ export default function SocialNotificationsScreen() {
             <Ionicons name="arrow-back" size={24} color="#111827" />
           </Pressable>
           <Text className="text-[18px] font-semibold text-[#111827]">
-            Thong bao
+            Thông báo
           </Text>
         </View>
         {unreadCount > 0 ? (
@@ -212,20 +251,21 @@ export default function SocialNotificationsScreen() {
             <View className="flex-1 items-center justify-center px-6">
               <Ionicons name="notifications-off-outline" size={40} color="#94a3b8" />
               <Text className="text-[#475569] text-[16px] font-semibold mt-3">
-                Chưa co thông báo
+                Chưa có thông báo
               </Text>
               <Text className="text-[#94a3b8] text-center mt-1">
-                Khi ai dó bình luận hoặc thả cảm xúc, thông báo sẽ hiện ở đây.
+                Khi ai đó bình luận hoặc thả cảm xúc, thông báo sẽ hiện ở đây.
               </Text>
             </View>
           }
           renderItem={({ item }) => (
             <Pressable
               onPress={() => handleOpen(item)}
-              className={`mb-3 rounded-[22px] px-4 py-4 border ${item.readAt
-                ? "bg-white border-[#e5e7eb]"
-                : "bg-[#eff6ff] border-[#bfdbfe]"
-                }`}
+              className={`mb-3 rounded-[22px] px-4 py-4 border ${
+                item.readAt
+                  ? "bg-white border-[#e5e7eb]"
+                  : "bg-[#eff6ff] border-[#bfdbfe]"
+              }`}
             >
               <View className="flex-row items-start">
                 <Image
@@ -239,7 +279,7 @@ export default function SocialNotificationsScreen() {
                 <View className="flex-1 ml-3">
                   <View className="flex-row items-center justify-between">
                     <Text className="text-[15px] font-semibold text-[#111827] flex-1 mr-3">
-                      {item.title}
+                      {formatNotificationTitle(item)}
                     </Text>
                     {!item.readAt ? (
                       <View className="w-2.5 h-2.5 rounded-full bg-[#2563eb]" />
@@ -247,7 +287,7 @@ export default function SocialNotificationsScreen() {
                   </View>
                   <Text className="text-[#374151] mt-1">
                     <Text className="font-semibold">{item.actorName}</Text>{" "}
-                    {item.body}
+                    {formatNotificationBody(item)}
                   </Text>
                   <Text className="text-[#94a3b8] text-[12px] mt-2">
                     {timeAgo(item.createdAt)}

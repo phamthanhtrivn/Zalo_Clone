@@ -10,6 +10,10 @@ import {
 } from './schemas/conversation.schema';
 import { Member, MemberSchema } from '../members/schemas/member.schema';
 import { Message, MessageSchema } from '../messages/schemas/message.schema';
+import {
+  ConversationSetting,
+  ConversationSettingSchema,
+} from '../conversation-settings/schemas/conversation-setting.schema';
 
 import { UserSchema } from '../users/schemas/user.schema';
 
@@ -24,6 +28,7 @@ import { MessagesModule } from '../messages/messages.module';
       { name: Conversation.name, schema: ConversationSchema },
       { name: Member.name, schema: MemberSchema },
       { name: Message.name, schema: MessageSchema },
+      { name: ConversationSetting.name, schema: ConversationSettingSchema },
       { name: 'User', schema: UserSchema },
       { name: JoinRequest.name, schema: JoinRequestSchema },
     ]),

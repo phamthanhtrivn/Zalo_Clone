@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 type Props = {
   open: boolean;
@@ -29,14 +30,23 @@ const ConversationPinDialog = ({
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/45 px-4">
-      <div className="w-full max-w-[480px] rounded-2xl bg-white shadow-2xl">
+      <div
+        className="absolute inset-0"
+        onMouseDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
+      />
+      <div
+        className="relative w-full max-w-[480px] rounded-2xl bg-white shadow-2xl"
+        onMouseDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="flex items-center justify-between border-b px-6 py-5">
           <h3 className="text-[18px] font-semibold text-[#111827]">{title}</h3>
           <button
             onClick={onClose}
-            className="text-2xl leading-none text-gray-500 hover:text-gray-700 cursor-pointer"
+            className="cursor-pointer text-2xl leading-none text-gray-500 hover:text-gray-700"
             disabled={loading}
           >
             ×
@@ -64,7 +74,7 @@ const ConversationPinDialog = ({
           <div className="mt-6 flex justify-end gap-3">
             <button
               onClick={onClose}
-              className="rounded-xl bg-[#f3f4f6] px-5 py-3 text-[15px] font-semibold text-[#374151] hover:bg-[#e5e7eb] cursor-pointer"
+              className="cursor-pointer rounded-xl bg-[#f3f4f6] px-5 py-3 text-[15px] font-semibold text-[#374151] hover:bg-[#e5e7eb]"
               disabled={loading}
             >
               Hủy
@@ -72,14 +82,15 @@ const ConversationPinDialog = ({
             <button
               onClick={() => onSubmit(pin)}
               disabled={pin.length !== 4 || loading}
-              className="min-w-[112px] rounded-xl bg-[#0068ff] px-5 py-3 text-[15px] font-semibold text-white hover:bg-[#0057d8] disabled:cursor-not-allowed disabled:bg-[#93c5fd] cursor-pointer"
+              className="min-w-[112px] cursor-pointer rounded-xl bg-[#0068ff] px-5 py-3 text-[15px] font-semibold text-white hover:bg-[#0057d8] disabled:cursor-not-allowed disabled:bg-[#93c5fd]"
             >
               {loading ? "Đang xử lý..." : confirmLabel}
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 
