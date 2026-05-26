@@ -40,6 +40,19 @@ const Bootstrap = ({ children }: { children: React.ReactNode }) => {
 };
 
 function App() {
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      !("serviceWorker" in navigator)
+    ) {
+      return;
+    }
+
+    navigator.serviceWorker.register("/notification-sw.js").catch((error) => {
+      console.error("Failed to register notification service worker:", error);
+    });
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <Provider store={store}>

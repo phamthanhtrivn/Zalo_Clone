@@ -6,7 +6,8 @@ let authSocket: Socket | null = null;
 export const connectAuthSocket = () => {
   if (authSocket) return authSocket;
 
-  authSocket = io(`${import.meta.env.VITE_API_URL}/auth`);
+  const apiUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, "");
+  authSocket = io(`${apiUrl}/auth`);
 
   return authSocket;
 };

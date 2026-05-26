@@ -78,7 +78,7 @@ const CreateGroupModal = ({
     const loadFriends = async () => {
       try {
         setIsLoadingFriends(true);
-        const response = await userService.searchFriend("",userId);
+        const response = await userService.searchFriend("", userId);
         const groups: FriendGroup[] = response?.data?.users || [];
         const flattened = groups.flatMap((group) => group.friends || []);
         setFriends(flattened);
@@ -256,4 +256,3 @@ const CreateGroupModal = ({
 };
 
 export default CreateGroupModal;
-  

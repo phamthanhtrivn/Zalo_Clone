@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MoreHorizontal, Users } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import { MdGroups, MdNotificationsOff } from "react-icons/md";
 import {
   autoUpdate,
@@ -24,7 +24,6 @@ import {
   pinConversation,
   unpinConversation,
   hideConversation,
-  unhideConversation,
   muteConversation,
   unmuteConversation,
   setCategory,
@@ -44,7 +43,6 @@ import type {
   ConversationCategory,
   ConversationItemType,
 } from "@/types/conversation-item.type";
-import ConversationPinDialog from "./ConversationPinDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,6 +59,7 @@ type Props = {
   isActive: boolean;
   openMenu: string | null;
   setOpenMenu: React.Dispatch<React.SetStateAction<string | null>>;
+  onRequestHideConversation: (conversation: ConversationItemType) => void;
 };
 
 const CATEGORY_STYLE = {
@@ -71,24 +70,6 @@ const CATEGORY_STYLE = {
   later: "bg-yellow-500 before:bg-yellow-500",
   colleague: "bg-blue-500 before:bg-blue-500",
 } as const;
-
-const CATEGORY_LABEL: Record<Exclude<ConversationCategory, null>, string> = {
-  customer: "Khách hàng",
-  family: "Gia đình",
-  work: "Công việc",
-  friends: "Bạn bè",
-  later: "Trả lời sau",
-  colleague: "Đồng nghiệp",
-};
-
-const CATEGORY_SHORT: Record<Exclude<ConversationCategory, null>, string> = {
-  customer: "KH",
-  family: "GĐ",
-  work: "CV",
-  friends: "BB",
-  later: "Sau",
-  colleague: "ĐN",
-};
 
 const CATEGORY_DOT: Record<Exclude<ConversationCategory, null>, string> = {
   customer: "bg-red-500",
@@ -145,14 +126,13 @@ const ConversationListItem = ({
   isActive,
   openMenu,
   setOpenMenu,
+  onRequestHideConversation,
 }: Props) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
   const { socket, markAsRead, markAsUnread } = useSocket();
   const [hoverMenu, setHoverMenu] = useState<string | null>(null);
-  const [hidePinOpen, setHidePinOpen] = useState(false);
-  const [hidePinLoading, setHidePinLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isLastMessageExpired, setIsLastMessageExpired] = useState(() =>
     getIsExpired(
@@ -161,14 +141,18 @@ const ConversationListItem = ({
     ),
   );
   const menuContainerRef = useRef<HTMLDivElement | null>(null);
+  const suppressConversationClickRef = useRef(false);
 
   const closeSubMenu = () => setHoverMenu(null);
-  const isDirect = conversation.type === "DIRECT";
 
   const handleConversationClick = useCallback(
     async (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
+
+      if (suppressConversationClickRef.current) {
+        return;
+      }
 
       navigate(`/conversation/${conversation.conversationId}`);
 
@@ -209,6 +193,7 @@ const ConversationListItem = ({
     const prevUnreadCount = conversation.unreadCount;
     const isCurrentlyUnread = prevUnreadCount > 0;
 
+    // Optimistic UI update
     dispatch(
       setUnreadCount({
         conversationId: conversation.conversationId,
@@ -229,7 +214,8 @@ const ConversationListItem = ({
         });
       }
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Mark Read/Unread failed:", error);
+      // Rollback on error
       dispatch(
         setUnreadCount({
           conversationId: conversation.conversationId,
@@ -376,7 +362,8 @@ const ConversationListItem = ({
       icon = <LuSticker />;
       text = "Sticker";
     } else if (Array.isArray((content as any).files) && (content as any).files.length > 0) {
-      switch ((content as any).files[(content as any).files.length - 1].type) {
+      const lastFile = (content as any).files[(content as any).files.length - 1];
+      switch (lastFile.type) {
         case "IMAGE":
           icon = <CiImageOn />;
           text = "Hình ảnh";
@@ -430,136 +417,6 @@ const ConversationListItem = ({
     previewDisplay.showSender,
   ]);
 
-  const previewData = useMemo(() => {
-    const lastMsg = conversation.lastMessage;
-
-    if (!lastMsg?._id) {
-      return {
-        showSender: false,
-        content: "Chưa có tin nhắn",
-      };
-    }
-
-    if (lastMsg.recalled) {
-      return {
-        showSender: true,
-        content: "Tin nhắn đã bị thu hồi",
-      };
-    }
-
-    if (isLastMessageExpired) {
-      return {
-        showSender: true,
-        content: "Tin nhắn đã hết hạn",
-      };
-    }
-
-    if (lastMsg.call?.type) {
-      const isVideo = lastMsg.call.type === "VIDEO";
-      const isMe = lastMsg.senderName === "Bạn";
-      let text = isMe
-        ? `Cuộc gọi ${isVideo ? "video" : "thoại"} đi`
-        : `Cuộc gọi ${isVideo ? "video" : "thoại"} đến`;
-
-      switch (lastMsg.call.status) {
-        case "MISSED":
-          text = isMe ? "Bạn đã gọi nhỡ" : "Cuộc gọi nhỡ";
-          break;
-        case "REJECTED":
-          text = isMe ? "Cuộc gọi bị từ chối" : "Bạn đã từ chối cuộc gọi";
-          break;
-        case "BUSY":
-          text = "Máy bận";
-          break;
-        case "ENDED":
-        case "ACCEPTED":
-          text = `Cuộc gọi ${isVideo ? "video" : "thoại"}`;
-          break;
-        default:
-          break;
-      }
-
-      return {
-        showSender: false,
-        content: text,
-      };
-    }
-
-    const content = lastMsg.content;
-    if (!content) {
-      return {
-        showSender: false,
-        content: "Tin nhắn mới",
-      };
-    }
-
-    let icon: React.ReactNode = null;
-    let text = "";
-
-    if (content.storyLink?.storyId) {
-      return {
-        showSender: true,
-        content: (
-          <span className="flex items-center gap-1 truncate">
-            <span className="rounded-full bg-sky-100 px-1.5 py-[1px] text-[10px] font-semibold text-sky-700">
-              Story
-            </span>
-            <span className="truncate">
-              {content.text
-                ? `Trả lời story: ${content.text}`
-                : `Trả lời story: ${content.storyLink.previewText || "Xem lại story"}`}
-            </span>
-          </span>
-        ),
-      };
-    }
-
-    if (content.text && /https?:\/\//.test(content.text)) {
-      icon = <HiMiniLink />;
-      text = content.text;
-    } else if (content.icon) {
-      icon = <LuSticker />;
-      text = "Sticker";
-    } else if (Array.isArray(content.files) && content.files.length > 0) {
-      switch (content.files[content.files.length - 1].type) {
-        case "IMAGE":
-          icon = <CiImageOn />;
-          text = "Hình ảnh";
-          break;
-        case "VIDEO":
-          icon = <RiVideoLine />;
-          text = "Video";
-          break;
-        case "FILE":
-          icon = <GoFileSymlinkFile />;
-          text = content.files[0].fileName;
-          break;
-        case "VOICE":
-          icon = <IoMicOutline />;
-          text = "Tin nhắn thoại";
-          break;
-        default:
-          text = "";
-      }
-    } else if (content.text) {
-      text = content.text;
-    }
-
-    if (!text) {
-      text = "Tin nhắn mới";
-    }
-
-    return {
-      showSender: true,
-      content: (
-        <span className="flex items-center gap-1 truncate">
-          {icon}
-          <span className="truncate">{text}</span>
-        </span>
-      ),
-    };
-  }, [conversation.lastMessage, isLastMessageExpired]);
-
   const handlePinConversation = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -575,8 +432,8 @@ const ConversationListItem = ({
 
     try {
       newPinned
-        ? await pinConversation(user?.userId, conversation.conversationId)
-        : await unpinConversation(user?.userId, conversation.conversationId);
+        ? await pinConversation(user?.userId || "", conversation.conversationId)
+        : await unpinConversation(user?.userId || "", conversation.conversationId);
     } catch (error) {
       dispatch(
         updateConversationSetting({
@@ -591,37 +448,12 @@ const ConversationListItem = ({
   const handleHideConversation = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    suppressConversationClickRef.current = true;
     setOpenMenu(null);
-    setHidePinOpen(true);
-  };
-
-  const submitHideConversationPin = async (pin: string) => {
-    const newHidden = !conversation.hidden;
-    setHidePinLoading(true);
-
-    dispatch(
-      updateConversationSetting({
-        conversationId: conversation.conversationId,
-        hidden: newHidden,
-      }),
-    );
-
-    try {
-      newHidden
-        ? await hideConversation(user?.userId, conversation.conversationId, pin)
-        : await unhideConversation(user?.userId, conversation.conversationId, pin);
-      setHidePinOpen(false);
-    } catch (error) {
-      dispatch(
-        updateConversationSetting({
-          conversationId: conversation.conversationId,
-          hidden: !newHidden,
-        }),
-      );
-      console.error("Hide failed:", error);
-    } finally {
-      setHidePinLoading(false);
-    }
+    window.setTimeout(() => {
+      onRequestHideConversation(conversation);
+      suppressConversationClickRef.current = false;
+    }, 0);
   };
 
   const handleMute = async (duration: number, e?: React.MouseEvent) => {
@@ -640,9 +472,9 @@ const ConversationListItem = ({
 
     try {
       duration === 0
-        ? await unmuteConversation(user?.userId, conversation.conversationId)
+        ? await unmuteConversation(user?.userId || "", conversation.conversationId)
         : await muteConversation(
-          user?.userId,
+          user?.userId || "",
           conversation.conversationId,
           duration,
         );
@@ -675,7 +507,7 @@ const ConversationListItem = ({
 
     try {
       await setCategory(
-        user?.userId,
+        user?.userId || "",
         conversation.conversationId,
         newCategory as any,
       );
@@ -712,7 +544,7 @@ const ConversationListItem = ({
     );
 
     try {
-      await expireMessage(user?.userId, conversation.conversationId, duration);
+      await expireMessage(user?.userId || "", conversation.conversationId, duration);
     } catch (error) {
       dispatch(
         updateConversationSetting({
@@ -755,27 +587,6 @@ const ConversationListItem = ({
 
   return (
     <>
-      <ConversationPinDialog
-        open={hidePinOpen}
-        title={
-          conversation.hidden
-            ? "Nhập mã PIN để gỡ ẩn trò chuyện"
-            : "Nhập mã PIN để ẩn trò chuyện"
-        }
-        description={
-          conversation.hidden
-            ? "Nhập đúng mã PIN 4 số để xác nhận gỡ ẩn cuộc trò chuyện."
-            : "Nếu đây là lần đầu, mã PIN 4 số này sẽ được dùng cho các lần ẩn hoặc gỡ ẩn tiếp theo."
-        }
-        confirmLabel={conversation.hidden ? "Gỡ ẩn" : "Ẩn"}
-        loading={hidePinLoading}
-        onClose={() => {
-          if (hidePinLoading) return;
-          setHidePinOpen(false);
-        }}
-        onSubmit={submitHideConversationPin}
-      />
-
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent className="max-w-[520px]">
           <AlertDialogHeader>
@@ -787,10 +598,11 @@ const ConversationListItem = ({
           <AlertDialogFooter>
             <AlertDialogCancel>Không</AlertDialogCancel>
             <AlertDialogAction
+              className="bg-red-500 hover:bg-red-600 text-white"
               onClick={async () => {
                 try {
-                  await deleteConversation(user?.userId, conversation.conversationId);
-                  dispatch(removeConversation(conversation.conversationId));
+                  await deleteConversation(user?.userId || "", conversation.conversationId);
+                  dispatch(removeConversation({ conversationId: conversation.conversationId }));
                   setDeleteDialogOpen(false);
                   if (isActive) {
                     navigate("/", { replace: true });
@@ -862,20 +674,20 @@ const ConversationListItem = ({
 
               <div ref={menuContainerRef}>
                 <div ref={refs.setReference}>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setOpenMenu(
-                      openMenu === conversation.conversationId
-                        ? null
-                        : conversation.conversationId,
-                    );
-                  }}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 rounded-full bg-transparent p-1 opacity-0 transition-opacity hover:bg-gray-200 group-hover:opacity-100"
-                >
-                  <MoreHorizontal size={16} className="text-gray-500" />
-                </button>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setOpenMenu(
+                        openMenu === conversation.conversationId
+                          ? null
+                          : conversation.conversationId,
+                      );
+                    }}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 rounded-full bg-transparent p-1 opacity-0 transition-opacity hover:bg-gray-200 group-hover:opacity-100"
+                  >
+                    <MoreHorizontal size={16} className="text-gray-500" />
+                  </button>
                 </div>
 
                 {openMenu === conversation.conversationId && (
@@ -883,7 +695,7 @@ const ConversationListItem = ({
                     <div
                       ref={refs.setFloating}
                       style={floatingStyles}
-                      className="z-50 w-56 rounded-xl border bg-white text-sm shadow-lg"
+                      className="z-50 w-56 rounded-xl border bg-white text-sm shadow-lg overflow-hidden"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div
@@ -908,7 +720,7 @@ const ConversationListItem = ({
                             style={subFloatingStyles}
                             onMouseEnter={() => setHoverMenu("category")}
                             onMouseLeave={closeSubMenu}
-                            className="w-56 rounded-xl border bg-white text-sm shadow-lg"
+                            className="w-56 rounded-xl border bg-white text-sm shadow-lg overflow-hidden"
                           >
                             {CATEGORY_VALUES.map((cat) => (
                               <div
@@ -930,10 +742,9 @@ const ConversationListItem = ({
                                 )}
                               </div>
                             ))}
-
                             <div className="border-t" />
-                            <div className="cursor-pointer p-3 hover:bg-gray-100">
-                              Quản lý thẻ phân loại
+                            <div className="cursor-pointer p-3 hover:bg-gray-100 font-normal">
+                                Quản lý thẻ phân loại
                             </div>
                           </div>
                         )}
@@ -941,7 +752,7 @@ const ConversationListItem = ({
 
                       <div
                         onMouseEnter={closeSubMenu}
-                        className="cursor-pointer p-3 hover:bg-gray-100"
+                        className="cursor-pointer p-3 hover:bg-gray-100 cursor-pointer"
                         onClick={handleMarkUnread}
                       >
                         {conversation.unreadCount > 0
@@ -950,15 +761,6 @@ const ConversationListItem = ({
                       </div>
 
                       <div className="my-1 border-t" />
-
-                      {isDirect && (
-                        <div
-                          onMouseEnter={closeSubMenu}
-                          className="cursor-pointer p-3 hover:bg-gray-100"
-                        >
-                          Thêm vào nhóm
-                        </div>
-                      )}
 
                       {!conversation.muted ? (
                         <div
@@ -970,7 +772,7 @@ const ConversationListItem = ({
                             <div
                               onMouseEnter={() => setHoverMenu("mute")}
                               onMouseLeave={closeSubMenu}
-                              className="absolute left-full top-0 ml-1 w-48 rounded-xl border bg-white shadow-lg"
+                              className="absolute left-full top-0 ml-1 w-48 rounded-xl border bg-white shadow-lg overflow-hidden"
                             >
                               {[
                                 { label: "Trong 1 giờ", duration: 60 },
@@ -1013,7 +815,7 @@ const ConversationListItem = ({
                       >
                         Tin nhắn tự xóa <span>›</span>
                         {hoverMenu === "delete" && (
-                          <div className="absolute left-full top-0 ml-1 w-44 rounded-xl border bg-white shadow-lg">
+                          <div className="absolute left-full top-0 ml-1 w-44 rounded-xl border bg-white shadow-lg overflow-hidden">
                             {[
                               { label: "1 ngày", days: 1 },
                               { label: "7 ngày", days: 7 },
@@ -1043,13 +845,6 @@ const ConversationListItem = ({
                       >
                         Xóa hội thoại
                       </div>
-
-                      <div
-                        onMouseEnter={closeSubMenu}
-                        className="cursor-pointer p-3 hover:bg-gray-100"
-                      >
-                        Báo xấu
-                      </div>
                     </div>
                   </FloatingPortal>
                 )}
@@ -1071,15 +866,6 @@ const ConversationListItem = ({
             )}
             <span className="flex min-w-0 items-center gap-1 text-[13px] text-gray-500">
               <span className="shrink-0">{previewSenderPrefix}</span>
-              <span className="hidden">
-                {!previewData.showSender
-                  ? ""
-                  : conversation.type === "DIRECT" &&
-                    conversation.lastMessage?.senderName !== "Bạn"
-                    ? ""
-                    : `${conversation.lastMessage?.senderName ?? ""}: `}
-              </span>
-
               <span
                 className={cn(
                   "flex min-w-0 items-center gap-1 truncate",

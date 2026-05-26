@@ -55,7 +55,7 @@ export default function ChatWindow() {
   const fromSearchValue = Array.isArray(fromSearch) ? fromSearch[0] : fromSearch;
   const openedFromSearch =
     fromSearchValue === "1" || fromSearchValue === "true";
-  const { socket } = useSocket();
+  const { socket, setActiveConversationId } = useSocket();
   const user = useAppSelector((state) => state.auth.user);
   const authUserId = user?.userId || (user as any)?._id || "";
   const router = useRouter();
@@ -141,6 +141,11 @@ export default function ChatWindow() {
   const prevCursorRef = useRef<string | null>(null);
   const pendingJumpMessageIdRef = useRef<string | null>(null);
   const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    setActiveConversationId(id || null);
+    return () => setActiveConversationId(null);
+  }, [id, setActiveConversationId]);
 
   useEffect(() => {
     const interaction = InteractionManager.runAfterInteractions(() => {
@@ -1070,8 +1075,6 @@ export default function ChatWindow() {
     });
     return mine?._id || null;
   }, [messages, authUserId]);
-
-  // ================= RENDER =================
   const renderItem = React.useCallback(({ item, index }: any) => {
     // Cơ chế INVERTED: 
     // index lớn hơn là tin nhắn CŨ hơn (older)
@@ -1186,6 +1189,45 @@ export default function ChatWindow() {
             <View className="flex-1 justify-center items-center">
               <ActivityIndicator size="large" color="#0068FF" />
             </View>
+          ) : isReady && messages.length === 0 ? (
+            <View className="flex-1 items-center justify-end pb-10">
+              {isFriend === false && (
+                <View className="bg-white rounded-xl mx-4 mt-2.5 overflow-hidden w-[90%] shadow-sm">
+                  <View className="h-[120px] bg-[#e5e7eb]">
+                    <Image
+                      source={{ uri: "https://picsum.photos/seed/zalo/800/400" }}
+                      className="w-full h-[120px]"
+                    />
+                  </View>
+
+                  <View className="p-4 items-center relative">
+                    <View
+                      className="absolute -top-10 border-[3px] border-white rounded-[43px] overflow-hidden"
+                    >
+                      <GroupAvatar
+                        uri={conversation?.avatar}
+                        name={conversation?.name || "Group"}
+                        size={80}
+                      />
+                    </View>
+
+                    <View className="mt-[45px] items-center">
+                      <Text className="text-lg font-bold text-[#111827]">
+                        {conversation?.name}
+                      </Text>
+                      <Text className="mt-2 text-[13px] color-[#6b7280] text-center px-5">
+                        Người này chưa được thêm vào danh sách bạn bè. Hãy lưu ý khi gửi tin nhắn.
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+              {!isFriend && (
+                <Text className="text-[#9ca3af] text-[13px] mt-5">
+                  Chưa có tin nhắn nào
+                </Text>
+              )}
+            </View>
           ) : (
             <FlatList
               ref={flatListRef}
@@ -1249,46 +1291,6 @@ export default function ChatWindow() {
                   )}
                 </View>
               }
-              ListEmptyComponent={() => (
-                <View className="items-center py-2.5" style={{ transform: [{ scaleY: -1 }] }}>
-                  {isFriend === false && (
-                    <View className="bg-white rounded-xl mx-4 mt-2.5 overflow-hidden w-[90%] shadow-sm">
-                      <View className="h-[120px] bg-[#e5e7eb]">
-                        <Image
-                          source={{ uri: "https://picsum.photos/seed/zalo/800/400" }}
-                          className="w-full h-[120px]"
-                        />
-                      </View>
-
-                      <View className="p-4 items-center relative">
-                        <View
-                          className="absolute -top-10 border-[3px] border-white rounded-[43px] overflow-hidden"
-                        >
-                          <GroupAvatar
-                            uri={conversation?.avatar}
-                            name={conversation?.name || "Group"}
-                            size={80}
-                          />
-                        </View>
-
-                        <View className="mt-[45px] items-center">
-                          <Text className="text-lg font-bold text-[#111827]">
-                            {conversation?.name}
-                          </Text>
-                          <Text className="mt-2 text-[13px] color-[#6b7280] text-center px-5">
-                            Người này chưa được thêm vào danh sách bạn bè. Hãy lưu ý khi gửi tin nhắn.
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  )}
-                  {isReady && messages.length === 0 && !isFriend && (
-                    <Text className="text-[#9ca3af] text-[13px] mt-5">
-                      Chưa có tin nhắn nào
-                    </Text>
-                  )}
-                </View>
-              )}
             />
           )}
         </View>

@@ -204,6 +204,27 @@ const MessageBubble = ({
         ? "#E5F1FF"
         : "white";
 
+  const renderExpiredMessage = () => (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+      }}
+    >
+      <Ionicons name="alert-circle-outline" size={16} color="#9ca3af" />
+      <Text
+        style={{
+          fontSize: 14,
+          fontStyle: "italic",
+          color: "#9ca3af",
+        }}
+      >
+        Tin nhắn đã hết hạn
+      </Text>
+    </View>
+  );
+
   const renderText = () => {
     if (!content?.text) return null;
     const processed = content.text.replace(/<br\s*\/?>/gi, "\n");
@@ -348,6 +369,8 @@ const MessageBubble = ({
                   </TouchableOpacity>
                 )}
             </View>
+          ) : message.expired ? (
+            renderExpiredMessage()
           ) : (
             <>
               {message.repliedId && (

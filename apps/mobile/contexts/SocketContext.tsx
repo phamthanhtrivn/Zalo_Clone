@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Alert, ToastAndroid } from "react-native";
+import { Alert, AppState, ToastAndroid } from "react-native";
 import { io, Socket } from "socket.io-client";
 import * as SecureStore from "expo-secure-store";
 import { useRouter } from "expo-router";
@@ -41,6 +41,7 @@ interface SocketContextType {
     userId: string;
     conversationId: string;
   }) => Promise<any>;
+  setActiveConversationId: (conversationId: string | null) => void;
 }
 
 const SocketContext = createContext<SocketContextType>({
@@ -50,6 +51,7 @@ const SocketContext = createContext<SocketContextType>({
   profileRefreshKey: 0,
   markAsRead: async () => ({}),
   markAsUnread: async () => ({}),
+  setActiveConversationId: () => {},
 });
 
 export const useSocket = () => useContext(SocketContext);
@@ -67,9 +69,60 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
   const user = useAppSelector((state) => state.auth.user);
   const socketRef = useRef<Socket | null>(null);
   const conversations = useAppSelector((state) => state.conversation.conversations);
+  const conversationsRef = useRef(conversations);
+  const appStateRef = useRef(AppState.currentState);
 
   // Track current route để biết có đang ở màn hình bị kick không
   const currentConversationIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      appStateRef.current = nextState;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  const setActiveConversationId = useCallback((conversationId: string | null) => {
+    currentConversationIdRef.current = conversationId;
+  }, []);
+
+  const extractMessagePreview = (message: any) => {
+    if (message?.recalled) return "Tin nhắn đã bị thu hồi";
+    if (message?.expired) return "Tin nhắn đã hết hạn";
+    if (message?.call?.type) {
+      return message.call.type === "VIDEO" ? "Cuộc gọi video" : "Cuộc gọi thoại";
+    }
+
+    const content = message?.content;
+    if (content?.text) return content.text;
+    if (content?.icon) return "Sticker";
+
+    const files = content?.files;
+    if (Array.isArray(files) && files.length > 0) {
+      const lastFile = files[files.length - 1];
+      switch (lastFile?.type) {
+        case "IMAGE":
+          return "Hình ảnh";
+        case "VIDEO":
+          return "Video";
+        case "VOICE":
+          return "Tin nhắn thoại";
+        case "FILE":
+          return lastFile?.fileName || "Tệp đính kèm";
+        default:
+          return "Tệp đính kèm";
+      }
+    }
+
+    return "Tin nhắn mới";
+  };
 
   const markAsRead = useCallback(
     async (data: { userId: string; conversationId: string }) => {
@@ -185,6 +238,38 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const handleNewMessageSidebar = (data: any) => {
         dispatch(updateConversation(data));
+
+        const conversationId = data?.conversationId;
+        if (!conversationId) return;
+
+        const currentConversation = conversationsRef.current.find(
+          (conversation) => conversation.conversationId === conversationId,
+        );
+        const isMuted = Boolean(currentConversation?.muted);
+        const isActiveConversation =
+          currentConversationIdRef.current === conversationId;
+        const senderName =
+          data?.lastMessage?.senderName || data?.senderId?.profile?.name || "";
+        const isOwnMessage = senderName === "Bạn";
+
+        if (
+          isMuted ||
+          isActiveConversation ||
+          isOwnMessage ||
+          appStateRef.current !== "active"
+        ) {
+          return;
+        }
+
+        Toast.show({
+          type: "incomingMessage",
+          text1: currentConversation?.name || senderName || "Tin nhắn mới",
+          text2: extractMessagePreview(data?.lastMessage || data),
+          props: {
+            avatar: currentConversation?.avatar || null,
+          },
+          visibilityTime: 3000,
+        });
       };
 
       const handleRecallMessageSidebar = (data: any) => {
@@ -403,10 +488,10 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       }) => {
         Toast.show({
           type: "info",
-          text1: data.title || "Thong bao moi",
+          text1: data.title || "Thông báo mới",
           text2:
             data.body ||
-            (data.actorName ? `${data.actorName} vua tuong tac voi ban` : ""),
+            (data.actorName ? `${data.actorName} vừa tương tác với bạn` : ""),
           visibilityTime: 2800,
         });
       };
@@ -553,6 +638,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
         profileRefreshKey,
         markAsRead,
         markAsUnread,
+        setActiveConversationId,
       }}
     >
       {children}

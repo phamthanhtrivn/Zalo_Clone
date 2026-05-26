@@ -12,7 +12,12 @@ import { AuthUser } from './types/auth.type';
 import { parseClientInfo } from './util/client-info.util';
 import { IClientInfo } from './decorator/client-info.decorator';
 
-@WebSocketGateway({ cors: { origin: '*' }, namespace: '/auth' })
+const socketCors = {
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  credentials: true,
+};
+
+@WebSocketGateway({ cors: socketCors, namespace: '/auth' })
 export class AuthGateway {
   @WebSocketServer()
   server!: Server;

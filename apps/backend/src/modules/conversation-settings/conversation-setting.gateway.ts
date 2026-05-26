@@ -9,8 +9,13 @@ import {
 } from "@nestjs/websockets";
 import { Server, Socket } from "socket.io";
 
+const socketCors = {
+    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    credentials: true,
+};
+
 @WebSocketGateway({
-    cors: { origin: "*" },
+    cors: socketCors,
 })
 export class ConversationSettingGateway {
     @WebSocketServer()

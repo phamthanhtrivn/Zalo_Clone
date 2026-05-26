@@ -48,6 +48,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { clearAuth } from "@/store/auth/authSlice";
 import { getDeviceId } from "@/utils/device.util";
 import { userService } from "@/services/user.service";
+import AppAvatar from "@/components/common/AppAvatar";
 
 interface SocketContextType {
   socket: Socket | null;
@@ -81,6 +82,70 @@ const navigateTo = (path: string) => {
   window.dispatchEvent(new PopStateEvent("popstate"));
 };
 
+const extractMessagePreview = (message: any) => {
+  if (message?.recalled) return "Tin nhắn đã bị thu hồi";
+  if (message?.expired) return "Tin nhắn đã hết hạn";
+  if (message?.call?.type) {
+    return message.call.type === "VIDEO" ? "Cuộc gọi video" : "Cuộc gọi thoại";
+  }
+
+  const content = message?.content;
+  if (content?.text) return content.text;
+  if (content?.icon) return "Sticker";
+
+  const files = content?.files;
+  if (Array.isArray(files) && files.length > 0) {
+    const lastFile = files[files.length - 1];
+    switch (lastFile?.type) {
+      case "IMAGE":
+        return "Hình ảnh";
+      case "VIDEO":
+        return "Video";
+      case "VOICE":
+        return "Tin nhắn thoại";
+      case "FILE":
+        return lastFile?.fileName || "Tệp đính kèm";
+      default:
+        return "Tệp đính kèm";
+    }
+  }
+
+  return "Tin nhắn mới";
+};
+
+const renderIncomingMessageToast = ({
+  avatar,
+  title,
+  body,
+  closeToast,
+}: {
+  avatar?: string | null;
+  title: string;
+  body: string;
+  closeToast?: () => void;
+}) => (
+  <div className="relative flex min-w-[300px] max-w-[360px] items-center gap-4 rounded-2xl border border-[#e5e7eb] bg-white px-5 py-4 shadow-[0_12px_40px_rgba(15,23,42,0.16)]">
+    <button
+      onClick={closeToast}
+      className="absolute right-3 top-3 text-[22px] leading-none text-[#94a3b8] transition-colors hover:text-[#475569]"
+    >
+      ×
+    </button>
+    <div className="shrink-0">
+      <AppAvatar src={avatar || undefined} name={title} className="h-14 w-14" />
+    </div>
+    <div className="min-w-0 pr-6">
+      <div className="truncate text-[18px] font-semibold text-[#0f172a]">
+        {title}
+      </div>
+      <div className="mt-1 truncate text-[16px] text-[#475569]">{body}</div>
+    </div>
+  </div>
+);
+
+const getNotificationMessageId = (payload: any) =>
+  payload?.lastMessage?._id || payload?._id || null;
+
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -102,10 +167,50 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
   const conversationsRef = useRef(conversations);
   const activeConversationIdRef = useRef<string | null>(null);
   const fetchingRef = useRef<Set<string>>(new Set());
+  const notificationPermissionRequestedRef = useRef(false);
+  const lastNotifiedMessageIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     conversationsRef.current = conversations;
   }, [conversations]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      return;
+    }
+
+    const requestNotificationPermission = () => {
+      if (
+        Notification.permission !== "default" ||
+        notificationPermissionRequestedRef.current
+      ) {
+        return;
+      }
+
+      notificationPermissionRequestedRef.current = true;
+      void Notification.requestPermission().catch(() => {
+        notificationPermissionRequestedRef.current = false;
+      });
+    };
+
+    const handleFirstInteraction = () => {
+      requestNotificationPermission();
+      window.removeEventListener("pointerdown", handleFirstInteraction);
+      window.removeEventListener("keydown", handleFirstInteraction);
+    };
+
+    window.addEventListener("pointerdown", handleFirstInteraction, {
+      once: true,
+    });
+    window.addEventListener("keydown", handleFirstInteraction, {
+      once: true,
+    });
+
+    return () => {
+      window.removeEventListener("pointerdown", handleFirstInteraction);
+      window.removeEventListener("keydown", handleFirstInteraction);
+    };
+  }, []);
 
   // Tự động truy vấn trạng thái hoạt động ban đầu của các bạn chat
   useEffect(() => {
@@ -135,16 +240,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       .catch((err) => console.error("Error fetching bulk statuses:", err));
   }, [conversations, user?.userId, dispatch]);
 
-  const handleNewMessageSidebar = (data: any) => {
-    dispatch(updateConversation(data));
-  };
-
-  const handleRecallMessageSidebar = (data: {
-    conversationId: string;
-    messageId: string;
-  }) => {
-    dispatch(updateRecallMessageInConversation(data));
-  };
   const [groupDisbandedDialogOpen, setGroupDisbandedDialogOpen] = useState(false);
   const [, setGroupDisbandedConversationId] = useState<string>("");
 
@@ -184,6 +279,118 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
     if (socketRef.current) socketRef.current.disconnect();
     navigateTo("/login");
   }, [dispatch]);
+
+  const notifyIncomingMessage = useCallback((params: {
+    conversationId: string;
+    title: string;
+    body: string;
+    messageId?: string | null;
+    avatar?: string | null;
+  }) => {
+    if (typeof window === "undefined") return;
+
+    if (
+      params.messageId &&
+      lastNotifiedMessageIdRef.current === params.messageId
+    ) {
+      return;
+    }
+    lastNotifiedMessageIdRef.current = params.messageId || null;
+
+    // 1. Nếu tab đang hiển thị VÀ đang được focus, hiện Toast nội bộ
+    if (document.visibilityState === "visible" && document.hasFocus()) {
+      toast(
+        (props: any) =>
+          renderIncomingMessageToast({
+            avatar: params.avatar,
+            title: params.title,
+            body: params.body,
+            closeToast: props.closeToast,
+          }),
+        {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: true,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          toastId: params.messageId || `toast-${params.conversationId}`,
+          style: {
+            background: "transparent",
+            boxShadow: "none",
+            border: "none",
+            padding: 0,
+          },
+          onClick: () => {
+            window.focus();
+            navigateTo(`/conversation/${params.conversationId}`);
+          },
+        }
+      );
+      return;
+    }
+
+    // 2. Nếu tab đang ẩn (hidden), hiện thông báo trình duyệt (System Notification)
+    const targetUrl = `/conversation/${params.conversationId}`;
+
+    if (!("Notification" in window) || Notification.permission !== "granted") {
+      return;
+    }
+
+    // Ưu tiên dùng Service Worker (chạy được cả khi tab bị đóng băng/nền sâu)
+    const showSWNotification = async () => {
+      try {
+        if ("serviceWorker" in navigator) {
+          const registration = await navigator.serviceWorker.ready;
+          if (registration && registration.showNotification) {
+            // Tối giản hóa options để chắc chắn Windows không chặn
+            const options = {
+              body: params.body,
+              icon: params.avatar || undefined, // Nếu có avatar thì dùng, không thì để trống
+              tag: `msg-${params.conversationId}`,
+              requireInteraction: true,
+              data: { url: targetUrl },
+            };
+            
+            await registration.showNotification(params.title, options);
+            console.log("🚀 [DEBUG] showNotification resolved for:", params.title);
+            return true;
+          }
+        }
+      } catch (err) {
+        console.error("SW Notification failed:", err);
+      }
+      return false;
+    };
+
+    // Fallback sang Notification truyền thống nếu SW thất bại
+    showSWNotification().then((success) => {
+      // Ép điện thoại/máy tính phát tín hiệu rung/chuông nếu được phép
+      if ("vibrate" in navigator) {
+        navigator.vibrate([200, 100, 200]);
+      }
+
+      if (!success) {
+        try {
+          console.log("🔔 Falling back to standard Notification");
+          const notification = new Notification(params.title, {
+            body: params.body,
+            icon: params.avatar || "https://chat.zalo.me/favicon.ico",
+            tag: `msg-${params.conversationId}`,
+            requireInteraction: true,
+          } as any);
+
+          notification.onclick = () => {
+            window.focus();
+            navigateTo(targetUrl);
+            notification.close();
+          };
+        } catch (error) {
+          console.error("❌ Both notification methods failed:", error);
+        }
+      }
+    });
+  }, []);
 
   // --- SINGLETON HANDLERS (useCallback to prevent re-bind) ---
   const handleNewMessage = useCallback((newMessage: MessagesType) => {
@@ -245,7 +452,30 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       unreadCount: nextUnreadCount,
       lastMessageAt: newMessage.createdAt,
     }));
-  }, [dispatch, user?.userId]);
+
+    const isMuted = Boolean(currentConversation?.muted);
+    if (isOwnMessage || isActiveConversation || isMuted) {
+      return;
+    }
+
+    const title = newMessage.senderId?.profile?.name
+      ? `${newMessage.senderId.profile.name}`
+      : currentConversation?.name || "Tin nhắn mới";
+    const body = extractMessagePreview({
+      content: newMessage.content,
+      recalled: newMessage.recalled,
+      expired: newMessage.expired,
+      call: newMessage.call,
+    });
+
+    notifyIncomingMessage({
+      conversationId,
+      title,
+      body,
+      messageId: newMessage._id,
+      avatar: newMessage.senderId?.profile?.avatarUrl,
+    });
+  }, [dispatch, notifyIncomingMessage, user?.userId]);
 
   const handleMessageReacted = useCallback((data: { messageId: string; reactions: any[]; conversationId?: string }) => {
     if (data.conversationId) {
@@ -418,10 +648,10 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!socketRef.current) {
       socketRef.current = io(apiUrl, {
         auth: { token: accessToken, deviceId: getDeviceId() },
-        withCredentials: true,
-        transports: ['websocket'],
         reconnection: true,
-        reconnectionAttempts: 5,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
       });
 
       socketRef.current.on("connect_error", (err) => {
@@ -508,6 +738,26 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
             data.lastMessageAt || data.createdAt || new Date().toISOString(),
         }),
       );
+
+      const currentConversation = conversationsRef.current.find(
+        (conversation) => conversation.conversationId === conversationId,
+      );
+      const isMuted = Boolean(currentConversation?.muted);
+      const isActiveConversation =
+        activeConversationIdRef.current === conversationId;
+      const isOwnMessage = senderName === "Báº¡n";
+
+      if (isMuted || isActiveConversation || isOwnMessage) {
+        return;
+      }
+
+      notifyIncomingMessage({
+        conversationId,
+        title: currentConversation?.name || senderName || "Tin nhắn mới",
+        body: extractMessagePreview(lastMessage),
+        messageId: getNotificationMessageId(data),
+        avatar: data?.senderId?.profile?.avatarUrl || lastMessage?.senderId?.profile?.avatarUrl,
+      });
     };
     // 3. Thu hồi tin nhắn
     const handleRecallMessageSidebar = (data: {
