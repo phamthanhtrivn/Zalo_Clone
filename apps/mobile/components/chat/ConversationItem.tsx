@@ -738,8 +738,8 @@ const ConversationItem: React.FC<Props> = React.memo(({
                 style={{
                   flex: 1,
                   fontSize: 14,
-                  fontWeight: isUnread ? "600" : "400",
-                  color: isUnread ? "#000000" : "#111827", // giữ gần web
+                  fontWeight: isUnread ? "500" : "400",
+                  color: isUnread ? "#000000" : "#111827",
                 }}
               >
                 {conversation.name}
@@ -756,80 +756,82 @@ const ConversationItem: React.FC<Props> = React.memo(({
 
             <View
               style={{
-                flexDirection: "column",
-                alignItems: "flex-end",
+                flexDirection: "row",
+                alignItems: "center",
                 gap: 4,
                 flexShrink: 0,
               }}
             >
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                {conversation.muted && (
-                  <Ionicons
-                    name="notifications-off-outline"
-                    size={13}
-                    color="#9ca3af"
-                  />
-                )}
-                <Text style={{ fontSize: 11, color: "#9ca3af" }}>
-                  {formatMessageTime(conversation.lastMessageAt)}
-                </Text>
-              </View>
-              {conversation.unreadCount > 0 && (
-                <View
-                  style={{
-                    backgroundColor: "#d10e0eff",
-                    borderRadius: 10,
-                    minWidth: 18,
-                    height: 18,
-                    paddingHorizontal: 5,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      fontWeight: "700",
-                      color: "#ffffff",
-                    }}
-                  >
-                    {conversation.unreadCount > 99 ? "99+" : conversation.unreadCount}
-                  </Text>
-                </View>
+              {conversation.muted && (
+                <Ionicons
+                  name="notifications-off-outline"
+                  size={13}
+                  color="#9ca3af"
+                />
               )}
+              <Text style={{ fontSize: 11, color: "#9ca3af" }}>
+                {formatMessageTime(conversation.lastMessageAt)}
+              </Text>
             </View>
           </View>
 
-          <View className="flex-row items-center mt-1">
-            {/* sender */}
-            <Text
-              style={{
-                fontSize: 13,
-                color: isUnread ? "#111827" : "#6b7280",
-                fontWeight: isUnread ? "600" : "400",
-              }}
-            >
-              {senderPrefixDisplay}
-            </Text>
-
-            {/* preview */}
-            <View className="flex-row items-center flex-1">
-              {previewDisplay.icon && (
-                <View className="mr-1 justify-center">{previewDisplay.icon}</View>
-              )}
-
+          <View className="flex-row items-center justify-between mt-1 w-full">
+            <View className="flex-row items-center flex-1 mr-3 min-w-0">
+              {/* sender */}
               <Text
-                numberOfLines={1}
                 style={{
                   fontSize: 13,
-                  flex: 1,
                   color: isUnread ? "#111827" : "#6b7280",
-                  fontWeight: isUnread ? "600" : "400",
+                  fontWeight: isUnread ? "500" : "400",
                 }}
               >
-                {previewDisplay.text}
+                {senderPrefixDisplay}
               </Text>
+
+              {/* preview */}
+              <View className="flex-row items-center flex-1 min-w-0">
+                {previewDisplay.icon && (
+                  <View className="mr-1 justify-center">{previewDisplay.icon}</View>
+                )}
+
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    fontSize: 13,
+                    flex: 1,
+                    color: isUnread ? "#111827" : "#6b7280",
+                    fontWeight: isUnread ? "500" : "400",
+                  }}
+                >
+                  {previewDisplay.text}
+                </Text>
+              </View>
             </View>
+
+            {conversation.unreadCount > 0 && (
+              <View
+                style={{
+                  backgroundColor: "#d10e0eff",
+                  borderRadius: 10,
+                  minWidth: 18,
+                  height: 18,
+                  paddingHorizontal: 5,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 10,
+                    fontWeight: "700",
+                    color: "#ffffff",
+                  }}
+                >
+                  {conversation.unreadCount > 99 ? "99+" : conversation.unreadCount}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </TouchableOpacity>

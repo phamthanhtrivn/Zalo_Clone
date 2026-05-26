@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Platform,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import Toast from "react-native-toast-message";
@@ -27,6 +28,7 @@ const CreatePollModal: React.FC<Props> = ({
   visible,
   onClose,
 }) => {
+  const insets = useSafeAreaInsets();
   const [title, setTitle] = useState("");
   const [options, setOptions] = useState<string[]>(["", ""]);
   const [isMultipleChoice, setIsMultipleChoice] = useState(true);
@@ -190,7 +192,7 @@ const CreatePollModal: React.FC<Props> = ({
             </View>
 
             {/* Settings */}
-            <View style={styles.settingsSection}>
+            <View style={[styles.settingsSection, { paddingBottom: 40 + insets.bottom }]}>
               <View style={styles.settingItem}>
                 <View style={styles.settingText}>
                   <Text style={styles.settingLabel}>Chọn nhiều phương án</Text>

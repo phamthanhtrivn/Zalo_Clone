@@ -12,9 +12,9 @@ export default function FeedTopTabs({ activeTab, onChange }: any) {
           <Pressable
             key={tab.key}
             onPress={() => onChange(tab.key)}
-            className="flex-1 items-center py-4"
+            className="flex-1 items-center py-2"
           >
-            <Text className={`text-[17px] ${active ? "font-semibold text-[#111827]" : "text-[#9ca3af]"}`}>
+            <Text className={`text-sm ${active ? "font-semibold text-[#111827]" : "text-[#9ca3af]"}`}>
               {tab.label}
             </Text>
             <View className={`mt-3 h-[2.5px] w-[62%] rounded-full ${active ? "bg-[#111827]" : "bg-transparent"}`} />

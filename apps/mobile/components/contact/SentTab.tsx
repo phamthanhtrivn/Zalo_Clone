@@ -9,6 +9,7 @@ import { userService } from "@/services/user.service";
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useSocket } from "@/contexts/SocketContext";
+import GroupAvatar from "../ui/GroupAvatar";
 
 export default function SentTab() {
   const [sentUsers, setSentUsers] = useState<any>([]);
@@ -87,9 +88,10 @@ function SentItem({ item, message, setSentUsers }: SentItemProps) {
   return (
     <View className="bg-white px-4 py-4 mx-4 mt-2 rounded-2xl border border-gray-100 flex-row items-center">
       <View className="flex-row items-center flex-1 pr-3">
-        <Image
-          source={{ uri: item?.avatarUrl }}
-          className="w-14 h-14 rounded-full border border-gray-200"
+        <GroupAvatar
+          uri={item?.avatarUrl}
+          name={item?.name || "Người dùng"}
+          size={56}
         />
         <View className="ml-3 flex-1">
           <Text className="text-[16px] font-semibold text-gray-900">

@@ -195,3 +195,27 @@ export const exchangeToken = createAsyncThunk(
     }
   },
 );
+
+export const requestUpdatePhone = createAsyncThunk(
+  "auth/request-update-phone",
+  async (phone: string, thunkAPI) => {
+    try {
+      const res = await authService.requestUpdatePhone(phone);
+      return res;
+    } catch (err: any) {
+      return thunkAPI.rejectWithValue(err.response?.data);
+    }
+  },
+);
+
+export const verifyUpdatePhone = createAsyncThunk(
+  "auth/verify-update-phone",
+  async (payload: { phone: string; otp: string }, thunkAPI) => {
+    try {
+      const res = await authService.verifyUpdatePhone(payload.phone, payload.otp);
+      return res;
+    } catch (err: any) {
+      return thunkAPI.rejectWithValue(err.response?.data);
+    }
+  },
+);

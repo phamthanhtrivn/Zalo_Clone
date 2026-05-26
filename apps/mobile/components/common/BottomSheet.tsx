@@ -4,6 +4,7 @@ import {
   BottomSheetBackdrop,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Props = {
   children: ReactNode;
@@ -17,6 +18,7 @@ export type BottomSheetRef = BottomSheetModal;
 export const BottomSheet = forwardRef<BottomSheetRef, Props>(
   ({ children, footer, enableDynamicSizing, snapPoints }, ref) => {
     const points = useMemo(() => snapPoints, [snapPoints]);
+    const insets = useSafeAreaInsets();
 
     const renderBackdrop = useCallback(
       (props: any) => (
@@ -36,7 +38,12 @@ export const BottomSheet = forwardRef<BottomSheetRef, Props>(
         snapPoints={points}
         backdropComponent={renderBackdrop}
       >
-        <BottomSheetView className="p-6">{children}</BottomSheetView>
+        <BottomSheetView
+          style={{ paddingBottom: Math.max(insets.bottom, 24) }}
+          className="px-6 pt-6"
+        >
+          {children}
+        </BottomSheetView>
       </BottomSheetModal>
     );
   },

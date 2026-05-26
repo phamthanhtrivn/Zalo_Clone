@@ -4,7 +4,7 @@ import { AppRouter } from "./routes";
 import "./App.css";
 import { ToastContainer } from "react-toastify";
 import { SocketProvider } from "./contexts/SocketContext";
-import { CallProvider } from "./contexts/VideoCallContext";
+import { CallProvider } from "@/contexts/VideoCallContext";
 import IncomingCall from "./components/video-call/IncomingCall";
 import OutgoingCall from "./components/video-call/OutgoingCall";
 import VideoCallOverlay from "./components/video-call/VideoCallOverlay";

@@ -7,6 +7,7 @@ import {
     ScrollView,
     StyleSheet,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 interface FontStyle {
@@ -51,6 +52,7 @@ const FONT_COLORS: FontColor[] = [
 ];
 
 export default function FontSheet({ visible, onClose, onSelect }: Props) {
+    const insets = useSafeAreaInsets();
     const [selectedStyle, setSelectedStyle] = useState<FontStyle>(FONT_STYLES[0]);
     const [selectedColor, setSelectedColor] = useState<FontColor>(FONT_COLORS[0]);
     const [previewText, setPreviewText] = useState("Xem trước văn bản");
@@ -59,7 +61,7 @@ export default function FontSheet({ visible, onClose, onSelect }: Props) {
         <Modal visible={visible} animationType="slide" transparent>
             <View style={styles.container}>
                 <Pressable style={styles.backdrop} onPress={onClose} />
-                <View style={styles.sheet}>
+                <View style={[styles.sheet, { paddingBottom: 30 + insets.bottom }]}>
                     {/* Header */}
                     <View style={styles.header}>
                         <Pressable onPress={onClose}>

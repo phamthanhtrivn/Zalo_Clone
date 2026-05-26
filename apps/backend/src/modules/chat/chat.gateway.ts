@@ -76,6 +76,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       await redis.sadd(redisKey, socket.id);
       await redis.expire(redisKey, 86400); // 24 hour expiry fallback
 
+      const deviceRedisKey = `online_device:${deviceId}`;
+      await redis.sadd(deviceRedisKey, socket.id);
+      await redis.expire(deviceRedisKey, 86400);
+
+      // Emit device status change globally to keep active sessions real-time
+      this.server.emit('device_status_change', {
+        userId,
+        deviceId,
+        isOnline: true,
+      });
+
       const activeConnections = await redis.scard(redisKey);
       if (activeConnections === 1) {
         // Emit user_status_change globally
@@ -112,6 +123,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         const redisKey = `online:${userId}`;
         await redis.srem(redisKey, socket.id);
 
+        const deviceId = socket.data?.deviceId;
+        if (deviceId) {
+          const deviceRedisKey = `online_device:${deviceId}`;
+          await redis.srem(deviceRedisKey, socket.id);
+          const activeDeviceConnections = await redis.scard(deviceRedisKey);
+          if (activeDeviceConnections === 0) {
+            await redis.del(deviceRedisKey);
+            // Emit device status change globally to keep active sessions real-time
+            this.server.emit('device_status_change', {
+              userId,
+              deviceId,
+              isOnline: false,
+            });
+          }
+        }
+
         const activeConnections = await redis.scard(redisKey);
 
         if (activeConnections === 0) {
@@ -143,6 +170,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const keys = await pubClient.keys('online:*');
       if (keys.length > 0) {
         await pubClient.del(keys);
+      }
+      const deviceKeys = await pubClient.keys('online_device:*');
+      if (deviceKeys.length > 0) {
+        await pubClient.del(deviceKeys);
       }
     } catch (err) {
       console.error('Lỗi khi dọn dẹp các khóa online cũ khi khởi động:', err);

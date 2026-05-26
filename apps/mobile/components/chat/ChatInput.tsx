@@ -10,6 +10,7 @@ import {
   Modal,
   Pressable,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
@@ -73,6 +74,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   conversationId = "",
   members = [],
 }) => {
+  const insets = useSafeAreaInsets();
   const [text, setText] = useState("");
   const [showPollModal, setShowPollModal] = useState(false);
   const [showMentionList, setShowMentionList] = useState(false);
@@ -639,7 +641,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
         >
           <Pressable
             onPress={(e) => e.stopPropagation()}
-            className="bg-white rounded-t-[24px] px-6 pt-6 pb-9 min-h-[360px]"
+            className="bg-white rounded-t-[24px] px-6 pt-6 min-h-[360px]"
+            style={{ paddingBottom: 36 + insets.bottom }}
           >
             <View
               className="flex-row justify-between items-center"

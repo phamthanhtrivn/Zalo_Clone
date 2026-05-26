@@ -5,11 +5,13 @@ import { Model, Types } from 'mongoose';
 import { SessionResponseDTO } from '../dto/session-response.dto';
 import { plainToInstance } from 'class-transformer';
 import crypto from 'crypto';
+import { RedisService } from '../../../common/redis/redis.service';
 
 @Injectable()
 export class SessionService {
   constructor(
     @InjectModel(Session.name) private sessionModel: Model<Session>,
+    private readonly redisService: RedisService,
   ) { }
 
   async create(
@@ -89,7 +91,19 @@ export class SessionService {
       userId: new Types.ObjectId(userId),
     });
 
-    return plainToInstance(SessionResponseDTO, sessions, {
+    const redis = this.redisService.getClient();
+
+    const sessionsWithStatus = await Promise.all(
+      sessions.map(async (session) => {
+        const isOnline = await redis.exists(`online_device:${session.deviceId}`);
+        return {
+          ...session.toObject(),
+          isOnline: isOnline === 1,
+        };
+      })
+    );
+
+    return plainToInstance(SessionResponseDTO, sessionsWithStatus, {
       excludeExtraneousValues: true,
     });
   }

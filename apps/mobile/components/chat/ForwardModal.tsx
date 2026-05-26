@@ -12,6 +12,8 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import type { ConversationItemType } from "@/types/conversation-item.type";
+import GroupAvatar from "../ui/GroupAvatar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Props {
   visible: boolean;
@@ -30,6 +32,7 @@ const ForwardModal: React.FC<Props> = ({
   onSubmit,
   loadingForward,
 }) => {
+  const insets = useSafeAreaInsets();
   const [selectedConversations, setSelectedConversations] = useState<string[]>(
     [],
   );
@@ -156,20 +159,11 @@ const ForwardModal: React.FC<Props> = ({
                     </View>
 
                     {/* Avatar */}
-                    <View
-                      style={{
-                        width: 42,
-                        height: 42,
-                        borderRadius: 21,
-                        overflow: "hidden",
-                        backgroundColor: "#e5e7eb",
-                      }}
-                    >
-                      <Image
-                        source={{ uri: item.avatar }}
-                        style={{ width: 42, height: 42 }}
-                      />
-                    </View>
+                    <GroupAvatar
+                      uri={item.avatar}
+                      name={item.name}
+                      size={42}
+                    />
 
                     <Text
                       style={{ fontSize: 14, color: "#111", flex: 1 }}
@@ -187,7 +181,9 @@ const ForwardModal: React.FC<Props> = ({
               style={{
                 borderTopWidth: 1,
                 borderTopColor: "#f3f4f6",
-                padding: 16,
+                paddingHorizontal: 16,
+                paddingTop: 16,
+                paddingBottom: 16 + insets.bottom,
               }}
             >
               <Text

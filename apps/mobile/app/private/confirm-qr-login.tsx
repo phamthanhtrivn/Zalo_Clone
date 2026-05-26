@@ -33,8 +33,8 @@ export default function ConfirmLoginScreen() {
   };
 
   return (
-    <Container className="flex-1 bg-white items-center justify-between py-12 px-6">
-      <View className="items-center w-full">
+    <Container edges={["top", "left", "right", "bottom"]} className="flex-1 bg-white items-center justify-between py-12 px-6">
+      <View className="items-center w-full px-screen-edge">
         {/* Icon máy tính to ở giữa */}
         <Image
           className="w-72 h-52"
@@ -68,7 +68,7 @@ export default function ConfirmLoginScreen() {
       </View>
 
       {/* 2 Nút hành động */}
-      <View className="w-full gap-4">
+      <View className="w-full gap-4 px-screen-edge">
         <Button className="bg-primary w-full py-3" onPress={onConfirm}>
           <Text className="text-white font-bold text-base">Đăng nhập</Text>
         </Button>

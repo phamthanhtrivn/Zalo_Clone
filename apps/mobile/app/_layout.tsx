@@ -106,7 +106,7 @@ export default function RootLayout() {
         <SafeAreaProvider>
           <GestureHandlerRootView>
             <BottomSheetModalProvider>
-              <StatusBar style="dark" />
+              <StatusBar style="dark" backgroundColor="#0068ff" translucent={false} />
               <AppNavigation />
               <Toast config={toastConfig} topOffset={56} />
             </BottomSheetModalProvider>
