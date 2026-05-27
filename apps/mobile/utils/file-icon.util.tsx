@@ -1,18 +1,44 @@
 import React from "react";
-import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 
-export const getFileIcon = (fileName: string, size = 24) => {
-  if (fileName.endsWith(".pdf"))
-    return <Ionicons name="document-text" size={size} color="#ef4444" />;
-  
-  if (fileName.endsWith(".doc") || fileName.endsWith(".docx"))
-    return <Ionicons name="document" size={size} color="#2563eb" />;
+export const getFileIcon = (fileName: string, size = 28) => {
+  const name = (fileName || "").toLowerCase();
 
-  if (fileName.endsWith(".xls") || fileName.endsWith(".xlsx"))
-    return <Ionicons name="grid" size={size} color="#16a34a" />;
-    
-  if (fileName.endsWith(".zip") || fileName.endsWith(".rar"))
-    return <Ionicons name="archive" size={size} color="#ca8a04" />;
+  if (name.endsWith(".pdf")) {
+    return (
+      <Image
+        source={{ uri: "https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/pdf/default.svg" }}
+        style={{ width: size, height: size }}
+        contentFit="contain"
+      />
+    );
+  }
 
-  return <Ionicons name="document-outline" size={size} color="#6b7280" />;
+  if (name.endsWith(".doc") || name.endsWith(".docx")) {
+    return (
+      <Image
+        source={{ uri: "https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/microsoft-word/default.svg" }}
+        style={{ width: size, height: size }}
+        contentFit="contain"
+      />
+    );
+  }
+
+  if (name.endsWith(".xls") || name.endsWith(".xlsx")) {
+    return (
+      <Image
+        source={{ uri: "https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/microsoft-excel/default.svg" }}
+        style={{ width: size, height: size }}
+        contentFit="contain"
+      />
+    );
+  }
+
+  return (
+    <Image
+      source={{ uri: "https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/files/default.svg" }}
+      style={{ width: size, height: size }}
+      contentFit="contain"
+    />
+  );
 };

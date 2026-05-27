@@ -85,7 +85,7 @@ const VoicePlayer = React.memo(({ file, voiceDuration, isMe }: VoicePlayerProps)
       style={{
         marginTop: 6,
         padding: 6,
-        borderRadius: 8,
+        borderRadius: 6,
         backgroundColor: isMe ? "#dff0ff" : "#f3f4f6",
         minWidth: 200,
       }}
@@ -100,8 +100,8 @@ const VoicePlayer = React.memo(({ file, voiceDuration, isMe }: VoicePlayerProps)
         <TouchableOpacity
           onPress={handleToggleVoicePlayback}
           style={{
-            width: 35,
-            height: 35,
+            width: 30,
+            height: 30,
             borderRadius: 20,
             backgroundColor: "#0068ff",
             justifyContent: "center",
@@ -110,7 +110,7 @@ const VoicePlayer = React.memo(({ file, voiceDuration, isMe }: VoicePlayerProps)
         >
           <Ionicons
             name={isVoicePlaying ? "pause" : "play"}
-            size={22}
+            size={18}
             color="white"
           />
         </TouchableOpacity>

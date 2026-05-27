@@ -6,6 +6,7 @@ import {
   Linking,
   Dimensions,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import Markdown from "react-native-markdown-display";
@@ -18,9 +19,12 @@ import { formatTime } from "@/utils/format-message-time.util";
 import VoicePlayer from "./VoicePlayer";
 import type { MessagesType, ReactionType } from "@/types/messages.type";
 import ReactionSummary from "./ReactionSummary";
-import CallContent from "./CallContent";
 import { formatFileSize } from "@/utils/format-file.util";
 import { MobileImageViewer } from "../ui/MobileImageViewer";
+import { getFileIcon } from "@/utils/file-icon.util";
+import { truncateFileName } from "@/utils/render-file";
+import { downloadAndSaveFile } from "@/utils/download.util";
+
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -181,6 +185,36 @@ const MessageBubble = ({
 }: Props) => {
   const content = message.content;
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [downloadingKeys, setDownloadingKeys] = useState<string[]>([]);
+
+  const getCleanFileName = (file: any) => {
+    const f = file?.file || file || {};
+    const name = f.fileName ||
+      f.name ||
+      f.originalname ||
+      f.originalName ||
+      f.title ||
+      (f.fileKey ? decodeURIComponent(f.fileKey.split("?")[0].split("/").pop()?.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/, "") || "") : "") ||
+      "Tệp đính kèm";
+    return name;
+  };
+
+  const handleDownload = async (file: any) => {
+    const key = file.fileKey;
+    if (!key) return;
+    if (downloadingKeys.includes(key)) return;
+
+    try {
+      setDownloadingKeys((prev) => [...prev, key]);
+      const name = getCleanFileName(file);
+      await downloadAndSaveFile(file.fileKey, name, file.mimeType);
+    } catch (err) {
+      // Safe skip
+    } finally {
+      setDownloadingKeys((prev) => prev.filter((k) => k !== key));
+    }
+  };
+
 
   const mediaFiles = useMemo(
     () => (content?.files || []).filter((f: any) => f.type === "IMAGE" || f.type === "VIDEO"),
@@ -275,7 +309,7 @@ const MessageBubble = ({
           style={{
             maxWidth: "75%",
             backgroundColor: bubbleBg,
-            borderRadius: 16,
+            borderRadius: 6,
             paddingHorizontal: 12,
             paddingVertical: 8,
             borderWidth: 1,
@@ -332,7 +366,7 @@ const MessageBubble = ({
           onPress={onPress}
           style={{
             backgroundColor: bubbleBg,
-            borderRadius: 16,
+            borderRadius: 6,
             paddingHorizontal: 12,
             paddingVertical: 8,
             borderWidth: 1,
@@ -456,18 +490,6 @@ const MessageBubble = ({
                 />
               )}
 
-              {(message.call || message.type === "GROUP_CALL") && (
-                <CallContent
-                  type={message.call?.type || "VIDEO"}
-                  status={message.call?.status || "ACTIVE"}
-                  duration={message.call?.duration || null}
-                  isMe={isMe}
-                  isGroupCall={message.type === "GROUP_CALL"}
-                  isGroupChat={isGroup}
-                  sessionId={(message as any).callSessionId}
-                  onJoin={onJoinGroupCall}
-                />
-              )}
 
               {renderText()}
               {content?.storyLink?.storyId ? (
@@ -604,46 +626,61 @@ const MessageBubble = ({
               ))}
 
               {documentFiles.length > 0 && (
-                <View style={{ marginTop: 6, gap: 4 }}>
-                  {documentFiles.map((file: any, index: number) => (
-                    <TouchableOpacity
-                      key={`doc-${index}`}
-                      activeOpacity={0.7}
-                      onPress={() => Linking.openURL(file.fileKey)}
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        backgroundColor: isMe ? "rgba(255,255,255,0.5)" : "#f3f4f6",
-                        padding: 8,
-                        borderRadius: 8,
-                        borderWidth: 1,
-                        borderColor: "rgba(0,0,0,0.05)",
-                      }}
-                    >
-                      <View
+                <View style={{ marginTop: 6, gap: 6 }}>
+                  {documentFiles.map((file: any, index: number) => {
+                    const name = getCleanFileName(file);
+                    const cleanName = decodeURIComponent(name);
+                    const isDownloading = downloadingKeys.includes(file.fileKey);
+                    const sizeStr = file.fileSize ? formatFileSize(file.fileSize) : "0 KB";
+
+                    return (
+                      <TouchableOpacity
+                        key={`doc-${index}`}
+                        activeOpacity={0.7}
+                        onPress={() => Linking.openURL(file.fileKey)}
                         style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 8,
-                          backgroundColor: "#fff",
-                          justifyContent: "center",
+                          flexDirection: "row",
                           alignItems: "center",
-                          marginRight: 10,
+                          backgroundColor: "rgba(0, 0, 0, 0.05)",
+                          padding: 8,
+                          borderRadius: 6,
+                          gap: 12,
+                          width: Dimensions.get("window").width * 0.65,
                         }}
                       >
-                        <Ionicons name="document-text" size={24} color="#0068ff" />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: "500", color: "#111" }}>
-                          {file.fileName}
-                        </Text>
-                        <Text style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
-                          {formatFileSize(file.fileSize)}
-                        </Text>
-                      </View>
-                      <Ionicons name="download-outline" size={20} color="#6b7280" />
-                    </TouchableOpacity>
-                  ))}
+                        <View style={{ width: 28, height: 28, justifyContent: "center", alignItems: "center" }}>
+                          {getFileIcon(cleanName, 28)}
+                        </View>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: "500", color: "#111" }}>
+                            {truncateFileName(cleanName, 35) || cleanName}
+                          </Text>
+                          <Text style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                            {sizeStr}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => handleDownload(file)}
+                          activeOpacity={0.8}
+                          style={{
+                            padding: 6,
+                            borderWidth: 1,
+                            borderColor: "#d1d5db",
+                            borderRadius: 6,
+                            backgroundColor: "#ffffff",
+                            justifyContent: "center",
+                            alignItems: "center",
+                          }}
+                        >
+                          {isDownloading ? (
+                            <ActivityIndicator size="small" color="#4b5563" style={{ width: 16, height: 16 }} />
+                          ) : (
+                            <Ionicons name="download-outline" size={16} color="#4b5563" />
+                          )}
+                        </TouchableOpacity>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               )}
 
