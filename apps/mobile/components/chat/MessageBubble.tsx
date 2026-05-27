@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import GroupAvatar from "../ui/GroupAvatar";
 import PollMessage from "./PollMessage";
 import { formatTime } from "@/utils/format-message-time.util";
+import VoicePlayer from "./VoicePlayer";
 import type { MessagesType, ReactionType } from "@/types/messages.type";
 import ReactionSummary from "./ReactionSummary";
 import CallContent from "./CallContent";
@@ -193,6 +194,11 @@ const MessageBubble = ({
       (content?.files || []).filter(
         (f: any) => f.type === "FILE" || (!["IMAGE", "VIDEO", "VOICE"].includes(f.type)),
       ),
+    [content?.files],
+  );
+
+  const voiceFiles = useMemo(
+    () => (content?.files || []).filter((f: any) => f.type === "VOICE"),
     [content?.files],
   );
 
@@ -540,6 +546,15 @@ const MessageBubble = ({
                 </TouchableOpacity>
               ) : null}
               {content?.icon ? <Text style={{ fontSize: 32 }}>{content.icon}</Text> : null}
+
+              {voiceFiles.map((file: any, index: number) => (
+                <VoicePlayer
+                  key={`voice-${index}`}
+                  file={file}
+                  voiceDuration={content?.voiceDuration}
+                  isMe={isMe}
+                />
+              ))}
 
               {documentFiles.length > 0 && (
                 <View style={{ marginTop: 6, gap: 4 }}>
