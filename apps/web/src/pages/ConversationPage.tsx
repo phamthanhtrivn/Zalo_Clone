@@ -883,7 +883,6 @@ const ConversationPage = () => {
 
   useEffect(() => {
     if (!id || conversation || isConversationLoading) return;
-
     if (!hasAttemptedFetch) {
       setHasAttemptedFetch(true);
       dispatch(fetchConversations());
