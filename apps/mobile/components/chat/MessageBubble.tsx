@@ -746,7 +746,7 @@ const MessageBubble = ({
         </TouchableOpacity>
 
         {message.reactions?.length > 0 && (
-          <View style={{ marginTop: 4 }}>
+          <View style={{ marginTop: -8, alignSelf: isMe ? "flex-end" : "flex-start", marginHorizontal: 8, zIndex: 1 }}>
             <ReactionSummary
               reactions={message.reactions}
               onClick={() => onOpenReactionModal?.(message.reactions)}
