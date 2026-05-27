@@ -12,6 +12,7 @@ import {
   Keyboard,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import Animated, { useAnimatedKeyboard, useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useSocket } from "@/contexts/SocketContext";
@@ -61,6 +62,12 @@ export default function ChatWindow() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
+  const keyboard = useAnimatedKeyboard();
+  const animatedKeyboardStyle = useAnimatedStyle(() => {
+    return {
+      paddingBottom: keyboard.height.value,
+    };
+  });
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   useEffect(() => {
@@ -1191,7 +1198,7 @@ export default function ChatWindow() {
 
   return (
     <Container
-      edges={["top", "left", "right", "bottom"]}
+      edges={["top", "left", "right"]}
     >
       <ChatHeader
         conversation={conversation}
@@ -1203,10 +1210,8 @@ export default function ChatWindow() {
         setShowInfoSheet={setShowInfoSheet}
       />
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+      <Animated.View
+        style={[{ flex: 1 }, animatedKeyboardStyle]}
       >
         <PinnedMessagesBar
           pinnedMessages={pinnedMessages}
@@ -1406,7 +1411,7 @@ export default function ChatWindow() {
             <Ionicons name="chevron-down" size={24} color="#0068ff" />
           </TouchableOpacity>
         )}
-      </KeyboardAvoidingView>
+      </Animated.View>
 
       <ChatModals
         reactionPickerMsg={reactionPickerMsg}

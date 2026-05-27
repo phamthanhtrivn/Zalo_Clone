@@ -14,7 +14,9 @@
       "bundleIdentifier": "com.htuan04.mobile",
       "bitcode": false,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSSpeechRecognitionUsageDescription": "Ứng dụng cần sử dụng nhận diện giọng nói để soạn tin nhắn bằng giọng nói.",
+        "NSMicrophoneUsageDescription": "Ứng dụng cần truy cập Micro để đàm thoại và ghi âm."
       }
     },
     "android": {
@@ -44,6 +46,7 @@
       "expo-router",
       "expo-media-library",
       "expo-location",
+      "expo-speech-recognition",
       [
         "@config-plugins/react-native-webrtc",
         {

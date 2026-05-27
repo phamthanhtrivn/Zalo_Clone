@@ -19,7 +19,8 @@ import { conversationService } from "@/services/conversation.service";
 
 import { useAppDispatch, useAppSelector } from "@/store";
 import { clearReplyingMessage } from "@/store/slices/conversationSlice";
-import { X, Quote } from "lucide-react";
+import { X, Quote, Speech } from "lucide-react";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 
 type Props = {
   conversationId: string;
@@ -84,6 +85,42 @@ const ChatInput = ({
   const recordingStreamRef = useRef<MediaStream | null>(null);
   const recordingStartedAtRef = useRef<number>(0);
   const recordingTimerRef = useRef<number | null>(null);
+
+  // Speech-to-Text
+  const {
+    transcript,
+    isListening,
+    startListening,
+    stopListening,
+    error: speechError,
+    resetTranscript,
+  } = useSpeechRecognition();
+  const textBeforeRecordingRef = useRef("");
+
+  useEffect(() => {
+    if (speechError) {
+      alert(speechError);
+    }
+  }, [speechError]);
+
+  useEffect(() => {
+    if (isListening) {
+      setText(
+        textBeforeRecordingRef.current +
+        (textBeforeRecordingRef.current && transcript ? " " : "") +
+        transcript
+      );
+    }
+  }, [transcript, isListening]);
+
+  const toggleSpeechToText = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      textBeforeRecordingRef.current = text;
+      startListening();
+    }
+  };
 
   const formatVoiceDuration = (durationMs: number) => {
     const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
@@ -161,6 +198,10 @@ const ChatInput = ({
       const maxHeight = 10 * 24;
       const newHeight = Math.min(el.scrollHeight, maxHeight);
       el.style.height = newHeight + "px";
+      if (isListening) {
+        textBeforeRecordingRef.current = val;
+        resetTranscript();
+      }
       setTimeout(() => {
         const overlay = document.getElementById("textarea-highlight-overlay");
         if (overlay) {
@@ -518,6 +559,15 @@ const ChatInput = ({
           title="Ghi âm"
         >
           <Mic className="w-10 h-10" />
+        </Button>
+        <Button
+          onClick={toggleSpeechToText}
+          variant="ghost"
+          className={`w-10 h-10 cursor-pointer ${isListening ? "text-red-500 animate-pulse bg-red-50 hover:bg-red-100 hover:text-red-600" : "text-gray-500 hover:bg-gray-100"}`}
+          disabled={isMessageBlocked}
+          title={isListening ? "Dừng nhận diện giọng nói" : "Chuyển giọng nói thành văn bản"}
+        >
+          <Speech className="w-10 h-10" />
         </Button>
         {isGroup && (
           <Button
