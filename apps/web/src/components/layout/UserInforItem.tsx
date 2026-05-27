@@ -25,7 +25,7 @@ export default function UserInfoItem({ name, avartaUrl, desc, id }: Props) {
 
       if (!conversationId) return;
 
-      navigate(`/conversations/${conversationId}`);
+      navigate(`/conversation/${conversationId}`);
     } catch (error) {
       console.log(error);
     } finally {

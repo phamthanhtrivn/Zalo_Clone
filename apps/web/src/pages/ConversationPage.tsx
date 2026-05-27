@@ -15,6 +15,7 @@ import {
   setConversations,
   clearReplyingMessage,
   updateRecallMessageInConversation,
+  fetchConversations,
 } from "@/store/slices/conversationSlice";
 import {
   setMessages,
@@ -91,6 +92,7 @@ const ConversationPage = () => {
   const friendStatusRequestIdRef = useRef(0);
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
   const lastMessageId = messages[messages.length - 1]?._id;
   const {
     setActiveConversationId,
@@ -850,10 +852,21 @@ const ConversationPage = () => {
     };
   }, [socket, id, dispatch, handleMessagesExpired, handleReadReceipt]);
 
+  // Reset attempted fetch whenever the active conversation ID changes
+  useEffect(() => {
+    setHasAttemptedFetch(false);
+  }, [id]);
+
   useEffect(() => {
     if (!id || conversation || isConversationLoading) return;
-    navigate("/", { replace: true });
-  }, [conversation, id, isConversationLoading, navigate]);
+    
+    if (!hasAttemptedFetch) {
+      setHasAttemptedFetch(true);
+      dispatch(fetchConversations());
+    } else {
+      navigate("/", { replace: true });
+    }
+  }, [conversation, id, isConversationLoading, hasAttemptedFetch, dispatch, navigate]);
 
   useEffect(() => {
     if (!id || !conversation?.hidden) return;

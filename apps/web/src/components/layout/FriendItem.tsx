@@ -36,7 +36,7 @@ export const FriendItem = ({ item, setFriends }: any) => {
       if (!conversationId) return;
 
       setOpenId("");
-      navigate(`/conversations/${conversationId}`);
+      navigate(`/conversation/${conversationId}`);
     } catch (error) {
       console.log(error);
     }
