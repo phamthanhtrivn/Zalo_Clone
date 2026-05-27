@@ -47,11 +47,12 @@ import { formatLastSeen } from "@/utils/formater";
 export default function ChatWindow() {
   const conversationState = useAppSelector((state) => state.conversation);
   const conversations = conversationState.conversations;
-  const { id, messageId, otherUserId: paramOtherUserId, fromSearch } = useLocalSearchParams<{
+  const { id, messageId, otherUserId: paramOtherUserId, fromSearch, conversation: paramConversationStr } = useLocalSearchParams<{
     id: string;
     messageId?: string;
     otherUserId?: string;
     fromSearch?: string;
+    conversation?: string;
   }>();
   const fromSearchValue = Array.isArray(fromSearch) ? fromSearch[0] : fromSearch;
   const openedFromSearch =
@@ -84,7 +85,10 @@ export default function ChatWindow() {
     };
   }, []);
 
-  const conversation = conversations.find((c) => c.conversationId === id);
+  const storeConversation = conversations.find((c) => c.conversationId === id);
+  const paramConversation = paramConversationStr ? JSON.parse(Array.isArray(paramConversationStr) ? paramConversationStr[0] : paramConversationStr) : null;
+  const conversation = storeConversation || paramConversation;
+
   // ✅ Use conversation.group as source of truth — conversation.type can be contaminated
   // by the last message type (e.g. "GROUP_CALL") and cause false negatives
   const isGroup = conversation?.type === "GROUP" || !!conversation?.group;
@@ -1369,13 +1373,19 @@ export default function ChatWindow() {
         )}
 
         {!canChat && !isSelectMode ? (
-          <View className="p-4 bg-[#f9fafb] border-t border-[#e5e7eb] items-center">
+          <View
+            className="p-4 bg-[#f9fafb] border-t border-[#e5e7eb] items-center"
+            style={{ paddingBottom: Math.max(16, insets.bottom) }}
+          >
             <Text className="text-[#6b7280] text-[13px] italic">
               Chỉ Trưởng/Phó nhóm mới được gửi tin nhắn
             </Text>
           </View>
         ) : isMessageBlocked && !isSelectMode ? (
-          <View className="bg-white px-4 py-3 border-t border-[#e5e7eb] items-center">
+          <View
+            className="bg-white px-4 py-3 border-t border-[#e5e7eb] items-center"
+            style={{ paddingBottom: Math.max(16, insets.bottom) }}
+          >
             <Text className="text-[#6b7280] text-[13px] text-center">
               {friendStatus === "BLOCKED"
                 ? "Bạn đã chặn người này, hãy gỡ chặn để gửi tin nhắn."

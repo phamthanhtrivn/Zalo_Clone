@@ -894,6 +894,11 @@ export class ConversationsService {
         .filter((friend) => friend.status === FriendStatus.ACCEPTED)
         .map((friend) => friend.friendId.toString()),
     );
+    const blockedFriendIds = new Set(
+      (currentUser?.friends ?? [])
+        .filter((friend) => friend.status === FriendStatus.BLOCKED || friend.status === FriendStatus.BLOCKED_BY_OTHER)
+        .map((friend) => friend.friendId.toString()),
+    );
     const conversations = await this.memberModel.aggregate([
       { $match: { userId: userObjectId, leftAt: null } },
       {
@@ -1221,18 +1226,28 @@ export class ConversationsService {
       { $replaceRoot: { newRoot: '$data' } },
     ]);
 
-    return conversations.map((c) => ({
-      ...c,
-      otherMemberId: c?.otherMemberId?.toString?.() ?? c?.otherMemberId ?? null,
-      isStranger:
-        c?.type === ConversationType.DIRECT &&
-        !!(c?.otherMemberId?.toString?.() ?? c?.otherMemberId) &&
-        !acceptedFriendIds.has(
-          c?.otherMemberId?.toString?.() ?? c?.otherMemberId ?? '',
-        ) &&
-        !c?.hasSentMessage,
-      avatar: c.avatar ? this.storageService.signFileUrl(c.avatar) : null,
-    }));
+    return conversations
+      .filter((c) => {
+        if (c.type === ConversationType.DIRECT) {
+          const otherId = c?.otherMemberId?.toString?.() ?? c?.otherMemberId;
+          if (otherId && blockedFriendIds.has(otherId)) {
+            return false;
+          }
+        }
+        return true;
+      })
+      .map((c) => ({
+        ...c,
+        otherMemberId: c?.otherMemberId?.toString?.() ?? c?.otherMemberId ?? null,
+        isStranger:
+          c?.type === ConversationType.DIRECT &&
+          !!(c?.otherMemberId?.toString?.() ?? c?.otherMemberId) &&
+          !acceptedFriendIds.has(
+            c?.otherMemberId?.toString?.() ?? c?.otherMemberId ?? '',
+          ) &&
+          !c?.hasSentMessage,
+        avatar: c.avatar ? this.storageService.signFileUrl(c.avatar) : null,
+      }));
   }
 
   async getOrCreateDirectConversation(user1Id: string, user2Id: string) {

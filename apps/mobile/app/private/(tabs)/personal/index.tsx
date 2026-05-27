@@ -17,6 +17,7 @@ import {
   MaterialCommunityIcons,
   SimpleLineIcons
 } from "@expo/vector-icons";
+import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import { useSocket } from "@/contexts/SocketContext";
 import { useEffect, useState } from "react";
 import { fetchUserById } from "@/store/auth/userInfoSlice";
@@ -57,6 +58,10 @@ export default function Personal() {
 
   const handleOnPressPassword = () => {
     router.push("/private/change-password");
+  };
+
+  const handleOnPressAccontBlock = () => {
+    router.push("/private/account-block");
   };
 
   const handleOnPressProfile = () => {
@@ -107,16 +112,11 @@ export default function Personal() {
       />
 
       <ScrollView className="flex-1 bg-[#f7f8fa]" showsVerticalScrollIndicator={false}>
-        <View className="px-screen-edge pb-10">
-          {/* Tiêu đề */}
-          <View className="pt-6 pb-2">
-            <Text className="text-blue-800 text-xl font-bold">Tài khoản</Text>
-          </View>
-
+        <View className="pb-10">
           {/* Thẻ Thông tin cá nhân */}
           <TouchableOpacity
             onPress={handleOnPressProfile}
-            className="mt-2 mb-4 flex-row items-center p-4 border border-gray-100 rounded-md bg-white shadow-sm"
+            className="mb-2 flex-row items-center p-4 border border-gray-100 rounded-md bg-white shadow-sm"
           >
             <GroupAvatar
               uri={userInfo?.profile?.avatarUrl}
@@ -134,7 +134,10 @@ export default function Personal() {
             <Feather name="chevron-right" size={20} color="#9CA3AF" />
           </TouchableOpacity>
 
-          <View className="bg-white rounded-md overflow-hidden border border-gray-100 shadow-sm">
+          <Text className="text-gray-500 font-medium text-xs ml-4 mb-2">
+            Tài khoản và bảo mật
+          </Text>
+          <View className="bg-white overflow-hidden border-t border-b border-gray-200">
             {/* Số điện thoại */}
             <OptionItem
               onPress={() => router.push("/private/change-phone")}
@@ -260,7 +263,7 @@ export default function Personal() {
             {/* Mật khẩu */}
             <OptionItem
               onPress={handleOnPressPassword}
-              className="gap-4 py-4 px-4"
+              className="gap-4 py-4 px-4 border-b-[0.2px] border-gray-300"
               icon="arrow-forward"
             >
               <Ionicons
@@ -269,6 +272,35 @@ export default function Personal() {
                 color="black"
               />
               <Text className="text-sm text-black flex-1">Mật khẩu</Text>
+            </OptionItem>
+
+            {/* Khóa thiết bị */}
+            <OptionItem
+              onPress={handleOnPressAccontBlock}
+              className="gap-4 py-4 px-4"
+              icon="arrow-forward"
+            >
+              <FontAwesome5 name="user-lock" size={scale(20)} color="red" />
+              <Text className="text-sm flex-1">Khóa tài khoản</Text>
+            </OptionItem>
+          </View>
+
+          <Text className="text-gray-500 font-medium text-xs ml-4 mb-2 mt-2">
+            Quyền riêng tư
+          </Text>
+          <View className="bg-white overflow-hidden border-t border-b border-gray-200">
+            {/* Danh sách chặn */}
+            <OptionItem
+              onPress={() => router.push("/private/blocked-friends")}
+              className="gap-4 border-b-[0.2px] border-gray-300 py-4 px-4"
+              icon="arrow-forward"
+            >
+              <Feather
+                name="user-x"
+                size={scale(20)}
+                color="black"
+              />
+              <Text className="text-sm text-black flex-1">Danh sách chặn</Text>
             </OptionItem>
           </View>
 

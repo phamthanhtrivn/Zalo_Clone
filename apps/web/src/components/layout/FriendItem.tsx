@@ -7,6 +7,16 @@ import { useNavigate } from "react-router-dom";
 import { conversationService } from "@/services/conversation.service";
 import { toast } from "react-toastify";
 import FriendProfileModal from "./FriendProfileModal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const FriendItem = ({ item, setFriends }: any) => {
   const [openId, setOpenId] = useState<string>("");
@@ -42,17 +52,20 @@ export const FriendItem = ({ item, setFriends }: any) => {
     }
   };
 
-  const handelBock = (id: string) => {
+  const [blockTargetId, setBlockTargetId] = useState<string | null>(null);
+
+  const confirmBlock = () => {
+    if (!blockTargetId) return;
     const blockFriend = async () => {
       try {
-        const data = await userService.blockFriend(id, userId);
+        const data = await userService.blockFriend(blockTargetId, userId);
         if (data.data) {
           setFriends((prev: any) =>
             prev
               .map((group: any) => ({
                 ...group,
                 friends: group.friends.filter(
-                  (friend: any) => friend.friendId !== id,
+                  (friend: any) => friend.friendId !== blockTargetId,
                 ),
               }))
               .filter((group: any) => group.friends.length > 0),
@@ -61,6 +74,8 @@ export const FriendItem = ({ item, setFriends }: any) => {
         }
       } catch (err) {
         console.log(err);
+      } finally {
+        setBlockTargetId(null);
       }
     };
     blockFriend();
@@ -168,7 +183,7 @@ export const FriendItem = ({ item, setFriends }: any) => {
 
                   <button
                     type="button"
-                    onClick={() => handelBock(f.friendId)}
+                    onClick={() => setBlockTargetId(f.friendId)}
                     className="flex w-full items-center gap-3 px-3 py-3 text-left text-[14px] text-gray-800 transition-colors hover:bg-gray-50"
                   >
                     <Ban size={16} className="text-gray-500" />
@@ -198,6 +213,29 @@ export const FriendItem = ({ item, setFriends }: any) => {
         onClose={() => setIsProfileOpen(false)}
         onMessage={handleMessageFromProfile}
       />
+
+      <AlertDialog
+        open={!!blockTargetId}
+        onOpenChange={(open) => !open && setBlockTargetId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Chặn người dùng này?</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogDescription>
+            Bạn sẽ không nhận được tin nhắn hay cuộc gọi từ người này nữa. Họ cũng sẽ không thể xem nhật ký của bạn.
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-500 hover:bg-red-600 text-white min-w-[100px]"
+              onClick={confirmBlock}
+            >
+              Chặn
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

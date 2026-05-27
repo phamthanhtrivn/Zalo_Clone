@@ -8,6 +8,16 @@ import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { useCall } from "@/contexts/VideoCallContext";
 import { CallType } from "@/constants/types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type UserProfile = {
   name?: string;
@@ -119,7 +129,9 @@ export default function FriendProfileModal({
     }
   };
 
-  const handelBock = () => {
+  const [blockDialogOpen, setBlockDialogOpen] = useState(false);
+
+  const confirmBlock = () => {
     const blockFriend = async () => {
       try {
         const data = await userService.blockFriend(profileId!, userId);
@@ -264,7 +276,7 @@ export default function FriendProfileModal({
                   <Users size={18} className="text-gray-500" />
                   Nhóm chung ({commonGroupsCount})
                 </button>
-                <button onClick={() => handelBock()} className="flex w-full items-center gap-2.5 rounded-md px-1 py-2 text-[13px] text-gray-700 transition-colors hover:bg-gray-50">
+                <button onClick={() => setBlockDialogOpen(true)} className="flex w-full items-center gap-2.5 rounded-md px-1 py-2 text-[13px] text-gray-700 transition-colors hover:bg-gray-50">
                   <Ban size={18} className="text-gray-500" />
                   Chặn tin nhắn và cuộc gọi
                 </button>
@@ -277,6 +289,29 @@ export default function FriendProfileModal({
           )}
         </div>
       </div>
+
+      <AlertDialog
+        open={blockDialogOpen}
+        onOpenChange={setBlockDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Chặn người dùng này?</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogDescription>
+            Bạn sẽ không nhận được tin nhắn hay cuộc gọi từ người này nữa. Họ cũng sẽ không thể xem nhật ký của bạn.
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-500 hover:bg-red-600 text-white min-w-[100px]"
+              onClick={confirmBlock}
+            >
+              Chặn
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

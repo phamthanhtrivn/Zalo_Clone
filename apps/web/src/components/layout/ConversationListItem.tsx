@@ -350,7 +350,7 @@ const ConversationListItem = ({
         showSender: true,
         content: (
           <span className="flex items-center gap-1 truncate">
-            <span className="rounded-full bg-sky-100 px-1.5 py-[1px] text-[10px] font-semibold text-sky-700">
+            <span className="rounded-full bg-sky-100 px-1.5 py-px text-[10px] font-semibold text-sky-700">
               Story
             </span>
             <span className="truncate">

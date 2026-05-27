@@ -8,17 +8,33 @@ export async function updateFriendStatus(
   friendId: string,
   newStatus: FriendStatus,
 ) {
-  return await userModel.findOneAndUpdate(
+  const updated = await userModel.findOneAndUpdate(
     {
       _id: userId,
       'friends.friendId': friendId,
     },
     {
       $set: {
-        friendId: friendId,
         'friends.$.status': newStatus,
       },
     },
     { new: true },
   );
+
+  if (!updated) {
+    return await userModel.findByIdAndUpdate(
+      userId,
+      {
+        $push: {
+          friends: {
+            friendId: friendId,
+            status: newStatus,
+          },
+        },
+      },
+      { new: true },
+    );
+  }
+
+  return updated;
 }

@@ -1,24 +1,38 @@
 import SettingChooseItem from "@/components/common/setting/SettingChooseItem";
 import SettingSection from "@/components/common/setting/SettingSection";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NestedViewLayout } from "./NestedViewLayout";
 import { Button } from "@/components/ui/button";
 import { toast } from "react-toastify";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { userService } from "@/services/user.service";
 import { useAppSelector } from "@/store";
-import { Ban, Loader2, ArrowLeft, UserMinus } from "lucide-react";
+import { Ban, Loader2, UserMinus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { conversationService } from "@/services/conversation.service";
 
 export default function PrivacySetting() {
   const [currentView, setCurrentView] = useState<"main" | "blocked">("main");
+  const queryClient = useQueryClient();
 
   // Fetch blocked list to show count on main tab
-  const { data: blockedData } = useQuery({
+  const { data: blockedData, refetch } = useQuery({
     queryKey: ["blockedFriends"],
     queryFn: () => userService.getBlockedFriends(),
   });
 
-  const blockedCount = blockedData?.users?.length || 0;
+  useEffect(() => {
+    const handleFriendBlocked = () => {
+      queryClient.invalidateQueries({ queryKey: ["blockedFriends"] });
+      refetch();
+    };
+    window.addEventListener("friendBlocked", handleFriendBlocked);
+    return () => {
+      window.removeEventListener("friendBlocked", handleFriendBlocked);
+    };
+  }, [queryClient, refetch]);
+
+  const blockedCount = blockedData?.data?.users?.length || 0;
 
   if (currentView === "blocked") {
     return <BlockedFriendsView onBack={() => setCurrentView("main")} />;
@@ -49,6 +63,7 @@ export default function PrivacySetting() {
 function BlockedFriendsView({ onBack }: { onBack: () => void }) {
   const queryClient = useQueryClient();
   const { user } = useAppSelector((state) => state.auth);
+  const navigate = useNavigate();
 
   // Fetch blocked list using React Query
   const { data, isLoading, error } = useQuery({
@@ -72,7 +87,7 @@ function BlockedFriendsView({ onBack }: { onBack: () => void }) {
     },
   });
 
-  const blockedUsers = data?.users || [];
+  const blockedUsers = data?.data?.users || [];
 
   return (
     <NestedViewLayout title="Danh sách chặn" onBack={onBack}>
@@ -107,7 +122,30 @@ function BlockedFriendsView({ onBack }: { onBack: () => void }) {
                   key={blocked.friendId}
                   className="flex items-center justify-between py-3 px-1 transition-colors hover:bg-gray-50/50"
                 >
-                  <div className="flex items-center gap-3">
+                  <div
+                    className="flex items-center gap-3 cursor-pointer flex-1"
+                    onClick={async () => {
+                      try {
+                        const response = await conversationService.getOrCreateDirect(blocked.friendId);
+                        const conversationId = response?.data?._id || response?.data?.conversationId || response?._id;
+                        if (conversationId) {
+                          navigate(`/conversation/${conversationId}`, {
+                            state: {
+                              conversation: {
+                                conversationId,
+                                type: "DIRECT",
+                                name: blocked.name,
+                                avatar: blocked.avatarUrl,
+                                otherMemberId: blocked.friendId,
+                              }
+                            }
+                          });
+                        }
+                      } catch (err) {
+                        console.error(err);
+                      }
+                    }}
+                  >
                     <img
                       src={blocked.avatarUrl || "/default-avatar.png"}
                       alt={blocked.name}
@@ -120,18 +158,14 @@ function BlockedFriendsView({ onBack }: { onBack: () => void }) {
                       <p className="text-sm font-semibold text-gray-800">
                         {blocked.name}
                       </p>
-                      {blocked.birthday && (
-                        <p className="text-[11px] text-gray-400">
-                          Ngày sinh: {new Date(blocked.birthday).toLocaleDateString("vi-VN")}
-                        </p>
-                      )}
                     </div>
                   </div>
 
                   <Button
-                    onClick={() =>
-                      unblockMutation.mutate({ friendId: blocked.friendId })
-                    }
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      unblockMutation.mutate({ friendId: blocked.friendId });
+                    }}
                     disabled={unblockMutation.isPending}
                     variant="outline"
                     size="sm"

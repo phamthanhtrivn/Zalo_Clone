@@ -335,4 +335,27 @@ export class AuthController {
       console.log(err);
     }
   }
+
+  @Post('unlock-account/request')
+  @Public()
+  requestUnlockAccount(@Body('phone') phone: string) {
+    if (!phone) {
+      throw new BadRequestException('Số điện thoại không được để trống !');
+    }
+    return this.authService.requestUnlockAccount(phone);
+  }
+
+  @Post('unlock-account/verify')
+  @Public()
+  verifyUnlockAccount(@Body('phone') phone: string, @Body('otp') otp: string) {
+    if (!phone || !otp) {
+      throw new BadRequestException('Số điện thoại và mã OTP không được để trống !');
+    }
+    return this.authService.verifyUnlockAccount(phone, otp);
+  }
+
+  @Post('lock-account')
+  lockAccount(@Request() req: { user: AuthUser }, @Body('password') password: string) {
+    return this.authService.lockAccount(req.user.userId, password);
+  }
 }

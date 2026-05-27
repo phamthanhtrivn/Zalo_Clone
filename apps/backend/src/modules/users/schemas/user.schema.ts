@@ -76,6 +76,9 @@ export class User {
 
   @Prop()
   conversationPinHash?: string;
+
+  @Prop({ default: false })
+  isLocked?: boolean;
 }
 export type UserDocument = User & Document;
 export const UserSchema = SchemaFactory.createForClass(User);

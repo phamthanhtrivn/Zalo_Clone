@@ -113,8 +113,6 @@ const ContactRequest = () => {
     toast.success("Bỏ qua thành công");
   };
 
-  console.log("receivedUsers",receivedUsers);
-
   return (
     <div className="flex-1 overflow-y-auto flex-col bg-white overflow-hidden">
       <header className="h-16 border-b border-[#e5e7eb] flex items-center px-4 shrink-0">

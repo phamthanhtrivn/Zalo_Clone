@@ -15,18 +15,32 @@ import type { Session } from "@/types/auth.type";
 import { formatDateTime } from "@/utils/dateTimeFormat.util";
 import { getDeviceId } from "@/utils/device.util";
 import { Globe, Tablet, Smartphone, Ellipsis } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { NestedViewLayout } from "./NestedViewLayout";
 import { useSocket } from "@/contexts/SocketContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { handleFieldErrors } from "@/utils/handleErrors.util";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
+import { authService } from "@/services/auth.service";
 
 export default function AccountSetting() {
   const [currentView, setCurrentView] = useState<
     "main" | "devices" | "password" | "phone"
   >("main");
+  const [lockDialogOpen, setLockDialogOpen] = useState(false);
+  const [lockPassword, setLockPassword] = useState("");
+  const [lockLoading, setLockLoading] = useState(false);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
 
   if (currentView === "devices") {
     return <DeviceManagementView onBack={() => setCurrentView("main")} />;
@@ -36,30 +50,102 @@ export default function AccountSetting() {
     return <ChangePhoneView onBack={() => setCurrentView("main")} />;
   }
 
+  const openLockDialog = () => {
+    setLockPassword("");
+    setLockDialogOpen(true);
+    setTimeout(() => passwordInputRef.current?.focus(), 100);
+  };
+
+  const onConfirmLock = async () => {
+    if (!lockPassword.trim()) {
+      toast.error("Mật khẩu xác nhận không được để trống!");
+      return;
+    }
+    setLockLoading(true);
+    try {
+      await authService.lockAccount(lockPassword.trim());
+      toast.success("Khóa tài khoản thành công!");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Không thể khóa tài khoản lúc này.");
+    } finally {
+      setLockLoading(false);
+    }
+  };
+
   return (
-    <div className="flex flex-col gap-6">
-      <SettingSection title="Cá nhân">
-        <SettingChooseItem onClick={() => setCurrentView("phone")}>
-          <div className="flex justify-between items-center w-full">
-            <p className="text-sm">Số điện thoại</p>
+    <>
+      <div className="flex flex-col gap-6">
+        <SettingSection title="Cá nhân">
+          <SettingChooseItem onClick={() => setCurrentView("phone")}>
+            <div className="flex justify-between items-center w-full">
+              <p className="text-sm">Số điện thoại</p>
+            </div>
+          </SettingChooseItem>
+          <SettingChooseItem>
+            <p className="text-sm">Email</p>
+          </SettingChooseItem>
+        </SettingSection>
+        <SettingSection title="Bảo mật">
+          <SettingChooseItem onClick={() => setCurrentView("devices")}>
+            <p className="text-sm">Thiết bị đăng nhập</p>
+          </SettingChooseItem>
+          <SettingChooseItem
+            onClick={() => setCurrentView("password")}
+            className="border-b-[0.5px] border-gray-100"
+          >
+            <p className="text-sm">Mật khẩu</p>
+          </SettingChooseItem>
+          <SettingChooseItem
+            onClick={openLockDialog}
+            className="border-none text-red-600 hover:bg-red-50"
+          >
+            <p className="text-sm font-semibold">Khóa tài khoản</p>
+          </SettingChooseItem>
+        </SettingSection>
+      </div>
+
+      {/* Lock Account Confirmation Dialog */}
+      <AlertDialog open={lockDialogOpen} onOpenChange={setLockDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận khóa tài khoản</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tài khoản của bạn sẽ bị khóa và bạn sẽ bị đăng xuất ngay lập tức.
+              Để mở khóa lại, hãy dùng chức năng{" "}
+              <span className="font-medium text-gray-700">Mở khóa tài khoản</span>{" "}
+              ở màn hình đăng nhập.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="flex flex-col gap-1.5 mt-1">
+            <label className="text-sm font-medium text-gray-700">
+              Nhập mật khẩu để xác nhận
+            </label>
+            <Input
+              ref={passwordInputRef}
+              type="password"
+              placeholder="Mật khẩu của bạn"
+              value={lockPassword}
+              onChange={(e) => setLockPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && onConfirmLock()}
+              className="h-9"
+            />
           </div>
-        </SettingChooseItem>
-        <SettingChooseItem>
-          <p className="text-sm">Email</p>
-        </SettingChooseItem>
-      </SettingSection>
-      <SettingSection title="Bảo mật">
-        <SettingChooseItem onClick={() => setCurrentView("devices")}>
-          <p className="text-sm">Thiết bị đăng nhập</p>
-        </SettingChooseItem>
-        <SettingChooseItem
-          onClick={() => setCurrentView("password")}
-          className="border-none"
-        >
-          <p className="text-sm">Mật khẩu</p>
-        </SettingChooseItem>
-      </SettingSection>
-    </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={lockLoading}>Hủy</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={onConfirmLock}
+              disabled={lockLoading || !lockPassword.trim()}
+              className="rounded-md"
+            >
+              {lockLoading ? "Đang xử lý..." : "Khóa tài khoản"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 

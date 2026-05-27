@@ -73,4 +73,16 @@ export const authService = {
     const res = await apiClient.post("/api/auth/update-phone/verify", { phone, otp });
     return res.data.data;
   },
+  lockAccount: async (password: string) => {
+    const response = await apiClient.post("/api/auth/lock-account", { password });
+    return response.data;
+  },
+  requestUnlockAccount: async (phone: string) => {
+    const response = await apiClient.post("/api/auth/unlock-account/request", { phone });
+    return response.data;
+  },
+  verifyUnlockAccount: async (phone: string, otp: string) => {
+    const response = await apiClient.post("/api/auth/unlock-account/verify", { phone, otp });
+    return response.data;
+  },
 };

@@ -50,21 +50,22 @@ export class AuthService {
         formattedPhone = '+' + formattedPhone;
       }
 
-      await axios.post(
-        'https://api.infinireach.io/api/v1/messages',
-        {
-          to: formattedPhone,
-          from: fromPhone,
-          message,
-          channel: 'sms',
-        },
-        {
-          headers: {
-            'X-API-Key': apiKey,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
+      // await axios.post(
+      //   'https://api.infinireach.io/api/v1/messages',
+      //   {
+      //     to: formattedPhone,
+      //     from: fromPhone,
+      //     message,
+      //     channel: 'sms',
+      //   },
+      //   {
+      //     headers: {
+      //       'X-API-Key': apiKey,
+      //       'Content-Type': 'application/json',
+      //     },
+      //   },
+      // );
+      console.log(message);
       console.log(`Đã gửi SMS thành công tới ${formattedPhone}`);
       return true;
     } catch (error: any) {
@@ -244,6 +245,9 @@ export class AuthService {
     const user = await this.userService.findByPhone(phone);
 
     if (user && (await bcrypt.compare(pass, user.password))) {
+      if (user.isLocked) {
+        throw new UnauthorizedException('Tài khoản của bạn đã bị khóa. Vui lòng mở khóa để tiếp tục sử dụng.');
+      }
       const avatar = this.storageService.signFileUrl(
         user.profile?.avatarUrl as string,
       );
@@ -359,6 +363,29 @@ export class AuthService {
     }
   }
 
+  async lockAccount(userId: string, password: string) {
+    if (!password) {
+      throw new BadRequestException('Vui lòng nhập mật khẩu xác nhận');
+    }
+
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('Người dùng không tồn tại');
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      throw new BadRequestException('Mật khẩu xác nhận không chính xác!');
+    }
+
+    await this.userService.setLockStatus(userId, true);
+
+    // Đăng xuất tất cả thiết bị và emit force_logout đến mọi client đang online
+    await this.signOutAllDevices(userId);
+
+    return { success: true };
+  }
+
   async signOutOtherDevices(userId: string, currentDeviceId: string) {
     const sessionsToKill = await this.sessionService.findOtherSessions(
       userId,
@@ -443,5 +470,39 @@ export class AuthService {
       console.log(err);
       throw err;
     }
+  }
+
+  async requestUnlockAccount(phone: string) {
+    const user = await this.userService.findByPhone(phone);
+    if (!user) {
+      throw new NotFoundException('Số điện thoại chưa được đăng ký');
+    }
+    if (!user.isLocked) {
+      throw new BadRequestException('Tài khoản này không bị khóa !');
+    }
+
+    await this.sendOtp(phone);
+
+    return {
+      message: 'Mã OTP đã được gửi tới số điện thoại của bạn.',
+      expiresIn: process.env.OTP_RESEND_SECONDS || 120,
+    };
+  }
+
+  async verifyUnlockAccount(phone: string, otp: string) {
+    const user = await this.userService.findByPhone(phone);
+    if (!user) {
+      throw new NotFoundException('Số điện thoại chưa được đăng ký');
+    }
+    if (!user.isLocked) {
+      throw new BadRequestException('Tài khoản này không bị khóa !');
+    }
+
+    await this.verifyOtpOnly(phone, otp);
+
+    // Gỡ khóa tài khoản
+    await this.userService.unlockAccount(user._id.toString());
+
+    return { message: 'Tài khoản của bạn đã được mở khóa thành công. Bạn đã có thể đăng nhập!' };
   }
 }

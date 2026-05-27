@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { X, Users } from "lucide-react";
 import { userService } from "@/services/user.service";
 import { useSelector } from "react-redux";
