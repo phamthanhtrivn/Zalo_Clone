@@ -5,8 +5,6 @@ import {
   TouchableOpacity,
   Linking,
   Dimensions,
-  Modal,
-  StyleSheet,
   Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -249,6 +247,55 @@ const MessageBubble = ({
     }
     return <TextWithLinks text={processed} members={members} />;
   };
+
+  if (message.recalled) {
+    return (
+      <View
+        style={{
+          flexDirection: isMe ? "row-reverse" : "row",
+          alignItems: "flex-end",
+          marginBottom: 2,
+          paddingHorizontal: 8,
+        }}
+      >
+        {!isMe &&
+          (showAvatar ? (
+            <View style={{ marginRight: 6 }}>
+              <GroupAvatar
+                uri={message.senderId?.profile?.avatarUrl}
+                name={message.senderId?.profile?.name || "U"}
+                size={32}
+              />
+            </View>
+          ) : (
+            <View style={{ width: 32, marginRight: 6 }} />
+          ))}
+
+        <View
+          style={{
+            maxWidth: "75%",
+            backgroundColor: bubbleBg,
+            borderRadius: 16,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderWidth: 1,
+            borderColor: "#e5e7eb",
+          }}
+        >
+          <Text
+            style={{ color: "#9ca3af", fontStyle: "italic", fontSize: 13 }}
+          >
+            Tin nhắn đã được thu hồi
+          </Text>
+          {showTime && (
+            <Text style={{ fontSize: 10, color: "#9ca3af", marginTop: 4, textAlign: "right" }}>
+              {formatTime(message.createdAt)}
+            </Text>
+          )}
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View
