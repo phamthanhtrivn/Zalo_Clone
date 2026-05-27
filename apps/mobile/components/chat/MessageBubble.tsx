@@ -24,10 +24,6 @@ import { MobileImageViewer } from "../ui/MobileImageViewer";
 import { getFileIcon } from "@/utils/file-icon.util";
 import { truncateFileName } from "@/utils/render-file";
 import { downloadAndSaveFile } from "@/utils/download.util";
-<<<<<<< HEAD
-=======
-
->>>>>>> e01cef0f4 (fix: hiển thị tên file trong tin nhắn, chỉnh sửa xem được video)
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
