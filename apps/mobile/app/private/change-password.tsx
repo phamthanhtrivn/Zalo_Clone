@@ -37,7 +37,6 @@ export default function ChangePassword() {
       ).unwrap();
 
       showToast("Đổi mật khẩu thành công");
-      router.back();
     } catch (err: any) {
       if (err && err.errors && Array.isArray(err.errors)) {
         const errorsObj: Record<string, string> = {};

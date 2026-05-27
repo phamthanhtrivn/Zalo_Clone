@@ -336,6 +336,9 @@ export class AuthService {
     if (newPassword !== confirmPassword) {
       throw new BadRequestException('Mật khẩu xác nhận không khớp !');
     }
+    if (newPassword === oldPassword) {
+      throw new BadRequestException('Mật khẩu mới không được trùng với mật khẩu cũ!');
+    }
     await this.userService.checkMatchPassword(phone, oldPassword);
     await this.userService.updatePassword(phone, newPassword);
 
