@@ -21,6 +21,7 @@ import {
   updateRecallMessageInConversation,
   updateUnreadStateInMessages,
   updateUserStatus,
+  updateCallStatusInConversation,
 } from "@/store/slices/conversationSlice";
 import {
   updateReadReceipt,
@@ -545,9 +546,14 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [dispatch]);
 
   const handleCallUpdated = useCallback((data: { messageId: string; status: string; duration?: number; conversationId?: string }) => {
-    console.log("🚀 Nhận call_updated từ Socket:", data);
     if (data.conversationId) {
       dispatch(updateCallStatus({
+        conversationId: data.conversationId,
+        messageId: data.messageId,
+        status: data.status,
+        duration: data.duration
+      }));
+      dispatch(updateCallStatusInConversation({
         conversationId: data.conversationId,
         messageId: data.messageId,
         status: data.status,
@@ -991,6 +997,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
     socketInstance.on("message_pinned", handleMessagePinned);
     socketInstance.on("read_receipt", handleReadReceipt);
     socketInstance.on("messages_expired", handleMessagesExpired);
+    socketInstance.on("call_updated", handleCallUpdated);
 
     socketInstance.on("message_read", handleMessageRead);
     socketInstance.on("messages_unread_updated", handleUnreadUpdate);
@@ -1035,6 +1042,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       socketInstance.off("message_pinned", handleMessagePinned);
       socketInstance.off("read_receipt", handleReadReceipt);
       socketInstance.off("messages_expired", handleMessagesExpired);
+      socketInstance.off("call_updated", handleCallUpdated);
 
       socketInstance.off("message_read", handleMessageRead);
       socketInstance.off("messages_unread_updated", handleUnreadUpdate);
@@ -1063,7 +1071,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       socketInstance.disconnect();
       socketRef.current = null;
     };
-  }, [apiUrl, user?.userId, accessToken, handleNewMessage, handleMessageReacted, handleMessageRecalled, handleMessagePinned, handleReadReceipt, handleMessagesExpired, handleUpdatePoll, handlePollOptionAdded, handleGroupDisbanded, handleForceLogout, handleAiStatus, handleAiTypingChunk, handleReceiveFriendRequest, handleFriendAccepted, handleCancelFriendRequest]);
+  }, [apiUrl, user?.userId, accessToken, handleNewMessage, handleMessageReacted, handleMessageRecalled, handleMessagePinned, handleReadReceipt, handleMessagesExpired, handleUpdatePoll, handlePollOptionAdded, handleCallUpdated, handleGroupDisbanded, handleForceLogout, handleAiStatus, handleAiTypingChunk, handleReceiveFriendRequest, handleFriendAccepted, handleCancelFriendRequest]);
 
   return (
     <SocketContext.Provider

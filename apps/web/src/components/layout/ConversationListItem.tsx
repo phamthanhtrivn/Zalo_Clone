@@ -11,7 +11,7 @@ import {
   useFloating,
 } from "@floating-ui/react";
 import { PiPushPinFill } from "react-icons/pi";
-import { IoCheckmark } from "react-icons/io5";
+import { IoCheckmark, IoMicOutline, IoCallOutline, IoVideocamOutline } from "react-icons/io5";
 import { CiImageOn } from "react-icons/ci";
 import { RiVideoLine } from "react-icons/ri";
 import { LuSticker } from "react-icons/lu";
@@ -23,7 +23,6 @@ import AppAvatar from "../common/AppAvatar";
 import {
   pinConversation,
   unpinConversation,
-  hideConversation,
   muteConversation,
   unmuteConversation,
   setCategory,
@@ -37,7 +36,6 @@ import {
   removeConversation,
   setUnreadCount,
 } from "@/store/slices/conversationSlice";
-import { IoMicOutline } from "react-icons/io5";
 import { useSocket } from "@/contexts/SocketContext";
 import type {
   ConversationCategory,
@@ -299,19 +297,22 @@ const ConversationListItem = ({
     if (lastMsg.call?.type) {
       const isVideo = lastMsg.call.type === "VIDEO";
       const isMe = lastMsg.senderName === "Bạn";
-      let text = isMe
-        ? `Cuộc gọi ${isVideo ? "video" : "thoại"} đi`
-        : `Cuộc gọi ${isVideo ? "video" : "thoại"} đến`;
+      let text = `Cuộc gọi ${isVideo ? "video" : "thoại"}`;
+
+      let colorClass = "text-gray-500";
 
       switch (lastMsg.call.status) {
         case "MISSED":
           text = "Cuộc gọi nhỡ";
+          colorClass = "text-red-500";
           break;
         case "REJECTED":
           text = isMe ? "Cuộc gọi bị từ chối" : "Cuộc gọi nhỡ";
+          colorClass = "text-red-500";
           break;
         case "BUSY":
           text = "Máy bận";
+          colorClass = "text-red-500";
           break;
         case "ENDED":
         case "ACCEPTED":
@@ -321,9 +322,16 @@ const ConversationListItem = ({
           break;
       }
 
+      const Icon = isVideo ? IoVideocamOutline : IoCallOutline;
+
       return {
-        showSender: false,
-        content: text,
+        showSender: true,
+        content: (
+          <span className={`flex items-center gap-1 truncate ${colorClass}`}>
+            <Icon className="shrink-0 translate-y-px" size={14} />
+            <span className="truncate">{text}</span>
+          </span>
+        ),
       };
     }
 

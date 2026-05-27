@@ -26,6 +26,7 @@ import GroupAvatar from "@/components/ui/GroupAvatar";
 import { getFileIcon } from "@/utils/file-icon.util";
 import { truncateFileName } from "@/utils/render-file";
 import { formatFileSize } from "@/utils/format-file.util";
+import { scale } from "@/utils/responsive";
 
 const TABS = [
   { id: "all", label: "Tất cả" },
@@ -563,8 +564,8 @@ export default function SearchScreen() {
         }
         rightChild={
           !isConversationSearch && (
-            <TouchableOpacity className="p-2 ml-1" onPress={() => console.log("Scan QR")}>
-              <MaterialCommunityIcons name="qrcode-scan" size={22} color="white" />
+            <TouchableOpacity className="p-2 ml-1" onPress={() => router.push("/private/qr-scanner")}>
+              <MaterialCommunityIcons name="qrcode-scan" size={scale(18)} color="white" />
             </TouchableOpacity>
           )
         }
