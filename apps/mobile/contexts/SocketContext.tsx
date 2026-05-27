@@ -183,7 +183,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       })
       .catch((err: any) => console.error("[Mobile] Error fetching bulk statuses:", err));
-  }, [user?.userId, conversations.length]);
+  }, [conversations, user?.userId, dispatch]);
 
   // Tự động đăng xuất khi bị cưỡng ép
   const handleForceLogout = (data: { message: string }) => {

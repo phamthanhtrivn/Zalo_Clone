@@ -5,10 +5,10 @@ import { conversationService } from "@/services/conversation.service";
 import { useAppSelector } from "@/store";
 import type { ConversationItemType } from "@/types/conversation-item.type";
 import type { MessagesType } from "@/types/messages.type";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatOldDate, formatTime } from "@/utils/format-message-time..util";
 import { getFileIcon } from "@/utils/file-icon.util";
 import { truncateFileName } from "@/utils/render-file";
+import AppAvatar from "@/components/common/AppAvatar";
 import {
    DropdownMenu,
    DropdownMenuContent,
@@ -185,10 +185,11 @@ const MessageSearchPanel = ({
                               className={`w-full flex items-center gap-2 px-3 py-2 text-sm cursor-pointer ${senderId === sender.userId ? 'bg-blue-50 text-blue-700 font-medium' : ''}`}
                               onClick={() => setSenderId(sender.userId)}
                            >
-                              <Avatar className="w-6 h-6 border">
-                                 <AvatarImage src={sender.avatarUrl || ''} />
-                                 <AvatarFallback className="text-[10px]">{sender.name.charAt(0)}</AvatarFallback>
-                              </Avatar>
+                              <AppAvatar
+                                 src={sender.avatarUrl || ''}
+                                 name={sender.name}
+                                 className="w-6 h-6 border text-[8px]"
+                              />
                               <span className="truncate flex-1">{sender.name}</span>
                            </DropdownMenuItem>
                         ))}
@@ -278,10 +279,11 @@ const MessageSearchPanel = ({
                      >
                         <div className="flex justify-between items-start mb-1">
                            <div className="flex items-center gap-2">
-                              <Avatar className="w-5 h-5">
-                                 <AvatarImage src={msg.senderId?.profile?.avatarUrl} />
-                                 <AvatarFallback className="text-[9px]">{msg.senderId?.profile?.name?.charAt(0)}</AvatarFallback>
-                              </Avatar>
+                              <AppAvatar
+                                 src={msg.senderId?.profile?.avatarUrl}
+                                 name={msg.senderId?.profile?.name || "Người dùng"}
+                                 className="w-5 h-5 text-[7px]"
+                              />
                               <span className="text-[13px] font-semibold text-gray-800">{msg.senderId?.profile?.name || "Người dùng"}</span>
                            </div>
                            <span className="text-[11px] text-gray-400 group-hover:text-blue-500 transition-colors font-medium">

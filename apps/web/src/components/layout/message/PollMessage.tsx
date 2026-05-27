@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Plus, Check, Loader2 } from "lucide-react";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import AppAvatar from "@/components/common/AppAvatar";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/store";
 import { pollService } from "@/services/poll.service";
@@ -11,7 +11,7 @@ import { makeSelectMyVotes, makeSelectPollByMessageId } from "@/store/selectors/
 interface Props {
   pollId: string;
   conversationId: string;
-  initialPoll?: any; 
+  initialPoll?: any;
 }
 
 
@@ -42,7 +42,7 @@ const PollMessage: React.FC<Props> = ({ pollId, conversationId, initialPoll }) =
 
   const selectPoll = useMemo(() => makeSelectPollByMessageId(conversationId, pollId), [conversationId, pollId]);
   const selectMyVotes = useMemo(() => makeSelectMyVotes(conversationId, pollId, currentUserId), [conversationId, pollId, currentUserId]);
-  
+
   const reduxPoll = useAppSelector(selectPoll);
   const poll = reduxPoll || initialPoll;
   const reduxMyVotes = useAppSelector(selectMyVotes);
@@ -84,10 +84,10 @@ const PollMessage: React.FC<Props> = ({ pollId, conversationId, initialPoll }) =
 
   const totalParticipants = poll?.totalParticipants || 0;
   const isExpired = poll.expiresAt ? new Date() > new Date(poll.expiresAt) : false;
-  
+
   // Kiểm tra user đã vote chưa (Dùng cả dữ liệu store và dữ liệu cache ẩn danh)
   const hasVoted = myVotes.length > 0 || cachedMyVotes.length > 0;
-  
+
   // Hiện kết quả khi: (Không bật ẩn kết quả) HOẶC (Đã vote) HOẶC (Đã hết hạn)
   const showResults = !poll.hideResultsUntilVoted || hasVoted || isExpired;
 
@@ -101,9 +101,9 @@ const PollMessage: React.FC<Props> = ({ pollId, conversationId, initialPoll }) =
   const selectedOptionIdsStr = selectedOptionIds.join(',');
 
   useEffect(() => {
-    const isMatched = selectedOptionIds.length === myVotes.length && 
-                      selectedOptionIds.every(id => myVotes.includes(id));
-    
+    const isMatched = selectedOptionIds.length === myVotes.length &&
+      selectedOptionIds.every(id => myVotes.includes(id));
+
     if (isMatched) {
       setIsLocalChanged(false);
     }
@@ -122,7 +122,7 @@ const PollMessage: React.FC<Props> = ({ pollId, conversationId, initialPoll }) =
     if (isExpired) return;
     setIsLocalChanged(true);
     if (poll.isMultipleChoice) {
-      setSelectedOptionIds(prev => 
+      setSelectedOptionIds(prev =>
         prev.includes(optionId) ? prev.filter(id => id !== optionId) : [...prev, optionId]
       );
     } else {
@@ -147,7 +147,7 @@ const PollMessage: React.FC<Props> = ({ pollId, conversationId, initialPoll }) =
         setCachedMyVotes(selectedOptionIds);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedOptionIds));
       }
-      
+
       setIsLocalChanged(false);
       toast.success("Bình chọn thành công");
     } catch (error) {
@@ -163,11 +163,11 @@ const PollMessage: React.FC<Props> = ({ pollId, conversationId, initialPoll }) =
 
   const handleAddOption = async () => {
     if (isExpired) {
-       toast.error("Bình chọn này đã kết thúc");
-       return;
+      toast.error("Bình chọn này đã kết thúc");
+      return;
     }
     if (!newOptionText.trim()) return;
-    
+
     setIsSubmittingOption(true);
     try {
       await pollService.addOption(conversationId, poll._id, newOptionText.trim());
@@ -218,14 +218,16 @@ const PollMessage: React.FC<Props> = ({ pollId, conversationId, initialPoll }) =
 
               <div className="h-6 w-full bg-gray-50 rounded-md overflow-hidden relative border border-gray-50">
                 {showResults && (
-                   <div className={`h-full transition-all duration-500 rounded-r-sm ${isSelected ? "bg-[#0068ff]/15" : "bg-gray-200/50"}`} style={{ width: `${percent}%` }} />
+                  <div className={`h-full transition-all duration-500 rounded-r-sm ${isSelected ? "bg-[#0068ff]/15" : "bg-gray-200/50"}`} style={{ width: `${percent}%` }} />
                 )}
                 <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex -space-x-1.5">
                   {(!poll.isAnonymous && showResults && option.voters) && option.voters.slice(0, 3).map((voter, idx) => (
-                    <Avatar key={idx} className="w-4 h-4 border border-white ring-0">
-                      <AvatarImage src={voter.avatar} />
-                      <AvatarFallback className="text-[6px] bg-gray-200">{voter.name?.charAt(0)}</AvatarFallback>
-                    </Avatar>
+                    <AppAvatar
+                      key={idx}
+                      src={voter.avatar}
+                      name={voter.name || ""}
+                      className="w-4 h-4 border border-white ring-0 text-[5px]"
+                    />
                   ))}
                   {(!poll.isAnonymous && showResults && option.voteCount > 3) && (
                     <div className="w-4 h-4 rounded-full bg-gray-100 border border-white flex items-center justify-center text-[7px] text-gray-500 font-bold">+{option.voteCount - 3}</div>
@@ -261,14 +263,14 @@ const PollMessage: React.FC<Props> = ({ pollId, conversationId, initialPoll }) =
                       disabled={isSubmittingOption}
                     />
                     <div className="flex justify-end gap-2">
-                      <button 
+                      <button
                         onClick={() => { setIsAddingOption(false); setNewOptionText(""); }}
                         className="text-xs text-gray-500 hover:text-gray-700 font-medium px-2 py-1"
                         disabled={isSubmittingOption}
                       >
                         Hủy
                       </button>
-                      <button 
+                      <button
                         onClick={handleAddOption}
                         disabled={isSubmittingOption || !newOptionText.trim()}
                         className={`px-3 py-1 bg-[#0068ff] text-white text-xs rounded-md font-bold shadow-sm transition-opacity ${isSubmittingOption || !newOptionText.trim() ? "opacity-50 cursor-not-allowed" : "hover:bg-[#0057d6]"}`}
@@ -291,10 +293,10 @@ const PollMessage: React.FC<Props> = ({ pollId, conversationId, initialPoll }) =
 
             {/* Nút Bình chọn */}
             <div className="flex justify-end">
-              <Button 
-                size="sm" 
-                disabled={!isLocalChanged || isVoting} 
-                onClick={(e) => { e.stopPropagation(); handleVote(); }} 
+              <Button
+                size="sm"
+                disabled={!isLocalChanged || isVoting}
+                onClick={(e) => { e.stopPropagation(); handleVote(); }}
                 className={`h-8 px-5 rounded-full text-[13px] font-bold transition-all shadow-sm ${isLocalChanged ? "bg-[#0068ff] hover:bg-[#0057d6] text-white" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
               >
                 {isVoting ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
