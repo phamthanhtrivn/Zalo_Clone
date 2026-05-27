@@ -8,6 +8,7 @@ import { getDeviceId } from "@/utils/device.util";
 import { formatMessageTime } from "@/utils/format-message-time.util";
 import { useEffect, useState } from "react";
 import { useSocket } from "@/contexts/SocketContext";
+import { authService } from "@/services/auth.service";
 import {
   ActivityIndicator,
   FlatList,
@@ -25,6 +26,7 @@ export default function SessionsScreen() {
   const user = useAppSelector((state) => state.auth.user);
 
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [blockedDevices, setBlockedDevices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
 
@@ -32,9 +34,12 @@ export default function SessionsScreen() {
     try {
       setLoading(true);
       const res = await dispatch(getSessions()).unwrap();
+      const blockedRes = await authService.getBlockedDevices();
+      const normalized = blockedRes.map((d: any) => typeof d === 'string' ? { deviceId: d, deviceName: 'Thiết bị không xác định', deviceType: 'unknown' } : d);
       const deviceId = await getDeviceId();
       setCurrentDeviceId(deviceId);
       setSessions(res);
+      setBlockedDevices(normalized);
     } catch (err: any) {
       showToast(err.message || "Không thể lấy danh sách phiên đăng nhập");
     } finally {
@@ -94,6 +99,31 @@ export default function SessionsScreen() {
     );
   };
 
+  const handleBlockDevice = (deviceId: string, deviceName: string) => {
+    Alert.alert(
+      "Chặn thiết bị",
+      `Bạn có chắc chắn muốn chặn ${deviceName}? Thiết bị này sẽ bị đăng xuất và không thể đăng nhập lại tài khoản của bạn.`,
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Chặn",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const targetSession = sessions.find((s) => s.deviceId === deviceId);
+              await authService.blockDevice(deviceId);
+              setSessions((prev) => prev.filter((s) => s.deviceId !== deviceId));
+              setBlockedDevices((prev) => [...prev, { deviceId, deviceName: targetSession?.deviceName || 'Thiết bị không xác định', deviceType: targetSession?.deviceType || 'unknown', location: targetSession?.location || 'Không xác định', blockedAt: new Date().toISOString() }]);
+              showToast("Đã chặn thiết bị thành công");
+            } catch (err: any) {
+              showToast(err.response?.data?.message || err.message || "Chặn thất bại");
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const handleLogoutOtherDevices = () => {
     Alert.alert(
       "Đăng xuất tất cả thiết bị khác",
@@ -113,6 +143,28 @@ export default function SessionsScreen() {
               showToast(err.message || "Đăng xuất thất bại");
             } finally {
               setLoading(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleUnblockDevice = (deviceId: string) => {
+    Alert.alert(
+      "Bỏ chặn thiết bị",
+      "Bạn có chắc chắn muốn bỏ chặn thiết bị này?",
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Bỏ chặn",
+          onPress: async () => {
+            try {
+              await authService.unblockDevice(deviceId);
+              setBlockedDevices((prev) => prev.filter((d) => d.deviceId !== deviceId));
+              showToast("Đã bỏ chặn thiết bị thành công");
+            } catch (err: any) {
+              showToast(err.response?.data?.message || err.message || "Bỏ chặn thất bại");
             }
           },
         },
@@ -161,12 +213,20 @@ export default function SessionsScreen() {
         </View>
 
         {!isThisDevice && (
-          <TouchableOpacity
-            onPress={() => handleLogoutDevice(item.deviceId, item.deviceName)}
-            className="p-2"
-          >
-            <Ionicons name="log-out-outline" size={22} color="#ef4444" />
-          </TouchableOpacity>
+          <View className="flex-row items-center gap-2">
+            <TouchableOpacity
+              onPress={() => handleLogoutDevice(item.deviceId, item.deviceName)}
+              className="p-2 bg-gray-50 rounded-full"
+            >
+              <Ionicons name="log-out-outline" size={20} color="#6b7280" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleBlockDevice(item.deviceId, item.deviceName)}
+              className="p-2 bg-red-50 rounded-full"
+            >
+              <MaterialCommunityIcons name="block-helper" size={18} color="#ef4444" />
+            </TouchableOpacity>
+          </View>
         )}
       </View>
     );
@@ -215,6 +275,54 @@ export default function SessionsScreen() {
               <MaterialCommunityIcons name="block-helper" size={60} color="#d1d5db" />
               <Text className="text-gray-400 mt-4">Không tìm thấy phiên đăng nhập nào</Text>
             </View>
+          }
+          ListFooterComponent={
+            blockedDevices.length > 0 ? (
+              <View className="mt-6 mb-10">
+                <View className="px-4 py-2 bg-gray-50 border-b border-t border-gray-100">
+                  <Text className="text-sm font-semibold text-gray-700">Thiết bị đã chặn</Text>
+                </View>
+                {blockedDevices.map((device) => (
+                  <View key={device.deviceId} className="flex-row items-center p-4 border-b border-gray-100 bg-white opacity-75">
+                    <View className="w-12 h-12 rounded-full bg-red-50 items-center justify-center">
+                      {device.deviceType === "browser" ? (
+                        <Feather name="globe" size={24} color="#ef4444" />
+                      ) : device.deviceType === "tablet" ? (
+                        <Feather name="tablet" size={24} color="#ef4444" />
+                      ) : (
+                        <Feather name="smartphone" size={24} color="#ef4444" />
+                      )}
+                    </View>
+                    <View className="flex-1 ml-4 pr-2">
+                      <View className="flex-row items-center flex-wrap gap-1">
+                        <Text className="text-xs font-bold text-gray-800 line-through" numberOfLines={1}>
+                          {device.deviceName}
+                        </Text>
+                        <View className="ml-1 bg-red-100 px-2 py-0.5 rounded-full">
+                          <Text className="text-[9px] font-bold text-red-600">Đã chặn</Text>
+                        </View>
+                      </View>
+                      {device.blockedAt && (
+                        <Text className="text-[11px] text-gray-500 mt-0.5">
+                          Ngày chặn: {formatMessageTime(device.blockedAt)}
+                        </Text>
+                      )}
+                      {device.location && (
+                        <Text className="text-[11px] text-gray-500 mt-0.5" numberOfLines={1}>
+                          Vị trí: {device.location}
+                        </Text>
+                      )}
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => handleUnblockDevice(device.deviceId)}
+                      className="px-3 py-1.5 bg-gray-100 rounded-md"
+                    >
+                      <Text className="text-xs font-semibold text-gray-700">Bỏ chặn</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            ) : null
           }
         />
       )}

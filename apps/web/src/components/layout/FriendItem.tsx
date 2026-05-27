@@ -23,7 +23,7 @@ export const FriendItem = ({ item, setFriends }: any) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [selectedFriendId, setSelectedFriendId] = useState<string>("");
   const navigate = useNavigate();
-  const userId = useSelector((item: any) => item.auth.user.userId);
+  const userId = useSelector((item: any) => item.auth.user?.userId);
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {

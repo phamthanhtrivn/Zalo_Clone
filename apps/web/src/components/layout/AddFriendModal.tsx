@@ -7,7 +7,7 @@ import { toast } from "react-toastify";
 
 const AddFriendModal = ({ onClose }: any) => {
   const [phoneNumber, setPhoneNumber] = useState("");
-  const userId = useSelector((item: any) => item.auth.user.userId);
+  const userId = useSelector((item: any) => item.auth.user?.userId);
 
   const [userSearch, setUserSearch] = useState<any>(null);
   const [suggestUsers, setSuggestUsers] = useState<any>([]);

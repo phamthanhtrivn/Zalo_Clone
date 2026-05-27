@@ -633,4 +633,18 @@ export class UsersService {
     await this.userModel.findByIdAndUpdate(userId, { isLocked: false });
     return { success: true };
   }
+
+  async blockDevice(userId: string, deviceData: any) {
+    await this.userModel.findByIdAndUpdate(userId, {
+      $push: { blockedDevices: deviceData },
+    });
+    return { success: true };
+  }
+
+  async unblockDevice(userId: string, deviceId: string) {
+    await this.userModel.findByIdAndUpdate(userId, {
+      $pull: { blockedDevices: { deviceId } },
+    });
+    return { success: true };
+  }
 }

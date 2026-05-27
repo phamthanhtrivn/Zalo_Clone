@@ -275,6 +275,15 @@ export class AuthService {
       throw new UnauthorizedException('Phiên đăng nhập không tồn tại ');
     }
 
+    const userDoc = await this.userService.findById(payload.userId);
+    const isBlocked = userDoc?.blockedDevices?.some(d =>
+      (typeof d === 'string' ? d : d.deviceId) === session.deviceId
+    );
+    if (isBlocked) {
+      await this.sessionService.removeByDevice(payload.userId, session.deviceId);
+      throw new UnauthorizedException('Thiết bị này đã bị chặn');
+    }
+
     const accessToken = await this.tokenService.signAccess({
       userId: payload.userId,
       phone: payload.phone,
@@ -284,6 +293,14 @@ export class AuthService {
   }
 
   async signIn(user: AuthUser, client: IClientInfo) {
+    const userDoc = await this.userService.findById(user.userId);
+    const isBlocked = userDoc?.blockedDevices?.some(d =>
+      (typeof d === 'string' ? d : d.deviceId) === client.deviceId
+    );
+    if (isBlocked) {
+      throw new UnauthorizedException('Thiết bị này đã bị chặn');
+    }
+
     await this.sessionService.removeByDevice(user.userId, client.deviceId);
 
     const accessToken = await this.tokenService.signAccess(user);
@@ -504,5 +521,34 @@ export class AuthService {
     await this.userService.unlockAccount(user._id.toString());
 
     return { message: 'Tài khoản của bạn đã được mở khóa thành công. Bạn đã có thể đăng nhập!' };
+  }
+
+  async blockDevice(userId: string, deviceId: string) {
+    const session = await this.sessionService.findByDevice(userId, deviceId);
+    let deviceName = 'Thiết bị không xác định';
+    let deviceType = 'unknown';
+    let location = 'Không xác định';
+
+    if (session) {
+      deviceName = session.deviceName;
+      deviceType = session.deviceType;
+      location = session.location || location;
+    }
+
+    // Gọi force logout thiết bị này trước
+    await this.signOutSpecificDevice(userId, deviceId).catch(() => { });
+
+    await this.userService.blockDevice(userId, { deviceId, deviceName, deviceType, location, blockedAt: new Date() });
+    return { success: true, message: 'Đã chặn thiết bị thành công' };
+  }
+
+  async unblockDevice(userId: string, deviceId: string) {
+    await this.userService.unblockDevice(userId, deviceId);
+    return { success: true, message: 'Đã bỏ chặn thiết bị thành công' };
+  }
+
+  async getBlockedDevices(userId: string) {
+    const user = await this.userService.findById(userId);
+    return user?.blockedDevices || [];
   }
 }

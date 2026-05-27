@@ -9,7 +9,7 @@ import { toast } from "react-toastify";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const ContactRequest = () => {
-  const userId = useSelector((item: any) => item.auth.user.userId);
+  const userId = useSelector((item: any) => item.auth.user?.userId);
   const queryClient = useQueryClient();
 
   // 1. Fetch Lời mời đã nhận

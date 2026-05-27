@@ -85,4 +85,16 @@ export const authService = {
     const response = await apiClient.post("/api/auth/unlock-account/verify", { phone, otp });
     return response.data;
   },
+  blockDevice: async (deviceId: string) => {
+    const response = await apiClient.post(`/api/auth/devices/${deviceId}/block`);
+    return response.data;
+  },
+  unblockDevice: async (deviceId: string) => {
+    const response = await apiClient.post(`/api/auth/devices/${deviceId}/unblock`);
+    return response.data;
+  },
+  getBlockedDevices: async () => {
+    const response = await apiClient.get("/api/auth/devices/blocked");
+    return response.data.data || response.data;
+  }
 };

@@ -55,7 +55,7 @@ const CreateGroupModal = ({
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [isLoadingFriends, setIsLoadingFriends] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const userId = useSelector((item: any) => item.auth.user.userId);
+  const userId = useSelector((item: any) => item.auth.user?.userId);
 
 
   const excludeSet = useMemo(

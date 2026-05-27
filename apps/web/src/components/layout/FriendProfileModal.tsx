@@ -58,7 +58,7 @@ export default function FriendProfileModal({
   const [profile, setProfile] = useState<UserInformation | null>(null);
   const [commonGroupsCount, setCommonGroupsCount] = useState(0);
   const [friendStatus, setFriendStatus] = useState<string | null>(null);
-  const userId = useSelector((item: any) => item.auth.user.userId);
+  const userId = useSelector((item: any) => item.auth.user?.userId);
   const { startDirectCall } = useCall();
 
 

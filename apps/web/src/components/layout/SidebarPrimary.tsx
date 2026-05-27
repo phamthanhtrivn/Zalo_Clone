@@ -26,7 +26,7 @@ export const SidebarPrimary = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>();
   const [open, setOpen] = useState<boolean>(false);
-  const userId = useSelector((item: any) => item.auth.user.userId);
+  const userId = useSelector((item: any) => item.auth.user?.userId);
 
   useEffect(() => {
     const fetchUser = async () => {

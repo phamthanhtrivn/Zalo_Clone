@@ -51,7 +51,7 @@ const SocketContext = createContext<SocketContextType>({
   profileRefreshKey: 0,
   markAsRead: async () => ({}),
   markAsUnread: async () => ({}),
-  setActiveConversationId: () => {},
+  setActiveConversationId: () => { },
 });
 
 export const useSocket = () => useContext(SocketContext);

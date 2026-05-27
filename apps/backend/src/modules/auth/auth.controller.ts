@@ -10,6 +10,7 @@ import {
   Request,
   Res,
   UseGuards,
+  Param,
 } from '@nestjs/common';
 import { Purpose, VerifyOtpDto } from './dto/verify-otp.dto';
 import { SignUpDto } from './dto/signUp.dto';
@@ -347,11 +348,31 @@ export class AuthController {
 
   @Post('unlock-account/verify')
   @Public()
-  verifyUnlockAccount(@Body('phone') phone: string, @Body('otp') otp: string) {
-    if (!phone || !otp) {
-      throw new BadRequestException('Số điện thoại và mã OTP không được để trống !');
+  verifyUnlockAccount(@Body() body: { phone: string; otp: string }) {
+    if (!body.phone || !body.otp) {
+      throw new BadRequestException('Vui lòng cung cấp số điện thoại và mã OTP');
     }
-    return this.authService.verifyUnlockAccount(phone, otp);
+    return this.authService.verifyUnlockAccount(body.phone, body.otp);
+  }
+
+  @Post('devices/:deviceId/block')
+  @UseGuards(JwtAuthGuard)
+  async blockDevice(@Request() req: any, @Param('deviceId') deviceId: string) {
+    if (!deviceId) throw new BadRequestException('Thiếu deviceId');
+    return this.authService.blockDevice(req.user.userId, deviceId);
+  }
+
+  @Post('devices/:deviceId/unblock')
+  @UseGuards(JwtAuthGuard)
+  async unblockDevice(@Request() req: any, @Param('deviceId') deviceId: string) {
+    if (!deviceId) throw new BadRequestException('Thiếu deviceId');
+    return this.authService.unblockDevice(req.user.userId, deviceId);
+  }
+
+  @Get('devices/blocked')
+  @UseGuards(JwtAuthGuard)
+  async getBlockedDevices(@Request() req: any) {
+    return this.authService.getBlockedDevices(req.user.userId);
   }
 
   @Post('lock-account')
