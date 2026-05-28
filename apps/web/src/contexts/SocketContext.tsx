@@ -455,7 +455,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
     }));
 
     const isMuted = Boolean(currentConversation?.muted);
-    if (isOwnMessage || isActiveConversation || isMuted) {
+    const isHidden = Boolean(currentConversation?.hidden);
+    if (isOwnMessage || isActiveConversation || isMuted || isHidden) {
       return;
     }
 

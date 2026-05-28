@@ -254,14 +254,15 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
           (conversation) => conversation.conversationId === conversationId,
         );
         const isMuted = Boolean(currentConversation?.muted);
+        const isHidden = Boolean(currentConversation?.hidden);
         const isActiveConversation =
           currentConversationIdRef.current === conversationId;
         const senderName =
           data?.lastMessage?.senderName || data?.senderId?.profile?.name || "";
         const isOwnMessage = senderName === "Bạn";
 
-        // Không thông báo nếu: bị mute, đang mở conversation đó, hoặc là tin mình gửi
-        if (isMuted || isActiveConversation || isOwnMessage) {
+        // Không thông báo nếu: bị mute, đang ẩn, đang mở conversation đó, hoặc là tin mình gửi
+        if (isMuted || isHidden || isActiveConversation || isOwnMessage) {
           return;
         }
 
@@ -279,10 +280,9 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
         } else {
           // App đang foreground → hiện Toast như cũ
           Toast.show({
-            type: "incomingMessage",
+            type: "info",
             text1: notifTitle,
             text2: notifBody,
-            props: { avatar },
             visibilityTime: 3000,
           });
         }

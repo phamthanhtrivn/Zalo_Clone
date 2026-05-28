@@ -17,90 +17,6 @@ import { handleNotificationTap } from "@/utils/notification.util";
 
 const queryClient = new QueryClient();
 const { width: screenWidth } = Dimensions.get("window");
-const incomingToastWidth = Math.min(screenWidth - 24, 420);
-
-const toastConfig = {
-  incomingMessage: ({
-    text1,
-    text2,
-    props,
-  }: {
-    text1?: string;
-    text2?: string;
-    props?: { avatar?: string | null };
-  }) => (
-    <View
-      style={{
-        width: incomingToastWidth,
-        minHeight: 108,
-        borderRadius: 24,
-        backgroundColor: "white",
-        paddingHorizontal: 20,
-        paddingVertical: 18,
-        flexDirection: "row",
-        alignItems: "center",
-        shadowColor: "#0f172a",
-        shadowOpacity: 0.18,
-        shadowRadius: 18,
-        shadowOffset: { width: 0, height: 10 },
-        elevation: 8,
-        borderLeftWidth: 4,
-        borderLeftColor: "#7c3aed",
-      }}
-    >
-      {props?.avatar ? (
-        <Image
-          source={{ uri: props.avatar }}
-          style={{
-            width: 60,
-            height: 60,
-            borderRadius: 30,
-            marginRight: 16,
-            backgroundColor: "#e5e7eb",
-          }}
-        />
-      ) : (
-        <View
-          style={{
-            width: 60,
-            height: 60,
-            borderRadius: 30,
-            marginRight: 16,
-            backgroundColor: "#dbeafe",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Text style={{ fontSize: 26 }}>💬</Text>
-        </View>
-      )}
-
-      <View style={{ flex: 1 }}>
-        <Text
-          numberOfLines={1}
-          style={{
-            fontSize: 22,
-            fontWeight: "700",
-            color: "#0f172a",
-          }}
-        >
-          {text1}
-        </Text>
-        <Text
-          numberOfLines={2}
-          style={{
-            marginTop: 6,
-            fontSize: 17,
-            lineHeight: 24,
-            color: "#475569",
-          }}
-        >
-          {text2}
-        </Text>
-      </View>
-    </View>
-  ),
-};
 
 export default function RootLayout() {
   return (
@@ -111,7 +27,7 @@ export default function RootLayout() {
             <BottomSheetModalProvider>
               <StatusBar style="dark" backgroundColor="#0068ff" translucent={false} />
               <AppNavigation />
-              <Toast config={toastConfig} topOffset={56} />
+              <Toast topOffset={56} />
             </BottomSheetModalProvider>
           </GestureHandlerRootView>
         </SafeAreaProvider>
