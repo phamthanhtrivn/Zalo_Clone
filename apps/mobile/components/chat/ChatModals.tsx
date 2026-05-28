@@ -52,6 +52,7 @@ interface ChatModalsProps {
   setReplyingMessage: any;
   setIsSelectMode: (val: boolean) => void;
   toggleSelectMessage: (id: string) => void;
+  onTranslate?: (msg: MessagesType) => void;
 }
 
 const ChatModals: React.FC<ChatModalsProps> = ({
@@ -62,7 +63,8 @@ const ChatModals: React.FC<ChatModalsProps> = ({
   openedFromSearch,
   onConversationCleared,
   contextMenuMsg, setContextMenuMsg, isPinned, handleTogglePin, handleRecall, handleDeleteForMe,
-  dispatch, setReplyingMessage, setIsSelectMode, toggleSelectMessage
+  dispatch, setReplyingMessage, setIsSelectMode, toggleSelectMessage,
+  onTranslate
 }) => {
   return (
     <>
@@ -185,6 +187,16 @@ const ChatModals: React.FC<ChatModalsProps> = ({
                 setContextMenuMsg(null);
               }}
             />
+
+            {contextMenuMsg.content?.text && !contextMenuMsg.recalled && onTranslate && (
+              <MenuItem
+                label="Dịch bằng AI"
+                onPress={() => {
+                  onTranslate(contextMenuMsg);
+                  setContextMenuMsg(null);
+                }}
+              />
+            )}
 
             <MenuItem
               label="Xóa phía tôi"

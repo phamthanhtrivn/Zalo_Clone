@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -15,7 +15,6 @@ import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
-import EmojiPicker from "rn-emoji-keyboard";
 import { Audio } from "expo-av";
 import { COLORS } from "@/constants/colors";
 import CreatePollModal from "./CreatePollModal";
@@ -23,6 +22,7 @@ import { moderateScale, scale } from "@/utils/responsive";
 import MentionSuggestions from "./MentionSuggestions";
 import { useAppSelector } from "@/store/store";
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
+import { StickerPickerPanel } from "./StickerPickerPanel";
 
 interface SelectedFile {
   uri: string;
@@ -42,6 +42,7 @@ interface ChatInputProps {
   onSendMessage: (text: string) => void;
   onSendFiles: (files: SelectedFile[]) => void;
   onSendVoiceAudio: (voice: RecordedVoice) => Promise<void> | void;
+  onSendSticker?: (iconUrl: string) => void;
   isSelectMode?: boolean;
   selectedMessages?: string[];
   onOpenForwardModal?: () => void;
@@ -66,6 +67,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   onSendMessage,
   onSendFiles,
   onSendVoiceAudio,
+  onSendSticker,
   isSelectMode = false,
   selectedMessages = [],
   onOpenForwardModal,
@@ -82,6 +84,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const animatedHeight = useAnimatedStyle(() => {
     return {
       height: slideAnim.value * panelHeight.value,
+    };
+  });
+
+  const stickerPanelHeight = useSharedValue(320); // Fixed initial height estimation
+  const stickerSlideAnim = useSharedValue(0);
+  const stickerAnimatedHeight = useAnimatedStyle(() => {
+    return {
+      height: stickerSlideAnim.value * stickerPanelHeight.value,
     };
   });
   const [text, setText] = useState("");
@@ -224,7 +234,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   useEffect(() => {
     const showSub = Keyboard.addListener("keyboardDidShow", () => {
-      setShowEmoji(false);
+      closeStickerPanel();
       setShowVoicePanel(false);
     });
 
@@ -241,14 +251,39 @@ const ChatInput: React.FC<ChatInputProps> = ({
     };
   }, []);
 
-  const handleEmojiSelect = (emoji: any) => {
+  const handleEmojiSelect = useCallback((emoji: any) => {
     setText((prev) => prev + emoji.emoji);
-  };
+  }, []);
+
+  const onSendStickerRef = useRef(onSendSticker);
+  useEffect(() => {
+    onSendStickerRef.current = onSendSticker;
+  }, [onSendSticker]);
+
+  const handleStickerSelect = useCallback((url: string) => {
+    onSendStickerRef.current?.(url);
+    closeStickerPanel();
+  }, []);
 
   const toggleEmoji = () => {
     Keyboard.dismiss();
     setShowVoicePanel(false);
-    setShowEmoji(true);
+    if (showEmoji) {
+      closeStickerPanel();
+    } else {
+      setShowEmoji(true);
+      requestAnimationFrame(() => {
+        stickerSlideAnim.value = withTiming(1, { duration: 250, easing: Easing.out(Easing.ease) });
+      });
+    }
+  };
+
+  const closeStickerPanel = () => {
+    stickerSlideAnim.value = withTiming(0, { duration: 200, easing: Easing.inOut(Easing.ease) }, (finished) => {
+      if (finished) {
+        runOnJS(setShowEmoji)(false);
+      }
+    });
   };
 
   const removeFile = (index: number) => {
@@ -382,7 +417,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   const openVoicePanel = () => {
     Keyboard.dismiss();
-    setShowEmoji(false);
+    closeStickerPanel();
     setShowVoicePanel(true);
   };
 
@@ -621,11 +656,16 @@ const ChatInput: React.FC<ChatInputProps> = ({
       <Animated.View
         className="flex-row items-center p-2 border-t border-[#e5e7eb]"
         style={useAnimatedStyle(() => {
-          if (showVoicePanel || showEmoji || isSelectMode) {
+          if (isSelectMode) {
             return { paddingBottom: 8 };
           }
-          const dynamicPadding = Math.max(8, insets.bottom - keyboard.height.value);
-          return { paddingBottom: dynamicPadding };
+          const baseBottom = Math.max(8, insets.bottom);
+          const keyboardPadding = Math.max(8, baseBottom - keyboard.height.value);
+
+          const maxPanelAnim = Math.max(slideAnim.value, stickerSlideAnim.value);
+          const panelPadding = baseBottom - (baseBottom - 8) * maxPanelAnim;
+
+          return { paddingBottom: Math.min(keyboardPadding, panelPadding) };
         })}
       >
         <View className="h-[40px] justify-center">
@@ -660,7 +700,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               multiline
               onFocus={() => {
                 if (disabled) return;
-                setShowEmoji(false);
+                closeStickerPanel();
                 setShowVoicePanel(false);
               }}
             />
@@ -735,11 +775,45 @@ const ChatInput: React.FC<ChatInputProps> = ({
         )}
       </Animated.View>
 
-      <EmojiPicker
-        open={showEmoji}
-        onClose={() => setShowEmoji(false)}
-        onEmojiSelected={handleEmojiSelect}
-      />
+      {showEmoji && (
+        <Pressable
+          style={{
+            position: "absolute",
+            bottom: "100%",
+            left: -1000,
+            right: -1000,
+            height: 10000,
+            backgroundColor: "transparent",
+            zIndex: 99,
+          }}
+          onPress={closeStickerPanel}
+        />
+      )}
+
+      {showEmoji && (
+        <Animated.View
+          style={[
+            stickerAnimatedHeight,
+            {
+              overflow: "hidden",
+              backgroundColor: "white",
+            },
+          ]}
+        >
+          <View
+            onLayout={(e) => {
+              // Only set once or if it changes significantly to prevent jitter
+              stickerPanelHeight.value = Math.max(320, e.nativeEvent.layout.height);
+            }}
+            style={{ paddingBottom: Math.max(16, insets.bottom), flex: 1, minHeight: 320 }}
+          >
+            <StickerPickerPanel
+              onSelectEmoji={handleEmojiSelect}
+              onSelectSticker={handleStickerSelect}
+            />
+          </View>
+        </Animated.View>
+      )}
 
       {showVoicePanel && (
         <Pressable

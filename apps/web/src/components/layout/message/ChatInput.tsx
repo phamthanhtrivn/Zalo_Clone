@@ -9,11 +9,12 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
-import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
+import { type EmojiClickData } from "emoji-picker-react";
 import { RiShareForward2Fill } from "react-icons/ri";
 
 import CreatePollModal from "./CreatePollModal";
 import { MentionSuggestions } from "./MentionSuggestions";
+import StickerPickerPanel from "./StickerPickerPanel";
 
 import { conversationService } from "@/services/conversation.service";
 
@@ -26,6 +27,7 @@ type Props = {
   conversationId: string;
   chatName: string;
   onSendMessage: (text: string) => void;
+  onSendSticker?: (icon: string) => void;
   onSendFiles: (files: FileList) => void;
   onSendVoice: (voice: {
     blob: Blob;
@@ -45,6 +47,7 @@ const ChatInput = ({
   conversationId,
   chatName,
   onSendMessage,
+  onSendSticker,
   onSendFiles,
   onSendVoice,
   isSelected,
@@ -213,8 +216,9 @@ const ChatInput = ({
 
   const handleSend = () => {
     if (isMessageBlocked) return;
-    if (text.trim()) {
-      onSendMessage(text);
+    const trimmed = text.trim();
+    if (trimmed) {
+      onSendMessage(trimmed);
       setText("");
       if (replyingMessage) {
         dispatch(clearReplyingMessage());
@@ -506,12 +510,14 @@ const ChatInput = ({
         </Button>
 
         {showEmoji && (
-          <div ref={emojiRef} className="absolute bottom-16 left-2 z-50">
-            <EmojiPicker
-              onEmojiClick={handleSelectEmoji}
-              previewConfig={{ showPreview: false }}
-              width={300}
-              height={400}
+          <div ref={emojiRef} className="absolute bottom-30 left-2 z-50">
+            <StickerPickerPanel
+              onSelectEmoji={handleSelectEmoji}
+              onSelectSticker={(url) => {
+                setShowEmoji(false);
+                onSendSticker?.(url);
+              }}
+              onClose={() => setShowEmoji(false)}
             />
           </div>
         )}

@@ -25,7 +25,6 @@ import { getFileIcon } from "@/utils/file-icon.util";
 import { truncateFileName } from "@/utils/render-file";
 import { downloadAndSaveFile } from "@/utils/download.util";
 
-
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 type Props = {
@@ -50,6 +49,9 @@ type Props = {
   ) => void;
   onOpenStoryLink?: (storyId: string) => void;
   members?: any[];
+  translatedText?: string;
+  isTranslating?: boolean;
+  onClearTranslation?: () => void;
 };
 
 const TextWithLinks = ({ text, members }: { text: string; members?: any[] }) => {
@@ -182,6 +184,9 @@ const MessageBubble = ({
   onJoinGroupCall,
   onOpenStoryLink,
   members,
+  translatedText,
+  isTranslating,
+  onClearTranslation,
 }: Props) => {
   const content = message.content;
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -491,8 +496,72 @@ const MessageBubble = ({
                   />
                 )}
 
-
                 {renderText()}
+
+                {/* Translating loader */}
+                {isTranslating && (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 6,
+                      marginTop: 8,
+                      paddingTop: 8,
+                      borderTopWidth: 1,
+                      borderTopColor: "rgba(0,0,0,0.05)",
+                    }}
+                  >
+                    <ActivityIndicator size="small" color="#0068ff" />
+                    <Text style={{ fontSize: 12, color: "#6b7280", fontStyle: "italic" }}>
+                      Đang dịch...
+                    </Text>
+                  </View>
+                )}
+
+                {/* Translated text block */}
+                {!!translatedText && (
+                  <View
+                    style={{
+                      marginTop: 8,
+                      paddingTop: 8,
+                      borderTopWidth: 1,
+                      borderTopColor: "rgba(0,0,0,0.05)",
+                      minWidth: 140,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: 4,
+                      }}
+                    >
+                      <View
+                        style={{
+                          backgroundColor: "#eff6ff",
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          borderRadius: 4,
+                        }}
+                      >
+                        <Text style={{ fontSize: 9, color: "#2563eb", fontWeight: "700" }}>
+                          Dịch bởi Zola AI
+                        </Text>
+                      </View>
+                      {onClearTranslation && (
+                        <TouchableOpacity onPress={onClearTranslation} activeOpacity={0.7}>
+                          <Text style={{ fontSize: 10, color: "#9ca3af" }}>Ẩn bản dịch</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    <View style={{ backgroundColor: "rgba(0,0,0,0.03)", padding: 8, borderRadius: 6 }}>
+                      <Text style={{ fontSize: 14, color: "#1e293b", lineHeight: 20 }}>
+                        {translatedText}
+                      </Text>
+                    </View>
+                  </View>
+                )}
                 {content?.storyLink?.storyId ? (
                   <TouchableOpacity
                     activeOpacity={0.85}
@@ -615,7 +684,17 @@ const MessageBubble = ({
                     </View>
                   </TouchableOpacity>
                 ) : null}
-                {content?.icon ? <Text style={{ fontSize: 32 }}>{content.icon}</Text> : null}
+                {content?.icon ? (
+                  content.icon.startsWith('http') || content.icon.startsWith('/') ? (
+                    <Image
+                      source={{ uri: content.icon }}
+                      style={{ width: 120, height: 120 }}
+                      contentFit="contain"
+                    />
+                  ) : (
+                    <Text style={{ fontSize: 32 }}>{content.icon}</Text>
+                  )
+                ) : null}
 
                 {voiceFiles.map((file: any, index: number) => (
                   <VoicePlayer

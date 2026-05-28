@@ -14,4 +14,12 @@ export class AiController {
     await this.aiService.seedKnowledge(data);
     return { message: 'Bắt đầu quá trình nạp tri thức...' };
   }
+
+  @Post('translate')
+  async translate(
+    @Body() body: { text: string; targetLanguage?: string },
+  ) {
+    const translatedText = await this.aiService.translateText(body.text, body.targetLanguage);
+    return { translatedText };
+  }
 }

@@ -455,6 +455,30 @@ const ConversationPage = () => {
     }
   };
 
+  const onSendSticker = async (iconUrl: string) => {
+    if (!id || !currentUserId) return;
+    try {
+      const res = await messageService.sendMessage(
+        id,
+        currentUserId,
+        replyingMessage?._id,
+        { icon: iconUrl },
+      );
+
+      const msg = res?.data ?? res;
+      if (msg) {
+        const messageObj = msg.message ?? msg;
+        if (messageObj && (messageObj._id || messageObj.messageId)) {
+          dispatch(addMessage({ conversationId: id, message: messageObj } as any));
+        }
+      }
+      if (replyingMessage) dispatch(clearReplyingMessage());
+      scrollToBottom("smooth");
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   const onSendFiles = async (files: FileList) => {
     if (!id || !currentUserId || !files.length) return;
     try {
@@ -859,7 +883,7 @@ const ConversationPage = () => {
 
   useEffect(() => {
     if (!id || conversation || isConversationLoading) return;
-    
+
     if (!hasAttemptedFetch) {
       setHasAttemptedFetch(true);
       dispatch(fetchConversations());
@@ -959,6 +983,7 @@ const ConversationPage = () => {
         <ChatInput
           chatName={conversation.name}
           onSendMessage={onSendMessage}
+          onSendSticker={onSendSticker}
           onSendFiles={onSendFiles}
           onSendVoice={onSendVoice}
           isSelected={isSelected}

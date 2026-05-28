@@ -134,6 +134,37 @@ export class AiService {
     return result.map((doc) => doc.content).join('\n\n');
   }
 
+  async translateText(
+    text: string,
+    targetLanguage = 'Vietnamese',
+  ): Promise<string> {
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: this.configService.get<string>('ai.model')!,
+        temperature: 0.3,
+        max_tokens: 500,
+        messages: [
+          {
+            role: 'system',
+            content: `You are an expert translator. Translate the user's chat message.
+            - If targetLanguage is "Vietnamese", determine the source language of the text. If it is NOT Vietnamese, translate it to Vietnamese. If it is ALREADY Vietnamese, translate it to English.
+            - Keep the translation natural and matching the context of a casual chat message.
+            - Retain emojis, slang, and text formatting (like newlines) if appropriate.
+            - Output ONLY the translated text, do not include any quotes, markdown styling around the whole response, explanation, or notes.`,
+          },
+          {
+            role: 'user',
+            content: `targetLanguage: ${targetLanguage}\n\ntext: ${text}`,
+          },
+        ],
+      });
+      return response.choices[0]?.message?.content?.trim() || '';
+    } catch (error) {
+      console.error('Lỗi dịch thuật:', error);
+      throw new BadGatewayException('Không thể kết nối máy chủ AI để dịch thuật.');
+    }
+  }
+
   async seedKnowledge(
     data: { title: string; content: string; category?: string }[],
   ) {

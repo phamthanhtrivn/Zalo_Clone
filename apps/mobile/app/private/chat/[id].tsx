@@ -42,7 +42,7 @@ import ChatModals from "@/components/chat/ChatModals";
 import ChatHeader from "@/components/chat/ChatHeader";
 import FriendBanner from "@/components/chat/FriendBanner";
 import { getStories } from "@/services/social.service";
-import { formatLastSeen } from "@/utils/formater";
+import { aiService } from "@/services/ai.service";
 
 export default function ChatWindow() {
   const conversationState = useAppSelector((state) => state.conversation);
@@ -109,6 +109,23 @@ export default function ChatWindow() {
   const [isLoading, setIsLoading] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [prevCursor, setPrevCursor] = useState<string | null>(null);
+  const [translatedMessages, setTranslatedMessages] = useState<Record<string, string>>({});
+  const [translatingIds, setTranslatingIds] = useState<Record<string, boolean>>({});
+
+  const handleTranslateMessage = async (msg: MessagesType) => {
+    if (!msg.content?.text) return;
+    try {
+      setTranslatingIds((prev) => ({ ...prev, [msg._id]: true }));
+      const res: any = await aiService.translate(msg.content.text);
+      const translatedText = res?.translatedText || "";
+      setTranslatedMessages((prev) => ({ ...prev, [msg._id]: translatedText }));
+    } catch (err) {
+      console.error("Dịch lỗi:", err);
+      Alert.alert("Lỗi", "Không thể dịch tin nhắn lúc này.");
+    } finally {
+      setTranslatingIds((prev) => ({ ...prev, [msg._id]: false }));
+    }
+  };
 
   // Reaction picker
   const [reactionPickerMsg, setReactionPickerMsg] =
@@ -488,6 +505,56 @@ export default function ChatWindow() {
     } catch (err) {
       console.error("Send voice error:", err);
       Alert.alert("Lỗi", "Không thể gửi bản ghi âm.");
+    }
+  };
+
+  const handleSendSticker = async (iconUrl: string) => {
+    if (!id || !user?.userId) return;
+
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMessage: any = {
+      _id: tempId,
+      conversationId: id,
+      senderId: {
+        _id: user.userId,
+        profile: user.profile,
+      },
+      content: { text: "", icon: iconUrl },
+      type: "TEXT",
+      createdAt: new Date().toISOString(),
+      status: "sending",
+      reactions: [],
+    };
+
+    let repliedId = null;
+    if (replyingMessage) {
+      repliedId = replyingMessage._id;
+      optimisticMessage.repliedId = replyingMessage;
+      dispatch(clearReplyingMessage());
+    }
+
+    setMessages((prev) => [optimisticMessage, ...prev]);
+    scrollToBottom();
+
+    try {
+      const res: any = await messageService.sendMessage(
+        id,
+        user.userId,
+        repliedId,
+        { text: "", icon: iconUrl },
+        null,
+      );
+
+      if (res.success) {
+        setMessages((prev) =>
+          prev.map((m) => (m._id === tempId ? res.data : m))
+        );
+      }
+    } catch (err) {
+      console.error("Gửi sticker thất bại:", err);
+      setMessages((prev) =>
+        prev.map((m) => (m._id === tempId ? { ...m, status: "error" } : m))
+      );
     }
   };
 
@@ -1194,6 +1261,9 @@ export default function ChatWindow() {
             onJoinGroupCall={joinGroupCall}
             onOpenStoryLink={handleOpenStoryLink}
             members={isGroup ? groupMembers : []}
+            translatedText={translatedMessages[item._id]}
+            isTranslating={translatingIds[item._id]}
+            onClearTranslation={() => setTranslatedMessages((prev) => ({ ...prev, [item._id]: "" }))}
           />
         )}
       </View>
@@ -1398,6 +1468,7 @@ export default function ChatWindow() {
             onSendMessage={handleSendMessage}
             onSendFiles={handleSendFile}
             onSendVoiceAudio={handleSendVoiceAudio}
+            onSendSticker={handleSendSticker}
             isSelectMode={isSelectMode}
             selectedMessages={selectedMessages}
             onOpenForwardModal={() => setShowForwardModal(true)}
@@ -1454,6 +1525,7 @@ export default function ChatWindow() {
         setReplyingMessage={setReplyingMessage}
         setIsSelectMode={setIsSelectMode}
         toggleSelectMessage={toggleSelectMessage}
+        onTranslate={handleTranslateMessage}
       />
     </Container>
   );
