@@ -297,6 +297,24 @@ const ConversationInfoPanel = ({
   }, [isOpen, currentConversation?.conversationId, currentUserId]);
 
   useEffect(() => {
+    if (!socket || !isOpen || !currentConversation?.conversationId) return;
+
+    const handleRecalled = (data: { messageId: string; conversationId?: string }) => {
+      const targetConvId = data.conversationId || currentConversation.conversationId;
+      if (String(targetConvId) === String(currentConversation.conversationId)) {
+        setMedias((prev) => prev.filter((item) => String(item._id || item.messageId) !== String(data.messageId)));
+        setFiles((prev) => prev.filter((item) => String(item._id || item.messageId) !== String(data.messageId)));
+        setLinks((prev) => prev.filter((item) => String(item._id || item.messageId) !== String(data.messageId)));
+      }
+    };
+
+    socket.on("message_recalled", handleRecalled);
+    return () => {
+      socket.off("message_recalled", handleRecalled);
+    };
+  }, [socket, isOpen, currentConversation?.conversationId]);
+
+  useEffect(() => {
     if (!isOpen || !isGroup || !currentConversation?.conversationId) {
       setMembers([]);
       return;

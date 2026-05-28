@@ -264,12 +264,23 @@ const ConversationInfoSheet: React.FC<Props> = ({
       }
     };
 
+    const handleRecalled = (data: { messageId: string; conversationId?: string }) => {
+      const targetConvId = data.conversationId || conversationId;
+      if (String(targetConvId) === String(conversationId)) {
+        setMedias((prev) => prev.filter((item) => String(item._id || item.messageId) !== String(data.messageId)));
+        setFiles((prev) => prev.filter((item) => String(item._id || item.messageId) !== String(data.messageId)));
+        setLinks((prev) => prev.filter((item) => String(item._id || item.messageId) !== String(data.messageId)));
+      }
+    };
+
     socket.on("new_media", handleNewMedia);
+    socket.on("message_recalled", handleRecalled);
 
     return () => {
       // Leave rooms and cleanup listener
       mediaRooms.forEach((room) => socket.emit("leave_room", room));
       socket.off("new_media", handleNewMedia);
+      socket.off("message_recalled", handleRecalled);
     };
   }, [socket, visible, conversation?.conversationId]);
 

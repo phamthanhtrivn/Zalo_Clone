@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -166,6 +166,105 @@ const TextWithLinks = ({ text, members }: { text: string; members?: any[] }) => 
   );
 };
 
+const imageSizeCache: Record<string, number> = {};
+
+const SingleMediaItem = ({ file, onPress }: { file: any; onPress: () => void }) => {
+  const cachedRatio = imageSizeCache[file.fileKey] || null;
+  const [aspectRatio, setAspectRatio] = useState<number | null>(cachedRatio);
+
+  useEffect(() => {
+    if (imageSizeCache[file.fileKey]) {
+      setAspectRatio(imageSizeCache[file.fileKey]);
+    } else {
+      setAspectRatio(null);
+    }
+  }, [file.fileKey]);
+
+  const MAX_WIDTH = SCREEN_WIDTH * 0.65;
+  const MAX_HEIGHT = 300;
+
+  // Default dimensions while loading or if aspect ratio is not yet resolved
+  let displayWidth = 200;
+  let displayHeight = 200;
+
+  if (aspectRatio) {
+    if (aspectRatio > 1) {
+      // Landscape: width is bounded by MAX_WIDTH
+      displayWidth = MAX_WIDTH;
+      displayHeight = MAX_WIDTH / aspectRatio;
+      if (displayHeight > MAX_HEIGHT) {
+        displayHeight = MAX_HEIGHT;
+        displayWidth = MAX_HEIGHT * aspectRatio;
+      }
+    } else {
+      // Portrait: height is bounded by MAX_HEIGHT
+      displayHeight = MAX_HEIGHT;
+      displayWidth = MAX_HEIGHT * aspectRatio;
+      if (displayWidth > MAX_WIDTH) {
+        displayWidth = MAX_WIDTH;
+        displayHeight = MAX_WIDTH / aspectRatio;
+      }
+    }
+  }
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={onPress}
+      style={{
+        width: displayWidth,
+        height: displayHeight,
+        borderRadius: 8,
+        overflow: "hidden",
+        backgroundColor: "#000",
+      }}
+    >
+      {file.type === "IMAGE" ? (
+        <Image
+          source={{ uri: file.fileKey }}
+          style={{ width: displayWidth, height: displayHeight }}
+          contentFit="contain"
+          onLoad={(evt) => {
+            if (evt.source?.width && evt.source?.height) {
+              const ratio = evt.source.width / evt.source.height;
+              imageSizeCache[file.fileKey] = ratio;
+              setAspectRatio(ratio);
+            }
+          }}
+        />
+      ) : (
+        <View style={{ width: displayWidth, height: displayHeight, justifyContent: "center", alignItems: "center" }}>
+          <Video
+            source={{ uri: file.fileKey }}
+            style={{ width: displayWidth, height: displayHeight }}
+            resizeMode={ResizeMode.CONTAIN}
+            onReadyForDisplay={(evt) => {
+              if (evt.naturalSize?.width && evt.naturalSize?.height) {
+                const ratio = evt.naturalSize.width / evt.naturalSize.height;
+                imageSizeCache[file.fileKey] = ratio;
+                setAspectRatio(ratio);
+              }
+            }}
+          />
+          <View
+            style={{
+              position: "absolute",
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Ionicons name="play" size={18} color="white" />
+          </View>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+};
+
 const MessageBubble = ({
   message,
   isMe,
@@ -189,6 +288,7 @@ const MessageBubble = ({
   onClearTranslation,
 }: Props) => {
   const content = message.content;
+  const isSticker = !!content?.icon && (content.icon.startsWith("http") || content.icon.startsWith("/"));
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [downloadingKeys, setDownloadingKeys] = useState<string[]>([]);
 
@@ -370,14 +470,24 @@ const MessageBubble = ({
             activeOpacity={0.8}
             onLongPress={onLongPress}
             onPress={onPress}
-            style={{
-              backgroundColor: bubbleBg,
-              borderRadius: 6,
-              paddingHorizontal: 12,
-              paddingVertical: 8,
-              borderWidth: 1,
-              borderColor: "#e5e7eb",
-            }}
+            style={
+              isSticker
+                ? {
+                  backgroundColor: isSelected ? "rgba(0,104,255,0.12)" : "transparent",
+                  borderRadius: 6,
+                  paddingHorizontal: isSelected ? 4 : 0,
+                  paddingVertical: isSelected ? 4 : 0,
+                  borderWidth: 0,
+                }
+                : {
+                  backgroundColor: bubbleBg,
+                  borderRadius: 6,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderWidth: 1,
+                  borderColor: "#e5e7eb",
+                }
+            }
           >
             {message.call || message.type === "GROUP_CALL" || message.callSessionId ? (
               <View style={{ minWidth: 180 }}>

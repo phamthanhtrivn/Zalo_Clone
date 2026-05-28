@@ -52,7 +52,7 @@ export class MessagesActionService {
     private readonly redisService: RedisService,
     @InjectModel(ConversationSetting.name)
     private readonly conversationSettingModel: Model<ConversationSetting>,
-  ) {}
+  ) { }
 
   async convertToM4A(inputPath: string, outputPath: string): Promise<string> {
     return new Promise((resolve, reject) => {
