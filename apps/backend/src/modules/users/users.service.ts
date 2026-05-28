@@ -30,7 +30,7 @@ export class UsersService {
     private readonly storageService: StorageService,
     private readonly chatGateway: ChatGateway,
     private readonly redisService: RedisService,
-  ) {}
+  ) { }
 
   async findByPhone(phone: string) {
     return this.userModel.findOne({ phone: phone }).exec();
@@ -289,6 +289,15 @@ export class UsersService {
     this.chatGateway.server
       .to(body.friendId)
       .emit('cancel_friend_request', body.userId);
+
+    // Also notify the initiator (userId) so their other devices update in real-time
+    try {
+      this.chatGateway.server
+        .to(body.userId)
+        .emit('unblocked', { userId: body.userId, friendId: body.friendId });
+    } catch (err) {
+      console.error('Error emitting unblocked event:', err);
+    }
 
     return { userId, friendId };
   }
@@ -614,5 +623,28 @@ export class UsersService {
       userId,
     );
     return { users };
+  }
+
+  async setLockStatus(userId: string, isLocked: boolean) {
+    await this.userModel.findByIdAndUpdate(userId, { isLocked });
+  }
+
+  async unlockAccount(userId: string) {
+    await this.userModel.findByIdAndUpdate(userId, { isLocked: false });
+    return { success: true };
+  }
+
+  async blockDevice(userId: string, deviceData: any) {
+    await this.userModel.findByIdAndUpdate(userId, {
+      $push: { blockedDevices: deviceData },
+    });
+    return { success: true };
+  }
+
+  async unblockDevice(userId: string, deviceId: string) {
+    await this.userModel.findByIdAndUpdate(userId, {
+      $pull: { blockedDevices: { deviceId } },
+    });
+    return { success: true };
   }
 }

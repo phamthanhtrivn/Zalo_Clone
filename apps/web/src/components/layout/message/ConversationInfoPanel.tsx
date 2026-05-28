@@ -18,7 +18,6 @@ import {
   ChevronRight,
   X as CloseIcon,
   Download,
-  ChevronLeft,
   UserCheck,
   Settings2,
   Check,
@@ -26,6 +25,7 @@ import {
   BarChart2,
   X,
   QrCode,
+  UserX,
 } from "lucide-react";
 import {
   useFloating,
@@ -66,6 +66,7 @@ import { ImageViewer } from "./ImageViewer";
 // Services & Redux
 import { messageService } from "@/services/message.service";
 import { conversationService } from "@/services/conversation.service";
+import { userService } from "@/services/user.service";
 import {
   pinConversation,
   unpinConversation,
@@ -142,6 +143,24 @@ const ConversationInfoPanel = ({
     middleware: [offset(8), flip(), shift({ padding: 8 })],
     whileElementsMounted: autoUpdate,
   });
+
+  const [blockUserDialogOpen, setBlockUserDialogOpen] = useState(false);
+
+  const confirmBlockUser = async () => {
+    if (!currentConversation || isGroup) return;
+    const targetUserId = (currentConversation as any).otherMemberId;
+    if (!targetUserId) return;
+    try {
+      const res = await userService.blockFriend(targetUserId, currentUserId);
+      if (res.success) {
+        toast.success("Đã chặn người dùng");
+        dispatch(removeConversation({ conversationId: currentConversation.conversationId }));
+        navigate("/");
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Không thể chặn người dùng");
+    }
+  };
 
   const [medias, setMedias] = useState<any[]>([]);
   const [files, setFiles] = useState<any[]>([]);
@@ -938,6 +957,21 @@ const ConversationInfoPanel = ({
               </button>
             )}
 
+            {/* Block User Button */}
+            {!isGroup && (
+              <button
+                onClick={() => setBlockUserDialogOpen(true)}
+                className="flex flex-col items-center gap-1.5 flex-1 group cursor-pointer"
+              >
+                <div className="w-10 h-10 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center group-hover:bg-red-50 group-hover:text-red-500 transition-colors">
+                  <UserX size={20} />
+                </div>
+                <span className="text-[11px] font-medium text-gray-600 group-hover:text-red-500 transition-colors">
+                  Chặn
+                </span>
+              </button>
+            )}
+
             {/* Share QR Button */}
             {isGroup && (
               <button
@@ -1728,6 +1762,30 @@ const ConversationInfoPanel = ({
               onClick={() => setLeaveGroupErrorDialogOpen(false)}
             >
               Đã hiểu
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Xác nhận chặn người dùng */}
+      <AlertDialog
+        open={blockUserDialogOpen}
+        onOpenChange={setBlockUserDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Chặn người dùng này?</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogDescription>
+            Bạn sẽ không nhận được tin nhắn hay cuộc gọi từ người này nữa. Họ cũng sẽ không thể xem nhật ký của bạn.
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-500 hover:bg-red-600 text-white min-w-[100px]"
+              onClick={confirmBlockUser}
+            >
+              Chặn
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

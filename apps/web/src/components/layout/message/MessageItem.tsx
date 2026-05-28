@@ -1,5 +1,5 @@
 import AppAvatar from "@/components/common/AppAvatar";
-import { Quote, MoreHorizontal } from "lucide-react";
+import { Quote, MoreHorizontal, Languages } from "lucide-react";
 import { MessageBubble } from "./MessageBubble";
 import { ReactionPicker } from "./ReactionPicker";
 import { ReactionSummary } from "./ReactionSummary";
@@ -15,6 +15,7 @@ import ViewDetailMessageModal from "./ViewDetailMessageModal";
 import { FaListCheck } from "react-icons/fa6";
 import { useAppDispatch } from "@/store";
 import { setReplyingMessage } from "@/store/slices/conversationSlice";
+import { aiService } from "@/services/ai.service";
 
 interface Props {
   message: MessagesType;
@@ -57,7 +58,32 @@ export const MessageItem = ({
 }: Props) => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [translatedText, setTranslatedText] = useState<string | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<"top" | "bottom" | "center">("center");
   const dispatch = useAppDispatch();
+
+  const handleToggleMenu = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    if (openMenuId === message._id) {
+      setOpenMenuId(null);
+    } else {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const windowHeight = window.innerHeight;
+
+      // Nếu nút nằm ở nửa dưới màn hình (cách đáy dưới 240px)
+      if (windowHeight - rect.bottom < 240) {
+        setMenuPosition("bottom");
+      }
+      // Nếu nút nằm ở nửa trên màn hình (cách đỉnh dưới 150px)
+      else if (rect.top < 150) {
+        setMenuPosition("top");
+      } else {
+        setMenuPosition("center");
+      }
+      setOpenMenuId(message._id);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = () => setOpenMenuId(null);
@@ -95,6 +121,9 @@ export const MessageItem = ({
             onJumpToMessage={onJumpToMessage}
             members={members}
             onShowProfile={onShowProfile}
+            translatedText={translatedText}
+            isTranslating={isTranslating}
+            onClearTranslation={() => setTranslatedText(null)}
           />
 
           {!message.recalled && (
@@ -136,10 +165,7 @@ export const MessageItem = ({
             </button>
 
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setOpenMenuId(openMenuId === message._id ? null : message._id);
-              }}
+              onClick={handleToggleMenu}
               title="Thêm"
               className="cursor-pointer w-7 h-7 flex items-center justify-center rounded-full bg-white shadow-sm border border-gray-100 text-gray-600 hover:bg-gray-50 hover:text-blue-500"
             >
@@ -150,12 +176,15 @@ export const MessageItem = ({
             {openMenuId === message._id && (
               <div
                 className={`
-                absolute top-1/2 -translate-y-1/2
-                ${isMe ? "right-full mr-2" : "left-full ml-2"}
-                w-44 bg-white border border-gray-200 rounded-xl shadow-xl z-50
-                py-1
-                animate-in fade-in zoom-in-95 duration-150
-              `}
+                 absolute
+                 ${menuPosition === "center" ? "top-1/2 -translate-y-1/2" : ""}
+                 ${menuPosition === "bottom" ? "bottom-0" : ""}
+                 ${menuPosition === "top" ? "top-0" : ""}
+                 ${isMe ? "right-full mr-2" : "left-full ml-2"}
+                 w-44 bg-white border border-gray-200 rounded-xl shadow-xl z-50
+                 py-1
+                 animate-in fade-in zoom-in-95 duration-150
+               `}
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Ghim */}
@@ -203,6 +232,29 @@ export const MessageItem = ({
                   <IoIosInformationCircleOutline className="text-base text-gray-500" />
                   <span>Xem chi tiết</span>
                 </button>
+
+                {/* Dịch tin nhắn */}
+                {message.content?.text && (
+                  <button
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+                    onClick={async () => {
+                      setOpenMenuId(null);
+                      try {
+                        setIsTranslating(true);
+                        const res = await aiService.translate(message.content.text);
+                        setTranslatedText(res.data.translatedText);
+                      } catch (error) {
+                        console.error("Lỗi dịch tin nhắn:", error);
+                        alert("Không thể dịch tin nhắn lúc này.");
+                      } finally {
+                        setIsTranslating(false);
+                      }
+                    }}
+                  >
+                    <Languages size={16} className="text-base text-gray-500" />
+                    <span>Dịch bằng AI</span>
+                  </button>
+                )}
 
                 <div className="my-1 border-t border-gray-200" />
 

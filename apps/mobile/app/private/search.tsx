@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Dimensions,
   FlatList,
   Platform,
   ScrollView,
@@ -22,6 +23,10 @@ import { showToast } from "@/utils/toast";
 
 import { useQuery } from "@tanstack/react-query";
 import GroupAvatar from "@/components/ui/GroupAvatar";
+import { getFileIcon } from "@/utils/file-icon.util";
+import { truncateFileName } from "@/utils/render-file";
+import { formatFileSize } from "@/utils/format-file.util";
+import { scale } from "@/utils/responsive";
 
 const TABS = [
   { id: "all", label: "Tất cả" },
@@ -184,7 +189,7 @@ export default function SearchScreen() {
     } catch (error) {
       showToast(
         (error as any)?.response?.data?.message ||
-          "Không thể mở cuộc trò chuyện, vui lòng thử lại",
+        "Không thể mở cuộc trò chuyện, vui lòng thử lại",
       );
     }
   };
@@ -201,7 +206,7 @@ export default function SearchScreen() {
     } catch (error) {
       showToast(
         (error as any)?.response?.data?.message ||
-          "Không thể gửi lời mời kết bạn",
+        "Không thể gửi lời mời kết bạn",
       );
     } finally {
       setFriendRequestingIds((prev) => prev.filter((id) => id !== targetUserId));
@@ -354,14 +359,12 @@ export default function SearchScreen() {
           <TouchableOpacity
             disabled={isSendingFriendRequest}
             onPress={() => handleAddFriendFromSearch(item.userId)}
-            className={`ml-3 px-3 py-2 rounded-full ${
-              isSendingFriendRequest ? "bg-[#dbeafe]" : "bg-[#0091ff]"
-            }`}
+            className={`ml-3 px-3 py-2 rounded-full ${isSendingFriendRequest ? "bg-[#dbeafe]" : "bg-[#0091ff]"
+              }`}
           >
             <Text
-              className={`text-[12px] font-semibold ${
-                isSendingFriendRequest ? "text-[#0a67d8]" : "text-white"
-              }`}
+              className={`text-[12px] font-semibold ${isSendingFriendRequest ? "text-[#0a67d8]" : "text-white"
+                }`}
             >
               {isSendingFriendRequest ? "Đang gửi" : "Kết bạn"}
             </Text>
@@ -390,6 +393,11 @@ export default function SearchScreen() {
       month: "2-digit",
     });
 
+    const documentFiles = (item.content?.files || []).filter(
+      (f: any) => f.type === "FILE" || f.type === "VOICE"
+    );
+    const hasText = !!messageText;
+
     return (
       <TouchableOpacity
         activeOpacity={0.9}
@@ -403,6 +411,7 @@ export default function SearchScreen() {
         <View
           style={{
             maxWidth: "82%",
+            ...(documentFiles.length > 0 ? { minWidth: Dimensions.get("window").width * 0.65 } : {}),
             borderRadius: 18,
             borderWidth: isActive ? 2 : 0,
             borderColor: "#0a84ff",
@@ -428,15 +437,60 @@ export default function SearchScreen() {
               {senderName}
             </Text>
           )}
-          <Text
-            style={{
-              color: "#111827",
-              fontSize: 16,
-              lineHeight: 22,
-            }}
-          >
-            {messageText}
-          </Text>
+          {hasText && (
+            <Text
+              style={{
+                color: "#111827",
+                fontSize: 16,
+                lineHeight: 22,
+              }}
+              numberOfLines={3}
+            >
+              {messageText}
+            </Text>
+          )}
+          {documentFiles.length > 0 && (
+            <View style={{ marginTop: hasText ? 6 : 0, gap: 4 }}>
+              {documentFiles.map((file: any, idx: number) => {
+                const cleanName = decodeURIComponent(file.fileName || "");
+                const sizeStr = file.fileSize ? formatFileSize(file.fileSize) : "0 KB";
+
+                return (
+                  <View
+                    key={idx}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      backgroundColor: "rgba(0, 0, 0, 0.05)",
+                      padding: 8,
+                      borderRadius: 6,
+                      gap: 12,
+                    }}
+                  >
+                    <View style={{ width: 28, height: 28, justifyContent: "center", alignItems: "center" }}>
+                      {getFileIcon(cleanName, 28)}
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: "500", color: "#111" }}>
+                        {truncateFileName(cleanName, 35) || cleanName}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                        {sizeStr}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+          {!hasText && documentFiles.length === 0 && item.content?.files?.length > 0 && (
+            <Text
+              style={{ color: "#6b7280", fontSize: 14, fontStyle: "italic" }}
+              numberOfLines={2}
+            >
+              {item.content.files.map((f: any) => f.fileName || f.name).join(", ")}
+            </Text>
+          )}
         </View>
         <Text
           style={{
@@ -510,8 +564,8 @@ export default function SearchScreen() {
         }
         rightChild={
           !isConversationSearch && (
-            <TouchableOpacity className="p-2 ml-1" onPress={() => console.log("Scan QR")}>
-              <MaterialCommunityIcons name="qrcode-scan" size={22} color="white" />
+            <TouchableOpacity className="p-2 ml-1" onPress={() => router.push("/private/qr-scanner")}>
+              <MaterialCommunityIcons name="qrcode-scan" size={scale(18)} color="white" />
             </TouchableOpacity>
           )
         }

@@ -62,6 +62,11 @@ export class SessionService {
     return false;
   }
 
+  async findByDevice(userId: string, deviceId: string) {
+    const userObjectId = new Types.ObjectId(userId);
+    return this.sessionModel.findOne({ userId: userObjectId, deviceId }).sort({ createdAt: -1 });
+  }
+
   async removeByDevice(userId: string, deviceId: string) {
     const userObjectId = new Types.ObjectId(userId);
     const result = await this.sessionModel

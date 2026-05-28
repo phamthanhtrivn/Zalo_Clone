@@ -16,10 +16,9 @@ import Animated, {
 } from "react-native-reanimated";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import { Video } from "expo-av";
-import * as FileSystem from "expo-file-system/legacy";
-import * as Sharing from "expo-sharing";
+import { Video, ResizeMode } from "expo-av";
 import Toast from "react-native-toast-message";
+import { downloadAndSaveFile } from "@/utils/download.util";
 
 const { width, height } = Dimensions.get("window");
 
@@ -192,7 +191,6 @@ export const MobileImageViewer = ({
       setCurrentIndex(initialIndex);
       setScrollEnabled(true);
 
-      // Delay to allow FlatList mount before initial snapping
       setTimeout(() => {
         try {
           pagingListRef.current?.scrollToIndex({
@@ -200,7 +198,7 @@ export const MobileImageViewer = ({
             animated: false,
           });
         } catch (e) {
-          console.log("Paging scrollToIndex safe skip:", e);
+          // Safe skip
         }
       }, 50);
     }
@@ -217,7 +215,7 @@ export const MobileImageViewer = ({
             viewPosition: 0.5,
           });
         } catch (err) {
-          console.log("Thumbnails scrollToIndex safe skip:", err);
+          // Safe skip
         }
       }, 100);
       return () => clearTimeout(timer);
@@ -234,24 +232,12 @@ export const MobileImageViewer = ({
       setDownloading(true);
       const fileKey = currentMedia.fileKey;
       const rawFileName = currentMedia.fileName || "media_file";
-      const safeFileName = decodeURIComponent(rawFileName);
-      const downloadUrl = encodeURI(fileKey);
-      const fileUri = FileSystem.documentDirectory + safeFileName;
-
-      const { uri } = await FileSystem.downloadAsync(downloadUrl, fileUri);
-      const canShare = await Sharing.isAvailableAsync();
-
-      if (canShare) {
-        await Sharing.shareAsync(uri, {
-          mimeType: currentMedia.mimeType || "application/octet-stream",
-          dialogTitle: safeFileName,
-        });
-      } else {
-        Toast.show({ type: "success", text1: "Tải xuống thành công", text2: safeFileName });
+      const success = await downloadAndSaveFile(fileKey, rawFileName, currentMedia.mimeType);
+      if (success) {
+        Toast.show({ type: "success", text1: "Tải xuống thành công", text2: rawFileName });
       }
     } catch (err) {
-      console.error("Expo download error:", err);
-      Toast.show({ type: "error", text1: "Lỗi tải xuống", text2: "Không thể tải hoặc chia sẻ tệp này." });
+      Toast.show({ type: "error", text1: "Lỗi tải xuống", text2: "Không thể tải hoặc lưu tệp này." });
     } finally {
       setDownloading(false);
     }
@@ -267,7 +253,7 @@ export const MobileImageViewer = ({
           animated: true,
         });
       } catch (e) {
-        console.log("Paging transition safe skip:", e);
+        // Safe skip
       }
     }
   };
@@ -350,8 +336,17 @@ export const MobileImageViewer = ({
                       <Video
                         source={{ uri: item.fileKey }}
                         useNativeControls
-                        resizeMode="contain"
-                        className="w-full aspect-video rounded-2xl bg-black shadow-2xl"
+                        resizeMode={ResizeMode.COVER}
+                        style={{
+                          width: "100%",
+                          aspectRatio: 10 / 16,
+                          borderRadius: 16,
+                          backgroundColor: "#000000",
+                          shadowColor: "#000000",
+                          shadowOffset: { width: 0, height: 10 },
+                          shadowOpacity: 0.3,
+                          elevation: 10,
+                        }}
                         // 🌟 SỬA LỖI CRASH: Chỉ phát (Play) nếu Video này đang hiện trên màn hình
                         shouldPlay={visible && isActive}
                       />

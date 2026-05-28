@@ -68,7 +68,7 @@ export const SidebarSecondary = () => {
       }
     }
 
-    const path = `/conversations/${conversationIdToNavigate}${messageId ? `?messageId=${messageId}` : ""}`;
+    const path = `/conversation/${conversationIdToNavigate}${messageId ? `?messageId=${messageId}` : ""}`;
     navigate(path, {
       state: {
         otherUserId: finalOtherUserId,

@@ -12,6 +12,7 @@ import {
   Keyboard,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import Animated, { useAnimatedKeyboard, useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useSocket } from "@/contexts/SocketContext";
@@ -41,16 +42,17 @@ import ChatModals from "@/components/chat/ChatModals";
 import ChatHeader from "@/components/chat/ChatHeader";
 import FriendBanner from "@/components/chat/FriendBanner";
 import { getStories } from "@/services/social.service";
-import { formatLastSeen } from "@/utils/formater";
+import { aiService } from "@/services/ai.service";
 
 export default function ChatWindow() {
   const conversationState = useAppSelector((state) => state.conversation);
   const conversations = conversationState.conversations;
-  const { id, messageId, otherUserId: paramOtherUserId, fromSearch } = useLocalSearchParams<{
+  const { id, messageId, otherUserId: paramOtherUserId, fromSearch, conversation: paramConversationStr } = useLocalSearchParams<{
     id: string;
     messageId?: string;
     otherUserId?: string;
     fromSearch?: string;
+    conversation?: string;
   }>();
   const fromSearchValue = Array.isArray(fromSearch) ? fromSearch[0] : fromSearch;
   const openedFromSearch =
@@ -61,6 +63,12 @@ export default function ChatWindow() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
+  const keyboard = useAnimatedKeyboard();
+  const animatedKeyboardStyle = useAnimatedStyle(() => {
+    return {
+      paddingBottom: keyboard.height.value,
+    };
+  });
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   useEffect(() => {
@@ -77,7 +85,10 @@ export default function ChatWindow() {
     };
   }, []);
 
-  const conversation = conversations.find((c) => c.conversationId === id);
+  const storeConversation = conversations.find((c) => c.conversationId === id);
+  const paramConversation = paramConversationStr ? JSON.parse(Array.isArray(paramConversationStr) ? paramConversationStr[0] : paramConversationStr) : null;
+  const conversation = storeConversation || paramConversation;
+
   // ✅ Use conversation.group as source of truth — conversation.type can be contaminated
   // by the last message type (e.g. "GROUP_CALL") and cause false negatives
   const isGroup = conversation?.type === "GROUP" || !!conversation?.group;
@@ -98,6 +109,23 @@ export default function ChatWindow() {
   const [isLoading, setIsLoading] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [prevCursor, setPrevCursor] = useState<string | null>(null);
+  const [translatedMessages, setTranslatedMessages] = useState<Record<string, string>>({});
+  const [translatingIds, setTranslatingIds] = useState<Record<string, boolean>>({});
+
+  const handleTranslateMessage = async (msg: MessagesType) => {
+    if (!msg.content?.text) return;
+    try {
+      setTranslatingIds((prev) => ({ ...prev, [msg._id]: true }));
+      const res: any = await aiService.translate(msg.content.text);
+      const translatedText = res?.translatedText || "";
+      setTranslatedMessages((prev) => ({ ...prev, [msg._id]: translatedText }));
+    } catch (err) {
+      console.error("Dịch lỗi:", err);
+      Alert.alert("Lỗi", "Không thể dịch tin nhắn lúc này.");
+    } finally {
+      setTranslatingIds((prev) => ({ ...prev, [msg._id]: false }));
+    }
+  };
 
   // Reaction picker
   const [reactionPickerMsg, setReactionPickerMsg] =
@@ -477,6 +505,56 @@ export default function ChatWindow() {
     } catch (err) {
       console.error("Send voice error:", err);
       Alert.alert("Lỗi", "Không thể gửi bản ghi âm.");
+    }
+  };
+
+  const handleSendSticker = async (iconUrl: string) => {
+    if (!id || !user?.userId) return;
+
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMessage: any = {
+      _id: tempId,
+      conversationId: id,
+      senderId: {
+        _id: user.userId,
+        profile: user.profile,
+      },
+      content: { text: "", icon: iconUrl },
+      type: "TEXT",
+      createdAt: new Date().toISOString(),
+      status: "sending",
+      reactions: [],
+    };
+
+    let repliedId = null;
+    if (replyingMessage) {
+      repliedId = replyingMessage._id;
+      optimisticMessage.repliedId = replyingMessage;
+      dispatch(clearReplyingMessage());
+    }
+
+    setMessages((prev) => [optimisticMessage, ...prev]);
+    scrollToBottom();
+
+    try {
+      const res: any = await messageService.sendMessage(
+        id,
+        user.userId,
+        repliedId,
+        { text: "", icon: iconUrl },
+        null,
+      );
+
+      if (res.success) {
+        setMessages((prev) =>
+          prev.map((m) => (m._id === tempId ? res.data : m))
+        );
+      }
+    } catch (err) {
+      console.error("Gửi sticker thất bại:", err);
+      setMessages((prev) =>
+        prev.map((m) => (m._id === tempId ? { ...m, status: "error" } : m))
+      );
     }
   };
 
@@ -1183,6 +1261,9 @@ export default function ChatWindow() {
             onJoinGroupCall={joinGroupCall}
             onOpenStoryLink={handleOpenStoryLink}
             members={isGroup ? groupMembers : []}
+            translatedText={translatedMessages[item._id]}
+            isTranslating={translatingIds[item._id]}
+            onClearTranslation={() => setTranslatedMessages((prev) => ({ ...prev, [item._id]: "" }))}
           />
         )}
       </View>
@@ -1191,7 +1272,7 @@ export default function ChatWindow() {
 
   return (
     <Container
-      edges={["top", "left", "right", "bottom"]}
+      edges={["top", "left", "right"]}
     >
       <ChatHeader
         conversation={conversation}
@@ -1203,10 +1284,8 @@ export default function ChatWindow() {
         setShowInfoSheet={setShowInfoSheet}
       />
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+      <Animated.View
+        style={[{ flex: 1 }, animatedKeyboardStyle]}
       >
         <PinnedMessagesBar
           pinnedMessages={pinnedMessages}
@@ -1364,13 +1443,19 @@ export default function ChatWindow() {
         )}
 
         {!canChat && !isSelectMode ? (
-          <View className="p-4 bg-[#f9fafb] border-t border-[#e5e7eb] items-center">
+          <View
+            className="p-4 bg-[#f9fafb] border-t border-[#e5e7eb] items-center"
+            style={{ paddingBottom: Math.max(16, insets.bottom) }}
+          >
             <Text className="text-[#6b7280] text-[13px] italic">
               Chỉ Trưởng/Phó nhóm mới được gửi tin nhắn
             </Text>
           </View>
         ) : isMessageBlocked && !isSelectMode ? (
-          <View className="bg-white px-4 py-3 border-t border-[#e5e7eb] items-center">
+          <View
+            className="bg-white px-4 py-3 border-t border-[#e5e7eb] items-center"
+            style={{ paddingBottom: Math.max(16, insets.bottom) }}
+          >
             <Text className="text-[#6b7280] text-[13px] text-center">
               {friendStatus === "BLOCKED"
                 ? "Bạn đã chặn người này, hãy gỡ chặn để gửi tin nhắn."
@@ -1383,6 +1468,7 @@ export default function ChatWindow() {
             onSendMessage={handleSendMessage}
             onSendFiles={handleSendFile}
             onSendVoiceAudio={handleSendVoiceAudio}
+            onSendSticker={handleSendSticker}
             isSelectMode={isSelectMode}
             selectedMessages={selectedMessages}
             onOpenForwardModal={() => setShowForwardModal(true)}
@@ -1406,7 +1492,7 @@ export default function ChatWindow() {
             <Ionicons name="chevron-down" size={24} color="#0068ff" />
           </TouchableOpacity>
         )}
-      </KeyboardAvoidingView>
+      </Animated.View>
 
       <ChatModals
         reactionPickerMsg={reactionPickerMsg}
@@ -1439,6 +1525,7 @@ export default function ChatWindow() {
         setReplyingMessage={setReplyingMessage}
         setIsSelectMode={setIsSelectMode}
         toggleSelectMessage={toggleSelectMessage}
+        onTranslate={handleTranslateMessage}
       />
     </Container>
   );

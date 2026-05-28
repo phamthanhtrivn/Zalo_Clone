@@ -19,7 +19,7 @@ const FriendSearchResultItem = ({
   setUserSearch,
   setSuggestUsers,
 }: UserSearchResultProps) => {
-  const id = useSelector((item: any) => item.auth.user.userId);
+  const id = useSelector((item: any) => item.auth.user?.userId);
 
   const getButtonConfig = (status: string | "NONE") => {
     switch (status) {

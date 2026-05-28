@@ -9,22 +9,25 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
-import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
+import { type EmojiClickData } from "emoji-picker-react";
 import { RiShareForward2Fill } from "react-icons/ri";
 
 import CreatePollModal from "./CreatePollModal";
 import { MentionSuggestions } from "./MentionSuggestions";
+import StickerPickerPanel from "./StickerPickerPanel";
 
 import { conversationService } from "@/services/conversation.service";
 
 import { useAppDispatch, useAppSelector } from "@/store";
 import { clearReplyingMessage } from "@/store/slices/conversationSlice";
-import { X, Quote } from "lucide-react";
+import { X, Quote, Speech } from "lucide-react";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 
 type Props = {
   conversationId: string;
   chatName: string;
   onSendMessage: (text: string) => void;
+  onSendSticker?: (icon: string) => void;
   onSendFiles: (files: FileList) => void;
   onSendVoice: (voice: {
     blob: Blob;
@@ -44,6 +47,7 @@ const ChatInput = ({
   conversationId,
   chatName,
   onSendMessage,
+  onSendSticker,
   onSendFiles,
   onSendVoice,
   isSelected,
@@ -84,6 +88,42 @@ const ChatInput = ({
   const recordingStreamRef = useRef<MediaStream | null>(null);
   const recordingStartedAtRef = useRef<number>(0);
   const recordingTimerRef = useRef<number | null>(null);
+
+  // Speech-to-Text
+  const {
+    transcript,
+    isListening,
+    startListening,
+    stopListening,
+    error: speechError,
+    resetTranscript,
+  } = useSpeechRecognition();
+  const textBeforeRecordingRef = useRef("");
+
+  useEffect(() => {
+    if (speechError) {
+      alert(speechError);
+    }
+  }, [speechError]);
+
+  useEffect(() => {
+    if (isListening) {
+      setText(
+        textBeforeRecordingRef.current +
+        (textBeforeRecordingRef.current && transcript ? " " : "") +
+        transcript
+      );
+    }
+  }, [transcript, isListening]);
+
+  const toggleSpeechToText = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      textBeforeRecordingRef.current = text;
+      startListening();
+    }
+  };
 
   const formatVoiceDuration = (durationMs: number) => {
     const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
@@ -161,6 +201,10 @@ const ChatInput = ({
       const maxHeight = 10 * 24;
       const newHeight = Math.min(el.scrollHeight, maxHeight);
       el.style.height = newHeight + "px";
+      if (isListening) {
+        textBeforeRecordingRef.current = val;
+        resetTranscript();
+      }
       setTimeout(() => {
         const overlay = document.getElementById("textarea-highlight-overlay");
         if (overlay) {
@@ -172,8 +216,9 @@ const ChatInput = ({
 
   const handleSend = () => {
     if (isMessageBlocked) return;
-    if (text.trim()) {
-      onSendMessage(text);
+    const trimmed = text.trim();
+    if (trimmed) {
+      onSendMessage(trimmed);
       setText("");
       if (replyingMessage) {
         dispatch(clearReplyingMessage());
@@ -465,12 +510,14 @@ const ChatInput = ({
         </Button>
 
         {showEmoji && (
-          <div ref={emojiRef} className="absolute bottom-16 left-2 z-50">
-            <EmojiPicker
-              onEmojiClick={handleSelectEmoji}
-              previewConfig={{ showPreview: false }}
-              width={300}
-              height={400}
+          <div ref={emojiRef} className="absolute bottom-30 left-2 z-50">
+            <StickerPickerPanel
+              onSelectEmoji={handleSelectEmoji}
+              onSelectSticker={(url) => {
+                setShowEmoji(false);
+                onSendSticker?.(url);
+              }}
+              onClose={() => setShowEmoji(false)}
             />
           </div>
         )}
@@ -518,6 +565,15 @@ const ChatInput = ({
           title="Ghi âm"
         >
           <Mic className="w-10 h-10" />
+        </Button>
+        <Button
+          onClick={toggleSpeechToText}
+          variant="ghost"
+          className={`w-10 h-10 cursor-pointer ${isListening ? "text-red-500 animate-pulse bg-red-50 hover:bg-red-100 hover:text-red-600" : "text-gray-500 hover:bg-gray-100"}`}
+          disabled={isMessageBlocked}
+          title={isListening ? "Dừng nhận diện giọng nói" : "Chuyển giọng nói thành văn bản"}
+        >
+          <Speech className="w-10 h-10" />
         </Button>
         {isGroup && (
           <Button

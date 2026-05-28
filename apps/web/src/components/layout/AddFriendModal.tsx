@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { X, Users } from "lucide-react";
 import { userService } from "@/services/user.service";
 import { useSelector } from "react-redux";
@@ -7,7 +7,7 @@ import { toast } from "react-toastify";
 
 const AddFriendModal = ({ onClose }: any) => {
   const [phoneNumber, setPhoneNumber] = useState("");
-  const userId = useSelector((item: any) => item.auth.user.userId);
+  const userId = useSelector((item: any) => item.auth.user?.userId);
 
   const [userSearch, setUserSearch] = useState<any>(null);
   const [suggestUsers, setSuggestUsers] = useState<any>([]);

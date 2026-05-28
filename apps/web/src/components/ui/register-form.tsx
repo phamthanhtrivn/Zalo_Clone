@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { signUp, verifyOtp, completeSignUp } from "@/store/auth/authThunk";
@@ -10,6 +10,7 @@ import { Gender } from "@/types/enums/gender";
 import { toast } from "react-toastify";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
+import { OtpInput } from "./otp-input";
 
 export function RegisterForm({
   className,
@@ -25,69 +26,8 @@ export function RegisterForm({
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Form inputs
+  const [otp, setOtp] = useState("");
   const [phone, setPhone] = useState("");
-  const [otpArray, setOtpArray] = useState<string[]>(Array(6).fill(""));
-  const otp = otpArray.join("");
-  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
-
-  useEffect(() => {
-    if (step === 2) {
-      setTimeout(() => {
-        otpRefs.current[0]?.focus();
-      }, 50);
-    }
-  }, [step]);
-
-  const handleOtpChange = (value: string, index: number) => {
-    const cleanValue = value.replace(/[^0-9]/g, "");
-    if (!cleanValue) {
-      const newOtp = [...otpArray];
-      newOtp[index] = "";
-      setOtpArray(newOtp);
-      return;
-    }
-
-    const char = cleanValue[cleanValue.length - 1];
-    const newOtp = [...otpArray];
-    newOtp[index] = char;
-    setOtpArray(newOtp);
-
-    if (index < 5) {
-      otpRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleOtpKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
-    if (e.key === "Backspace") {
-      if (!otpArray[index] && index > 0) {
-        const newOtp = [...otpArray];
-        newOtp[index - 1] = "";
-        setOtpArray(newOtp);
-        otpRefs.current[index - 1]?.focus();
-      } else {
-        const newOtp = [...otpArray];
-        newOtp[index] = "";
-        setOtpArray(newOtp);
-      }
-    }
-  };
-
-  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    const pastedData = e.clipboardData.getData("text");
-    const digits = pastedData.replace(/[^0-9]/g, "").slice(0, 6);
-
-    if (digits.length > 0) {
-      const newOtp = [...otpArray];
-      for (let i = 0; i < 6; i++) {
-        newOtp[i] = digits[i] || "";
-      }
-      setOtpArray(newOtp);
-
-      const focusIndex = Math.min(digits.length, 5);
-      otpRefs.current[focusIndex]?.focus();
-    }
-  };
   const [name, setName] = useState("");
   const [birthDay, setBirthDay] = useState("");
   const [gender, setGender] = useState<Gender>(Gender.MALE);
@@ -184,7 +124,7 @@ export function RegisterForm({
       // Dispatch standard signUp thunk which posts to /api/auth/sign-up
       const result = await dispatch(signUp(phone)).unwrap();
       toast.success(result?.message || "Mã OTP đã được gửi đến thiết bị của bạn!");
-      setOtpArray(Array(6).fill(""));
+      setOtp("");
       setStep(2);
     } catch (err: any) {
       toast.error(err?.message || "Yêu cầu mã OTP thất bại. Số điện thoại có thể đã tồn tại.");
@@ -341,28 +281,14 @@ export function RegisterForm({
                       </button>
                     </div>
 
-                    <div className="flex justify-between gap-2">
-                      {otpArray.map((digit, idx) => (
-                        <Input
-                          key={idx}
-                          id={`otp-${idx}`}
-                          ref={(el) => { otpRefs.current[idx] = el; }}
-                          type="text"
-                          maxLength={1}
-                          pattern="[0-9]*"
-                          inputMode="numeric"
-                          value={digit}
-                          onChange={(e) => handleOtpChange(e.target.value, idx)}
-                          onKeyDown={(e) => handleOtpKeyDown(e, idx)}
-                          onPaste={handleOtpPaste}
-                          className={cn(
-                            "w-12 h-12 text-center text-xl font-bold rounded-md border border-input focus-visible:ring-2 focus-visible:ring-blue-600 transition-all",
-                            otpError ? "border-red-500 focus-visible:ring-red-500" : "border-input"
-                          )}
-                          required
-                        />
-                      ))}
-                    </div>
+                    {/* Nhớ import OtpInput ở trên đầu file nhé */}
+                    <OtpInput
+                      value={otp}
+                      onChange={setOtp}
+                      error={otpError}
+                      disabled={loading}
+                      autoFocus={step === 2}
+                    />
 
                     {otpError && (
                       <p className="text-xs text-red-500 text-left mt-0.5 font-medium">{otpError}</p>

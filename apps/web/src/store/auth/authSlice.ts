@@ -118,6 +118,8 @@ const authSlice = createSlice({
       })
       .addCase(changePassword.fulfilled, (state) => {
         state.loading = false;
+        state.user = null;
+        state.accessToken = "";
       })
       .addCase(changePassword.rejected, (state) => {
         state.loading = false;

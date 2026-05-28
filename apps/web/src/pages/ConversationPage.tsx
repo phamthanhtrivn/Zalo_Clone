@@ -15,6 +15,7 @@ import {
   setConversations,
   clearReplyingMessage,
   updateRecallMessageInConversation,
+  fetchConversations,
 } from "@/store/slices/conversationSlice";
 import {
   setMessages,
@@ -91,6 +92,7 @@ const ConversationPage = () => {
   const friendStatusRequestIdRef = useRef(0);
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
   const lastMessageId = messages[messages.length - 1]?._id;
   const {
     setActiveConversationId,
@@ -439,6 +441,30 @@ const ConversationPage = () => {
       );
 
       // Cập nhật local store từ response API để UI phản hồi ngay (không phụ thuộc socket)
+      const msg = res?.data ?? res;
+      if (msg) {
+        const messageObj = msg.message ?? msg;
+        if (messageObj && (messageObj._id || messageObj.messageId)) {
+          dispatch(addMessage({ conversationId: id, message: messageObj } as any));
+        }
+      }
+      if (replyingMessage) dispatch(clearReplyingMessage());
+      scrollToBottom("smooth");
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const onSendSticker = async (iconUrl: string) => {
+    if (!id || !currentUserId) return;
+    try {
+      const res = await messageService.sendMessage(
+        id,
+        currentUserId,
+        replyingMessage?._id,
+        { icon: iconUrl },
+      );
+
       const msg = res?.data ?? res;
       if (msg) {
         const messageObj = msg.message ?? msg;
@@ -850,10 +876,21 @@ const ConversationPage = () => {
     };
   }, [socket, id, dispatch, handleMessagesExpired, handleReadReceipt]);
 
+  // Reset attempted fetch whenever the active conversation ID changes
+  useEffect(() => {
+    setHasAttemptedFetch(false);
+  }, [id]);
+
   useEffect(() => {
     if (!id || conversation || isConversationLoading) return;
-    navigate("/", { replace: true });
-  }, [conversation, id, isConversationLoading, navigate]);
+
+    if (!hasAttemptedFetch) {
+      setHasAttemptedFetch(true);
+      dispatch(fetchConversations());
+    } else {
+      navigate("/", { replace: true });
+    }
+  }, [conversation, id, isConversationLoading, hasAttemptedFetch, dispatch, navigate]);
 
   useEffect(() => {
     if (!id || !conversation?.hidden) return;
@@ -946,6 +983,7 @@ const ConversationPage = () => {
         <ChatInput
           chatName={conversation.name}
           onSendMessage={onSendMessage}
+          onSendSticker={onSendSticker}
           onSendFiles={onSendFiles}
           onSendVoice={onSendVoice}
           isSelected={isSelected}

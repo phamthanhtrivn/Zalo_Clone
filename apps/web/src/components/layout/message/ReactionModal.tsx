@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { X } from "lucide-react";
-import { Avatar, AvatarImage, AvatarFallback } from "../../ui/avatar";
+import AppAvatar from "@/components/common/AppAvatar";
 import { EMOJI_MAP, EmojiType } from "@/constants/emoji.constant";
 import type { ReactionType } from "@/types/messages.type";
 
@@ -119,12 +119,11 @@ export const ReactionModal = ({ reactions, onClose }: Props) => {
               <div key={i} className="flex items-center justify-between group">
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    <Avatar className="w-10 h-10 border border-gray-200">
-                      <AvatarImage src={reaction.userId.profile?.avatarUrl} />
-                      <AvatarFallback className="bg-blue-50 text-blue-600">
-                        {reaction.userId.profile?.name?.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <AppAvatar
+                      src={reaction.userId.profile?.avatarUrl}
+                      name={reaction.userId.profile?.name || ""}
+                      className="w-10 h-10 border border-gray-200"
+                    />
                   </div>
                   <span className="font-medium text-[#001A33]">
                     {reaction.userId.profile?.name}

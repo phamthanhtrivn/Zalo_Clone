@@ -108,6 +108,7 @@ export const userService = {
   },
   getBlockedFriends: async () => {
     const response = await apiClient.get("/api/users/blocked-friends");
+    console.log(response)
     return response.data;
   }
 };

@@ -9,10 +9,12 @@ import { Ellipsis, LogOut, Ban } from "lucide-react";
 
 type DeviceSettingDropdown = {
   onLougout?: () => void;
+  onBlock?: () => void;
 };
 
 export default function DeviceSettingDropdown({
   onLougout,
+  onBlock,
 }: DeviceSettingDropdown) {
   return (
     <div>
@@ -26,7 +28,7 @@ export default function DeviceSettingDropdown({
               <LogOut />
               Đăng xuất
             </DropdownMenuItem>
-            <DropdownMenuItem className="text-red-600">
+            <DropdownMenuItem className="text-red-600" onClick={onBlock}>
               <Ban /> Chặn{" "}
             </DropdownMenuItem>
           </DropdownMenuGroup>

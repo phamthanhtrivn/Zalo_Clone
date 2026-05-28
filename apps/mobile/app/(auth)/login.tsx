@@ -86,11 +86,18 @@ export default function Login() {
         />
 
         <Text className="text-red-600">{error.message}</Text>
-        <TouchableOpacity className="w-32" onPress={handleForgotPassword}>
-          <Text className="text-primary/70 font-semibold">
-            Lấy lại mật khẩu
-          </Text>
-        </TouchableOpacity>
+        <View className="flex-row justify-between items-center w-full pr-4 mt-1">
+          <TouchableOpacity onPress={handleForgotPassword}>
+            <Text className="text-primary/70 font-semibold">
+              Lấy lại mật khẩu
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push("/(auth)/unlock-account")}>
+            <Text className="text-red-500 font-semibold">
+              Mở khóa tài khoản
+            </Text>
+          </TouchableOpacity>
+        </View>
         <Button
           disabled={!canLogin || loading}
           className={`${canLogin || loading ? "bg-primary" : "bg-secondary"} py-3 w-56`}

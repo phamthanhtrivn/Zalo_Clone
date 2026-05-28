@@ -52,7 +52,7 @@ export const ConversationProfileModal = ({
 
           if (conversationId) {
             setSelectedProfileId(null);
-            navigate(`/conversations/${conversationId}`);
+            navigate(`/conversation/${conversationId}`);
           } else {
             toast.error(`Không thể mở hộp thoại`);
           }

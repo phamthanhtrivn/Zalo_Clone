@@ -25,6 +25,9 @@ interface Props {
   onJumpToMessage?: (messageId: string) => void;
   members?: any[];
   onShowProfile?: (profileId: string) => void;
+  translatedText?: string | null;
+  isTranslating?: boolean;
+  onClearTranslation?: () => void;
 }
 
 const renderTextWithLinks = (
@@ -126,6 +129,9 @@ export const MessageBubble = ({
   onJumpToMessage,
   members,
   onShowProfile,
+  translatedText,
+  isTranslating,
+  onClearTranslation,
 }: Props) => {
   const content = message.content;
   const call = message.call;
@@ -216,7 +222,7 @@ export const MessageBubble = ({
           <line x1="12" y1="8" x2="12" y2="12" />
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
-        <span className="text-[13px] text-gray-400 italic">
+        <span className="text-sm text-gray-400 italic">
           Tin nhắn đã hết hạn
         </span>
       </div>
@@ -226,7 +232,7 @@ export const MessageBubble = ({
   if (message.recalled) {
     return (
       <div
-        className={`rounded-lg px-3 py-2 max-w-md border shadow-sm text-gray-500 ${isMe ? "bg-zalo-light" : "bg-white"
+        className={`rounded-lg text-sm px-3 py-2 max-w-md border shadow-sm text-gray-500 ${isMe ? "bg-zalo-light" : "bg-white"
           }`}
       >
         <p>Tin nhắn đã được thu hồi</p>
@@ -316,6 +322,42 @@ export const MessageBubble = ({
                 ) : (
                   <p>{renderTextWithLinks(content.text, members, onShowProfile)}</p>
                 )}
+
+                {/* Translating loader */}
+                {isTranslating && (
+                  <div className="text-xs text-gray-400 mt-2 flex items-center gap-1.5 italic border-t border-black/5 pt-2">
+                    <svg className="animate-spin h-3.5 w-3.5 text-blue-500" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    <span>Đang dịch...</span>
+                  </div>
+                )}
+
+                {/* Translated content block */}
+                {translatedText && (
+                  <div className="mt-2 pt-2 border-t border-black/5 text-[15px]">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] text-blue-600 font-semibold bg-blue-50 px-1.5 py-0.5 rounded select-none">
+                        Dịch bởi Zola AI
+                      </span>
+                      {onClearTranslation && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onClearTranslation();
+                          }}
+                          className="text-[10px] text-gray-400 hover:text-gray-600 cursor-pointer select-none"
+                        >
+                          Ẩn bản dịch
+                        </button>
+                      )}
+                    </div>
+                    <p className="whitespace-pre-wrap select-text font-normal text-slate-800 bg-black/5 p-2 rounded-md mt-1.5 leading-relaxed">
+                      {translatedText}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -353,8 +395,14 @@ export const MessageBubble = ({
               </div>
             )}
 
-            {/* ICON */}
-            {content?.icon && <p className="text-3xl">{content.icon}</p>}
+            {/* ICON / STICKER */}
+            {content?.icon && (
+              content.icon.startsWith('http') || content.icon.startsWith('/') ? (
+                <img src={content.icon} alt="sticker" className="w-32 h-32 object-contain mix-blend-multiply" />
+              ) : (
+                <p className="text-3xl">{content.icon}</p>
+              )
+            )}
 
             {/* MEDIA GRID (Ảnh/Video) */}
             <MediaGrid

@@ -8,7 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 const ContactPage = () => {
   const [keyword, setKeyword] = useState<string>("");
   const [debouncedKeyword, setDebouncedKeyword] = useState<string>("");
-  const userId = useSelector((item: any) => item.auth.user.userId);
+  const userId = useSelector((item: any) => item.auth.user?.userId);
   const queryClient = useQueryClient();
   const [sortOrder, setSortOrder] = useState<string>("a-z");
 

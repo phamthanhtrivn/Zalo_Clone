@@ -333,20 +333,7 @@ export class ConversationsService {
 
       const convIdStr = convObjectId.toString();
 
-      this.chatGateway.server.to(convIdStr).emit('new_message', {
-        ...systemMsg.toObject(),
-        conversationId: convIdStr,
-      });
-
-      this.chatGateway.server.to(convIdStr).emit('new_message_sidebar', {
-        conversationId: convIdStr,
-        lastMessage: {
-          content: systemMsg.content,
-          senderName: null,
-          type: 'SYSTEM',
-          createdAt: systemMsg.createdAt,
-        },
-      });
+      await this.broadcastSystemMessage(convIdStr, systemMsg);
 
       this.chatGateway.server.to(convIdStr).emit('conversation_updated', {
         conversationId: convIdStr,
@@ -460,10 +447,7 @@ export class ConversationsService {
 
       const convIdStr = convObjectId.toString();
 
-      this.chatGateway.server.to(convIdStr).emit('new_message', {
-        ...systemMsg.toObject(),
-        conversationId: convIdStr,
-      });
+      await this.broadcastSystemMessage(convIdStr, systemMsg);
 
       const roleUpdatePayload = {
         conversationId: convIdStr,
@@ -559,10 +543,7 @@ export class ConversationsService {
       const convIdStr = conversationId.toString();
 
       // 1. Thông báo tin nhắn hệ thống cho cả nhóm
-      this.chatGateway.server.to(convIdStr).emit('new_message', {
-        ...systemMsg.toObject(),
-        conversationId: convIdStr,
-      });
+      await this.broadcastSystemMessage(convIdStr, systemMsg);
 
       // 2. Thông báo riêng cho người bị xóa để họ xóa UI
       this.chatGateway.server
@@ -806,10 +787,7 @@ export class ConversationsService {
       const convIdStr = convObjectId.toString();
 
       // Thông báo cho mọi người hiện tại (Tin nhắn hệ thống)
-      this.chatGateway.server.to(convIdStr).emit('new_message', {
-        ...systemMsg.toObject(),
-        conversationId: convIdStr,
-      });
+      await this.broadcastSystemMessage(convIdStr, systemMsg);
 
       // Thông báo cho từng người mới (Hội thoại mới hiện lên sidebar)
       // PERF-1 fix: batch parallel emit thay vì sequential loop gây N+1 aggregation
@@ -884,6 +862,27 @@ export class ConversationsService {
     return savedMessage;
   }
 
+  async broadcastSystemMessage(conversationId: string, systemMsg: any) {
+    const convIdStr = conversationId.toString();
+    const msgData = systemMsg.toObject ? systemMsg.toObject() : (systemMsg.toJSON ? systemMsg.toJSON() : systemMsg);
+    const finalMsg = { ...msgData, conversationId: convIdStr };
+
+    this.chatGateway.server.to(convIdStr).emit('new_message', finalMsg);
+
+    const membersToNotify = await this.memberModel.find({
+      conversationId: new Types.ObjectId(conversationId),
+      leftAt: null,
+    });
+
+    for (const m of membersToNotify) {
+      const userIdStr = m.userId.toString();
+      const conv = await this.getFormattedConversationForUser(convIdStr, userIdStr);
+      if (conv) {
+        this.chatGateway.server.to(userIdStr).emit('new_message_sidebar', conv);
+      }
+    }
+  }
+
   async getConversationsFromUser(userId: string) {
     const userObjectId = new Types.ObjectId(userId);
     const currentUser = await this.userModel
@@ -893,6 +892,11 @@ export class ConversationsService {
     const acceptedFriendIds = new Set(
       (currentUser?.friends ?? [])
         .filter((friend) => friend.status === FriendStatus.ACCEPTED)
+        .map((friend) => friend.friendId.toString()),
+    );
+    const blockedFriendIds = new Set(
+      (currentUser?.friends ?? [])
+        .filter((friend) => friend.status === FriendStatus.BLOCKED || friend.status === FriendStatus.BLOCKED_BY_OTHER)
         .map((friend) => friend.friendId.toString()),
     );
     const conversations = await this.memberModel.aggregate([
@@ -1222,18 +1226,28 @@ export class ConversationsService {
       { $replaceRoot: { newRoot: '$data' } },
     ]);
 
-    return conversations.map((c) => ({
-      ...c,
-      otherMemberId: c?.otherMemberId?.toString?.() ?? c?.otherMemberId ?? null,
-      isStranger:
-        c?.type === ConversationType.DIRECT &&
-        !!(c?.otherMemberId?.toString?.() ?? c?.otherMemberId) &&
-        !acceptedFriendIds.has(
-          c?.otherMemberId?.toString?.() ?? c?.otherMemberId ?? '',
-        ) &&
-        !c?.hasSentMessage,
-      avatar: c.avatar ? this.storageService.signFileUrl(c.avatar) : null,
-    }));
+    return conversations
+      .filter((c) => {
+        if (c.type === ConversationType.DIRECT) {
+          const otherId = c?.otherMemberId?.toString?.() ?? c?.otherMemberId;
+          if (otherId && blockedFriendIds.has(otherId)) {
+            return false;
+          }
+        }
+        return true;
+      })
+      .map((c) => ({
+        ...c,
+        otherMemberId: c?.otherMemberId?.toString?.() ?? c?.otherMemberId ?? null,
+        isStranger:
+          c?.type === ConversationType.DIRECT &&
+          !!(c?.otherMemberId?.toString?.() ?? c?.otherMemberId) &&
+          !acceptedFriendIds.has(
+            c?.otherMemberId?.toString?.() ?? c?.otherMemberId ?? '',
+          ) &&
+          !c?.hasSentMessage,
+        avatar: c.avatar ? this.storageService.signFileUrl(c.avatar) : null,
+      }));
   }
 
   async getOrCreateDirectConversation(user1Id: string, user2Id: string) {
@@ -1447,10 +1461,7 @@ export class ConversationsService {
         .to(userId)
         .emit('removed_from_conversation', { conversationId: convIdStr });
       if (activeMembersCount > 1) {
-        this.chatGateway.server.to(convIdStr).emit('new_message', {
-          ...systemMsg.toObject(),
-          conversationId: convIdStr,
-        });
+        await this.broadcastSystemMessage(convIdStr, systemMsg);
 
         this.chatGateway.server.to(convIdStr).emit('member_removed', {
           conversationId: convIdStr,
@@ -1569,16 +1580,25 @@ export class ConversationsService {
 
       await session.commitTransaction();
 
-      // Emit sau khi commit để đảm bảo data đã được persist
-      this.chatGateway.server.to(conversationId).emit('group_settings_updated', {
+      const payload = {
         conversationId,
         group: savedConversation.group,
-      });
+      };
+
+      this.chatGateway.server.to(conversationId).emit('group_settings_updated', payload);
 
       if (systemMsgObj) {
-        this.chatGateway.server
-          .to(conversationId)
-          .emit('new_message', systemMsgObj);
+        await this.broadcastSystemMessage(conversationId, systemMsgObj);
+      }
+
+      const membersToNotify = await this.memberModel.find({
+        conversationId: convObjectId,
+        leftAt: null,
+      });
+
+      for (const m of membersToNotify) {
+        const userIdStr = m.userId.toString();
+        this.chatGateway.server.to(userIdStr).emit('group_settings_updated', payload);
       }
 
       return {
@@ -1739,7 +1759,7 @@ export class ConversationsService {
         .to(targetUserId.toString())
         .emit('new_conversation', formattedConv);
       this.chatGateway.handleUserJoinRoom(targetUserId.toString(), convIdStr);
-      this.chatGateway.server.to(convIdStr).emit('new_message', systemMsg);
+      await this.broadcastSystemMessage(convIdStr, systemMsg);
 
       this.chatGateway.server.to(convIdStr).emit('member_updated', {
         conversationId: convIdStr,
@@ -1849,15 +1869,27 @@ export class ConversationsService {
       }
 
       for (const sysMsg of savedSystemMsgs) {
-        this.chatGateway.server.to(conversationId).emit('new_message', sysMsg);
+        await this.broadcastSystemMessage(conversationId, sysMsg);
       }
 
-      this.chatGateway.server.to(conversationId).emit('group_updated', {
+      const payload = {
         conversationId: conversationId,
         name: result.group?.name,
         avatar: result.group?.avatarUrl,
         group: result.group,
+      };
+
+      this.chatGateway.server.to(conversationId).emit('group_updated', payload);
+
+      const membersToNotify = await this.memberModel.find({
+        conversationId: convObjectId,
+        leftAt: null,
       });
+
+      for (const m of membersToNotify) {
+        const userIdStr = m.userId.toString();
+        this.chatGateway.server.to(userIdStr).emit('group_updated', payload);
+      }
 
       return {
         success: true,
@@ -2298,11 +2330,7 @@ export class ConversationsService {
 
       // Đồng bộ Socket cho mọi người và người mới
       if (this.chatGateway.server) {
-        const msgData = systemMsg.toJSON ? systemMsg.toJSON() : systemMsg;
-        this.chatGateway.server.to(convIdStr).emit('new_message', {
-          ...msgData,
-          conversationId: convIdStr,
-        });
+        await this.broadcastSystemMessage(convIdStr, systemMsg);
 
         const formattedConv = await this.getFormattedConversationForUser(convIdStr, userId);
         if (formattedConv) {

@@ -210,6 +210,22 @@ const conversationSlice = createSlice({
       }
     },
 
+    updateCallStatusInConversation(
+      state,
+      action: PayloadAction<{ conversationId: string; messageId: string; status: string; duration?: number }>,
+    ) {
+      const { conversationId, messageId, status, duration } = action.payload;
+      const conversation = state.conversations.find(
+        (c) => c.conversationId === conversationId,
+      );
+      if (conversation && conversation.lastMessage?._id === messageId && conversation.lastMessage.call) {
+        conversation.lastMessage.call.status = status;
+        if (duration !== undefined) {
+          conversation.lastMessage.call.duration = duration;
+        }
+      }
+    },
+
     setUnreadCount(
       state,
       action: PayloadAction<{ conversationId: string; unreadCount: number }>,
@@ -307,12 +323,13 @@ export const {
   setCategoryLocal,
   removeConversation,
   resetUnreadCount,
-  updateRecallMessageInConversation,
   removeExpiredMessages,
+  updateRecallMessageInConversation,
+  updateCallStatusInConversation,
   setUnreadCount,
   updateUnreadStateInMessages,
-  clearReplyingMessage,
   setReplyingMessage,
+  clearReplyingMessage,
   updateUserStatus,
 } = conversationSlice.actions;
 

@@ -73,7 +73,6 @@ export const ConversationStorageSheet = ({
         fromDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
       }
 
-      console.log(`[MobileQuery-Storage] Fetching for tab: ${activeTab}`);
       const res = await messageService.getMediasFileType(conversationId, {
         userId: currentUserId,
         type: activeTab === "media" ? "IMAGE" : activeTab === "files" ? "FILE" : "LINK",

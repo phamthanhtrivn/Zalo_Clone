@@ -14,19 +14,34 @@ import {
 import type { Session } from "@/types/auth.type";
 import { formatDateTime } from "@/utils/dateTimeFormat.util";
 import { getDeviceId } from "@/utils/device.util";
-import { Globe, Tablet, Smartphone, Ellipsis } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Globe, Tablet, Smartphone, Ellipsis, Ban } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { NestedViewLayout } from "./NestedViewLayout";
 import { useSocket } from "@/contexts/SocketContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { handleFieldErrors } from "@/utils/handleErrors.util";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import { authService } from "@/services/auth.service";
 
 export default function AccountSetting() {
   const [currentView, setCurrentView] = useState<
     "main" | "devices" | "password" | "phone"
   >("main");
+  const [lockDialogOpen, setLockDialogOpen] = useState(false);
+  const [lockPassword, setLockPassword] = useState("");
+  const [lockLoading, setLockLoading] = useState(false);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
 
   if (currentView === "devices") {
     return <DeviceManagementView onBack={() => setCurrentView("main")} />;
@@ -36,30 +51,102 @@ export default function AccountSetting() {
     return <ChangePhoneView onBack={() => setCurrentView("main")} />;
   }
 
+  const openLockDialog = () => {
+    setLockPassword("");
+    setLockDialogOpen(true);
+    setTimeout(() => passwordInputRef.current?.focus(), 100);
+  };
+
+  const onConfirmLock = async () => {
+    if (!lockPassword.trim()) {
+      toast.error("Mật khẩu xác nhận không được để trống!");
+      return;
+    }
+    setLockLoading(true);
+    try {
+      await authService.lockAccount(lockPassword.trim());
+      toast.success("Khóa tài khoản thành công!");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Không thể khóa tài khoản lúc này.");
+    } finally {
+      setLockLoading(false);
+    }
+  };
+
   return (
-    <div className="flex flex-col gap-6">
-      <SettingSection title="Cá nhân">
-        <SettingChooseItem onClick={() => setCurrentView("phone")}>
-          <div className="flex justify-between items-center w-full">
-            <p className="text-sm">Số điện thoại</p>
+    <>
+      <div className="flex flex-col gap-6">
+        <SettingSection title="Cá nhân">
+          <SettingChooseItem onClick={() => setCurrentView("phone")}>
+            <div className="flex justify-between items-center w-full">
+              <p className="text-sm">Số điện thoại</p>
+            </div>
+          </SettingChooseItem>
+          <SettingChooseItem>
+            <p className="text-sm">Email</p>
+          </SettingChooseItem>
+        </SettingSection>
+        <SettingSection title="Bảo mật">
+          <SettingChooseItem onClick={() => setCurrentView("devices")}>
+            <p className="text-sm">Thiết bị đăng nhập</p>
+          </SettingChooseItem>
+          <SettingChooseItem
+            onClick={() => setCurrentView("password")}
+            className="border-b-[0.5px] border-gray-100"
+          >
+            <p className="text-sm">Mật khẩu</p>
+          </SettingChooseItem>
+          <SettingChooseItem
+            onClick={openLockDialog}
+            className="border-none text-red-600 hover:bg-red-50"
+          >
+            <p className="text-sm font-semibold">Khóa tài khoản</p>
+          </SettingChooseItem>
+        </SettingSection>
+      </div>
+
+      {/* Lock Account Confirmation Dialog */}
+      <AlertDialog open={lockDialogOpen} onOpenChange={setLockDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận khóa tài khoản</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tài khoản của bạn sẽ bị khóa và bạn sẽ bị đăng xuất ngay lập tức.
+              Để mở khóa lại, hãy dùng chức năng{" "}
+              <span className="font-medium text-gray-700">Mở khóa tài khoản</span>{" "}
+              ở màn hình đăng nhập.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="flex flex-col gap-1.5 mt-1">
+            <label className="text-sm font-medium text-gray-700">
+              Nhập mật khẩu để xác nhận
+            </label>
+            <Input
+              ref={passwordInputRef}
+              type="password"
+              placeholder="Mật khẩu của bạn"
+              value={lockPassword}
+              onChange={(e) => setLockPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && onConfirmLock()}
+              className="h-9"
+            />
           </div>
-        </SettingChooseItem>
-        <SettingChooseItem>
-          <p className="text-sm">Email</p>
-        </SettingChooseItem>
-      </SettingSection>
-      <SettingSection title="Bảo mật">
-        <SettingChooseItem onClick={() => setCurrentView("devices")}>
-          <p className="text-sm">Thiết bị đăng nhập</p>
-        </SettingChooseItem>
-        <SettingChooseItem
-          onClick={() => setCurrentView("password")}
-          className="border-none"
-        >
-          <p className="text-sm">Mật khẩu</p>
-        </SettingChooseItem>
-      </SettingSection>
-    </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={lockLoading}>Hủy</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={onConfirmLock}
+              disabled={lockLoading || !lockPassword.trim()}
+              className="rounded-md"
+            >
+              {lockLoading ? "Đang xử lý..." : "Khóa tài khoản"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -86,6 +173,18 @@ function DeviceManagementView({ onBack }: { onBack: () => void }) {
   const { socket } = useSocket();
   const dispatch = useAppDispatch();
   const [sessions, setSessions] = useState<Session[]>();
+  const [blockedDevices, setBlockedDevices] = useState<any[]>([]);
+  const [deviceToBlock, setDeviceToBlock] = useState<string | null>(null);
+
+  const fetchBlockedDevices = async () => {
+    try {
+      const res = await authService.getBlockedDevices();
+      const normalized = res.map((d: any) => typeof d === 'string' ? { deviceId: d, deviceName: 'Thiết bị không xác định', deviceType: 'unknown' } : d);
+      setBlockedDevices(normalized);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchSessions = async () => {
     const rs = await dispatch(getSessions()).unwrap();
@@ -128,6 +227,37 @@ function DeviceManagementView({ onBack }: { onBack: () => void }) {
     }
   };
 
+  const onBlockDevice = async () => {
+    if (!deviceToBlock) return;
+    try {
+      const targetSession = sessions?.find(s => s.deviceId === deviceToBlock);
+      await authService.blockDevice(deviceToBlock);
+      setSessions(sessions?.filter((session) => session.deviceId != deviceToBlock));
+      const newBlock = {
+        deviceId: deviceToBlock,
+        deviceName: targetSession?.deviceName || 'Thiết bị không xác định',
+        deviceType: targetSession?.deviceType || 'unknown',
+        location: targetSession?.location || 'Không xác định',
+        blockedAt: new Date().toISOString()
+      };
+      setBlockedDevices([...blockedDevices, newBlock]);
+      setDeviceToBlock(null);
+      toast.success("Đã chặn thiết bị thành công");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Chặn thiết bị không thành công");
+    }
+  };
+
+  const onUnblockDevice = async (deviceId: string) => {
+    try {
+      await authService.unblockDevice(deviceId);
+      setBlockedDevices(blockedDevices.filter((d) => d.deviceId !== deviceId));
+      toast.success("Đã bỏ chặn thiết bị thành công");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Bỏ chặn thiết bị không thành công");
+    }
+  };
+
   const onLogoutOtherDevices = async () => {
     if (!window.confirm("Bạn có chắc chắn muốn đăng xuất tất cả các thiết bị khác không?")) return;
     try {
@@ -142,6 +272,7 @@ function DeviceManagementView({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     fetchSessions();
+    fetchBlockedDevices();
   }, []);
 
   const otherSessionsCount = sessions ? sessions.filter((s) => s.deviceId !== getDeviceId()).length : 0;
@@ -180,6 +311,7 @@ function DeviceManagementView({ onBack }: { onBack: () => void }) {
                 session.deviceId !== getDeviceId() ? (
                   <DeviceSettingDropdown
                     onLougout={() => onLogoutDevice(session.deviceId)}
+                    onBlock={() => setDeviceToBlock(session.deviceId)}
                   />
                 ) : (
                   <Ellipsis color="gray" />
@@ -225,6 +357,73 @@ function DeviceManagementView({ onBack }: { onBack: () => void }) {
           ))
         )}
       </SettingSection>
+
+      {blockedDevices.length > 0 && (
+        <SettingSection title="Thiết bị đã chặn" className="mt-4">
+          {blockedDevices.map((device, index) => (
+            <SettingChooseItem
+              key={index}
+              rightSection={
+                <Button size="sm" variant="outline" onClick={() => onUnblockDevice(device.deviceId)}>
+                  Bỏ chặn
+                </Button>
+              }
+            >
+              <div className="flex gap-3 items-center opacity-75">
+                <div>
+                  {device.deviceType === "browser" ? (
+                    <Globe size={30} color="#ef4444" />
+                  ) : device.deviceType === "tablet" ? (
+                    <Tablet color="#ef4444" />
+                  ) : (
+                    <Smartphone color="#ef4444" />
+                  )}
+                </div>
+                <div className="flex flex-col gap-1 text-sm text-start">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-medium text-gray-800 line-through">
+                      {device.deviceName}
+                    </p>
+                    <span className="bg-red-50 text-red-600 border border-red-100 text-[10px] font-semibold rounded-full px-2 py-0.5">
+                      Đã chặn
+                    </span>
+                  </div>
+                  {device.blockedAt && (
+                    <p className="text-[11px] text-gray-500">
+                      Thời gian chặn: {formatDateTime(device.blockedAt)}
+                    </p>
+                  )}
+                  {device.location && (
+                    <p className="text-[11px] text-gray-500">
+                      Vị trí: {device.location}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </SettingChooseItem>
+          ))}
+        </SettingSection>
+      )}
+
+      <AlertDialog open={!!deviceToBlock} onOpenChange={(open) => !open && setDeviceToBlock(null)}>
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Chặn thiết bị</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc chắn muốn chặn thiết bị này? Thiết bị sẽ bị đăng xuất và không thể đăng nhập lại vào tài khoản của bạn cho đến khi được bỏ chặn.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={onBlockDevice}
+            >
+              Chặn
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </NestedViewLayout>
   );
 }

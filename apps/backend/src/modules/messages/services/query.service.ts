@@ -40,7 +40,7 @@ export class MessagesQueryService {
     private readonly pollModel: Model<Poll>,
     @InjectModel(PollVote.name)
     private readonly pollVoteModel: Model<PollVote>,
-  ) {}
+  ) { }
 
   private async enrichPollMessages(messages: any[]) {
     return await Promise.all(
@@ -333,7 +333,7 @@ export class MessagesQueryService {
         },
       })
       .lean();
-      
+
     const enrichedMessages = await this.enrichPollMessages(messages);
 
     const transformedMessages = enrichedMessages.map((message) =>
@@ -600,7 +600,10 @@ export class MessagesQueryService {
     };
 
     if (keyword) {
-      query['content.text'] = { $regex: keyword, $options: 'i' };
+      query.$or = [
+        { 'content.text': { $regex: keyword, $options: 'i' } },
+        { 'content.files.fileName': { $regex: keyword, $options: 'i' } },
+      ];
     }
 
     if (senderId) {

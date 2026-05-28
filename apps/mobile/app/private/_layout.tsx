@@ -88,6 +88,7 @@ export default function PrivateLayout() {
           <Stack.Screen name="update-profile" />
           <Stack.Screen name="qr-scanner" />
           <Stack.Screen name="confirm-qr-login" />
+          <Stack.Screen name="account-block" />
         </Stack>
 
       </VideoCallProvider>

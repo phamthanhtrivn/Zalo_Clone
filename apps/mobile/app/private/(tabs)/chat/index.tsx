@@ -80,10 +80,18 @@ export default function Home() {
       }
     };
 
+    const handleBlockEvent = () => {
+      loadConversations();
+    };
+
     socket.on("new_message", handleNewMessage);
+    socket.on("blocked", handleBlockEvent);
+    socket.on("blocked_by", handleBlockEvent);
 
     return () => {
       socket.off("new_message", handleNewMessage);
+      socket.off("blocked", handleBlockEvent);
+      socket.off("blocked_by", handleBlockEvent);
     };
   }, [socket, user?.userId]);
 

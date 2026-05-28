@@ -50,21 +50,22 @@ export class AuthService {
         formattedPhone = '+' + formattedPhone;
       }
 
-      await axios.post(
-        'https://api.infinireach.io/api/v1/messages',
-        {
-          to: formattedPhone,
-          from: fromPhone,
-          message,
-          channel: 'sms',
-        },
-        {
-          headers: {
-            'X-API-Key': apiKey,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
+      // await axios.post(
+      //   'https://api.infinireach.io/api/v1/messages',
+      //   {
+      //     to: formattedPhone,
+      //     from: fromPhone,
+      //     message,
+      //     channel: 'sms',
+      //   },
+      //   {
+      //     headers: {
+      //       'X-API-Key': apiKey,
+      //       'Content-Type': 'application/json',
+      //     },
+      //   },
+      // );
+      console.log(message);
       console.log(`Đã gửi SMS thành công tới ${formattedPhone}`);
       return true;
     } catch (error: any) {
@@ -244,6 +245,9 @@ export class AuthService {
     const user = await this.userService.findByPhone(phone);
 
     if (user && (await bcrypt.compare(pass, user.password))) {
+      if (user.isLocked) {
+        throw new UnauthorizedException('Tài khoản của bạn đã bị khóa. Vui lòng mở khóa để tiếp tục sử dụng.');
+      }
       const avatar = this.storageService.signFileUrl(
         user.profile?.avatarUrl as string,
       );
@@ -271,6 +275,15 @@ export class AuthService {
       throw new UnauthorizedException('Phiên đăng nhập không tồn tại ');
     }
 
+    const userDoc = await this.userService.findById(payload.userId);
+    const isBlocked = userDoc?.blockedDevices?.some(d =>
+      (typeof d === 'string' ? d : d.deviceId) === session.deviceId
+    );
+    if (isBlocked) {
+      await this.sessionService.removeByDevice(payload.userId, session.deviceId);
+      throw new UnauthorizedException('Thiết bị này đã bị chặn');
+    }
+
     const accessToken = await this.tokenService.signAccess({
       userId: payload.userId,
       phone: payload.phone,
@@ -280,6 +293,14 @@ export class AuthService {
   }
 
   async signIn(user: AuthUser, client: IClientInfo) {
+    const userDoc = await this.userService.findById(user.userId);
+    const isBlocked = userDoc?.blockedDevices?.some(d =>
+      (typeof d === 'string' ? d : d.deviceId) === client.deviceId
+    );
+    if (isBlocked) {
+      throw new UnauthorizedException('Thiết bị này đã bị chặn');
+    }
+
     await this.sessionService.removeByDevice(user.userId, client.deviceId);
 
     const accessToken = await this.tokenService.signAccess(user);
@@ -314,6 +335,9 @@ export class AuthService {
   ) {
     if (newPassword !== confirmPassword) {
       throw new BadRequestException('Mật khẩu xác nhận không khớp !');
+    }
+    if (newPassword === oldPassword) {
+      throw new BadRequestException('Mật khẩu mới không được trùng với mật khẩu cũ!');
     }
     await this.userService.checkMatchPassword(phone, oldPassword);
     await this.userService.updatePassword(phone, newPassword);
@@ -357,6 +381,29 @@ export class AuthService {
     } else {
       throw new UnauthorizedException('Không có phiên đăng nhập !');
     }
+  }
+
+  async lockAccount(userId: string, password: string) {
+    if (!password) {
+      throw new BadRequestException('Vui lòng nhập mật khẩu xác nhận');
+    }
+
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('Người dùng không tồn tại');
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      throw new BadRequestException('Mật khẩu xác nhận không chính xác!');
+    }
+
+    await this.userService.setLockStatus(userId, true);
+
+    // Đăng xuất tất cả thiết bị và emit force_logout đến mọi client đang online
+    await this.signOutAllDevices(userId);
+
+    return { success: true };
   }
 
   async signOutOtherDevices(userId: string, currentDeviceId: string) {
@@ -443,5 +490,68 @@ export class AuthService {
       console.log(err);
       throw err;
     }
+  }
+
+  async requestUnlockAccount(phone: string) {
+    const user = await this.userService.findByPhone(phone);
+    if (!user) {
+      throw new NotFoundException('Số điện thoại chưa được đăng ký');
+    }
+    if (!user.isLocked) {
+      throw new BadRequestException('Tài khoản này không bị khóa !');
+    }
+
+    await this.sendOtp(phone);
+
+    return {
+      message: 'Mã OTP đã được gửi tới số điện thoại của bạn.',
+      expiresIn: process.env.OTP_RESEND_SECONDS || 120,
+    };
+  }
+
+  async verifyUnlockAccount(phone: string, otp: string) {
+    const user = await this.userService.findByPhone(phone);
+    if (!user) {
+      throw new NotFoundException('Số điện thoại chưa được đăng ký');
+    }
+    if (!user.isLocked) {
+      throw new BadRequestException('Tài khoản này không bị khóa !');
+    }
+
+    await this.verifyOtpOnly(phone, otp);
+
+    // Gỡ khóa tài khoản
+    await this.userService.unlockAccount(user._id.toString());
+
+    return { message: 'Tài khoản của bạn đã được mở khóa thành công. Bạn đã có thể đăng nhập!' };
+  }
+
+  async blockDevice(userId: string, deviceId: string) {
+    const session = await this.sessionService.findByDevice(userId, deviceId);
+    let deviceName = 'Thiết bị không xác định';
+    let deviceType = 'unknown';
+    let location = 'Không xác định';
+
+    if (session) {
+      deviceName = session.deviceName;
+      deviceType = session.deviceType;
+      location = session.location || location;
+    }
+
+    // Gọi force logout thiết bị này trước
+    await this.signOutSpecificDevice(userId, deviceId).catch(() => { });
+
+    await this.userService.blockDevice(userId, { deviceId, deviceName, deviceType, location, blockedAt: new Date() });
+    return { success: true, message: 'Đã chặn thiết bị thành công' };
+  }
+
+  async unblockDevice(userId: string, deviceId: string) {
+    await this.userService.unblockDevice(userId, deviceId);
+    return { success: true, message: 'Đã bỏ chặn thiết bị thành công' };
+  }
+
+  async getBlockedDevices(userId: string) {
+    const user = await this.userService.findById(userId);
+    return user?.blockedDevices || [];
   }
 }

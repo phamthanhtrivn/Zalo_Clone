@@ -22,6 +22,24 @@ export class Profile {
 }
 
 @Schema({ _id: false })
+export class BlockedDevice {
+  @Prop({ required: true })
+  deviceId: string;
+
+  @Prop({ required: true })
+  deviceName: string;
+
+  @Prop()
+  deviceType?: string;
+
+  @Prop()
+  location?: string;
+
+  @Prop({ default: Date.now })
+  blockedAt?: Date;
+}
+
+@Schema({ _id: false })
 export class Setting {
   @Prop({ default: true })
   allowMessagesFromStrangers: boolean;
@@ -76,6 +94,12 @@ export class User {
 
   @Prop()
   conversationPinHash?: string;
+
+  @Prop({ default: false })
+  isLocked?: boolean;
+
+  @Prop({ type: [BlockedDevice], default: [] })
+  blockedDevices?: BlockedDevice[];
 }
 export type UserDocument = User & Document;
 export const UserSchema = SchemaFactory.createForClass(User);

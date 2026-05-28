@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import AppAvatar from "@/components/common/AppAvatar";
 import { X } from "lucide-react";
 import type { MessagesType } from "@/types/messages.type";
 
@@ -40,28 +40,27 @@ const ViewDetailMessageModal = ({
 
           <div className="grid grid-cols-3 gap-3 max-h-60 overflow-y-auto">
             {selectedMessage.readReceipts
-              ?.filter((r: any) => !!r?.userId?.profile?.avatarUrl)
+              ?.filter((r: any) => !!r?.userId)
               .map((r, index) => {
-              const user = r.userId;
+                const user = r.userId;
 
-              return (
-                <div
-                  key={index}
-                  className="flex flex-col items-center text-center gap-1"
-                >
-                  <Avatar className="w-10 h-10">
-                    <AvatarImage src={user?.profile?.avatarUrl} />
-                    <AvatarFallback>
-                      {user?.profile?.name?.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
+                return (
+                  <div
+                    key={index}
+                    className="flex flex-col items-center text-center gap-1"
+                  >
+                    <AppAvatar
+                      src={user?.profile?.avatarUrl}
+                      name={user?.profile?.name || ""}
+                      className="w-10 h-10"
+                    />
 
-                  <div className="text-xs text-gray-700 truncate w-full">
-                    {user?.profile?.name}
+                    <div className="text-xs text-gray-700 truncate w-full">
+                      {user?.profile?.name}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         </div>
       </div>

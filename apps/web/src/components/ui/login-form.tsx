@@ -13,10 +13,12 @@ import { QRCodeSVG } from "qrcode.react";
 import QRConfirmationView from "../layout/auth/QRConfirmationView";
 import {
   onQrGenerated,
-  onQrLoginSuccess,
   onQrScanned,
+  onQrLoginSuccess,
   requestQrCode,
 } from "@/contexts/auth.socket";
+import { OtpInput } from "@/components/ui/otp-input";
+import { authService } from "@/services/auth.service";
 
 export function LoginForm({
   className,
@@ -34,6 +36,62 @@ export function LoginForm({
   const [password, setPassword] = useState<string>("");
   const { accessToken } = useAppSelector((state) => state.auth);
   const [qrToken, setQrToken] = useState<string>("null");
+
+  const [isUnlocking, setIsUnlocking] = useState(false);
+  const [unlockStep, setUnlockStep] = useState<1 | 2>(1);
+  const [unlockPhone, setUnlockPhone] = useState("");
+  const [unlockOtp, setUnlockOtp] = useState("");
+  const [unlockLoading, setUnlockLoading] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(0);
+
+  useEffect(() => {
+    if (timeLeft > 0) {
+      const timer = setInterval(() => {
+        setTimeLeft((t) => t - 1);
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [timeLeft]);
+
+  const handleRequestUnlock = async () => {
+    const trimmedPhone = unlockPhone.trim();
+    if (!trimmedPhone) {
+      toast.error("Vui lòng nhập số điện thoại");
+      return;
+    }
+
+    try {
+      setUnlockLoading(true);
+      const res = await authService.requestUnlockAccount(trimmedPhone);
+      toast.success(res.message || "Đã gửi mã OTP thành công");
+      setTimeLeft(res.expiresIn || 120);
+      setUnlockStep(2);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Yêu cầu gửi OTP thất bại");
+    } finally {
+      setUnlockLoading(false);
+    }
+  };
+
+  const handleConfirmUnlock = async () => {
+    if (unlockOtp.length !== 6) {
+      toast.error("Vui lòng nhập đầy đủ mã OTP 6 chữ số");
+      return;
+    }
+
+    try {
+      setUnlockLoading(true);
+      const res = await authService.verifyUnlockAccount(unlockPhone.trim(), unlockOtp.trim());
+      toast.success(res.message || "Tài khoản của bạn đã được mở khóa thành công!");
+      setIsUnlocking(false);
+      setPhone(unlockPhone);
+      setUnlockOtp("");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Mở khóa thất bại. Vui lòng thử lại");
+    } finally {
+      setUnlockLoading(false);
+    }
+  };
 
   useEffect(() => {
     requestQrCode();
@@ -71,6 +129,104 @@ export function LoginForm({
       toast.error(err.message || "Đăng nhập không thành công!");
     }
   };
+
+  if (isUnlocking) {
+    return (
+      <div className={cn("flex flex-col gap-6 items-center", className)} {...props}>
+        <Card className="w-100">
+          <CardHeader className="text-center">
+            <CardTitle className="text-xl">Mở khóa tài khoản</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6">
+              {unlockStep === 1 ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleRequestUnlock();
+                  }}
+                  className="grid gap-4"
+                >
+                  <p className="text-xs text-gray-500 text-center leading-relaxed">
+                    Nhập số điện thoại đăng ký để nhận mã OTP mở khóa tài khoản
+                  </p>
+                  <div className="grid gap-2 text-start">
+                    <Label htmlFor="unlock-phone">Số điện thoại</Label>
+                    <Input
+                      id="unlock-phone"
+                      type="tel"
+                      placeholder="Nhập số điện thoại"
+                      required
+                      value={unlockPhone}
+                      onChange={(e) => setUnlockPhone(e.target.value)}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={unlockLoading}>
+                    {unlockLoading ? "Đang gửi..." : "Gửi mã OTP"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setIsUnlocking(false)}
+                  >
+                    Quay lại đăng nhập
+                  </Button>
+                </form>
+              ) : (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleConfirmUnlock();
+                  }}
+                  className="grid gap-4"
+                >
+                  <p className="text-xs text-gray-500 text-center leading-relaxed">
+                    Nhập mã OTP 6 chữ số vừa được gửi đến số điện thoại <span className="font-semibold text-blue-600">{unlockPhone}</span>
+                  </p>
+                  <div className="grid gap-2 text-start">
+                    <Label htmlFor="unlock-otp">Mã xác thực OTP</Label>
+                    <OtpInput
+                      value={unlockOtp}
+                      onChange={setUnlockOtp}
+                      disabled={unlockLoading}
+                      autoFocus={unlockStep === 2}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={unlockLoading || unlockOtp.length !== 6}>
+                    {unlockLoading ? "Đang mở khóa..." : "Mở khóa tài khoản"}
+                  </Button>
+                  <div className="text-center text-xs">
+                    {timeLeft > 0 ? (
+                      <span className="text-gray-400">
+                        Gửi lại mã trong: <span className="font-semibold text-blue-600">{timeLeft}s</span>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleRequestUnlock}
+                        className="text-blue-600 hover:underline font-medium"
+                      >
+                        Gửi lại mã OTP
+                      </button>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full mt-2"
+                    onClick={() => setUnlockStep(1)}
+                  >
+                    Thay đổi số điện thoại
+                  </Button>
+                </form>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className={cn("flex flex-col gap-6 items-center", className)} {...props}>
@@ -118,12 +274,26 @@ export function LoginForm({
                   <div className="grid gap-2">
                     <div className="flex items-center">
                       <Label htmlFor="password">Mật khẩu</Label>
-                      <Link
-                        to="/forgot-password"
-                        className="ml-auto text-sm text-blue-600 hover:text-blue-800 underline-offset-4 hover:underline"
-                      >
-                        Quên mật khẩu ?
-                      </Link>
+                      <div className="ml-auto flex gap-2 text-xs">
+                        <Link
+                          to="/forgot-password"
+                          className="text-blue-600 hover:text-blue-800 underline-offset-4 hover:underline"
+                        >
+                          Quên mật khẩu?
+                        </Link>
+                        <span className="text-gray-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUnlockStep(1);
+                            setUnlockPhone(phone);
+                            setIsUnlocking(true);
+                          }}
+                          className="text-red-500 hover:text-red-700 underline-offset-4 hover:underline font-medium"
+                        >
+                          Mở khóa tài khoản
+                        </button>
+                      </div>
                     </div>
                     <Input
                       id="password"
