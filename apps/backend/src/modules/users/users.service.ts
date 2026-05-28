@@ -126,6 +126,13 @@ export class UsersService {
     this.chatGateway.server
       .to(body.friendId)
       .emit('receive_friend_request', payload);
+    try {
+      this.chatGateway.server
+        .to(body.userId)
+        .emit('friend_status_updated', { userId: body.userId, friendId: body.friendId });
+    } catch (e) {
+      console.error(e);
+    }
     // Gui yeu cau lai lan nua
     if (check) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
@@ -192,6 +199,11 @@ export class UsersService {
     };
 
     this.chatGateway.server.to(body.friendId).emit('friend_accepted', payload);
+    try {
+      this.chatGateway.server.to(body.userId).emit('friend_status_updated', { userId: body.userId, friendId: body.friendId });
+    } catch (e) {
+      console.error(e);
+    }
 
     if (check1 || check2) {
       // update status user
@@ -234,6 +246,21 @@ export class UsersService {
   //  [POST] /api/users/block-friend
   async blockFriend(body: RequestFriendDto) {
     const { userId, friendId } = body;
+
+    // Guard: Không cho phép chặn người đã chặn bạn trước
+    const myRecord = await this.userModel
+      .findOne(
+        { _id: userId, 'friends.friendId': friendId },
+        { 'friends.$': 1 },
+      )
+      .lean();
+    const myCurrentStatus = myRecord?.friends?.[0]?.status;
+    if (myCurrentStatus === FriendStatus.BLOCKED_BY_OTHER) {
+      throw new BadRequestException(
+        'Bạn không thể chặn người đã chặn bạn',
+      );
+    }
+
     await updateFriendStatus(
       this.userModel,
       userId,
@@ -256,6 +283,48 @@ export class UsersService {
       this.chatGateway.server.to(userId).emit('blocked', { userId, friendId });
     } catch (err) {
       console.error('Error emitting block events:', err);
+    }
+    return { userId, friendId };
+  }
+
+  //  [POST] /api/users/unblock-friend
+  async unblockFriend(body: RequestFriendDto) {
+    const { userId, friendId } = body;
+
+    // Chỉ người có status BLOCKED mới được bỏ chặn
+    const myRecord = await this.userModel
+      .findOne(
+        { _id: userId, 'friends.friendId': friendId },
+        { 'friends.$': 1 },
+      )
+      .lean();
+    const myCurrentStatus = myRecord?.friends?.[0]?.status;
+    if (myCurrentStatus !== FriendStatus.BLOCKED) {
+      throw new BadRequestException(
+        'Bạn không chặn người này nên không thể bỏ chặn',
+      );
+    }
+
+    // Xóa record của người chặn (userId)
+    await this.userModel.findByIdAndUpdate(userId, {
+      $pull: { friends: { friendId: friendId } },
+    });
+
+    // Khôi phục record của người bị chặn: xóa BLOCKED_BY_OTHER
+    await this.userModel.findByIdAndUpdate(friendId, {
+      $pull: { friends: { friendId: userId } },
+    });
+
+    // Emit socket để cả 2 phía cập nhật realtime
+    try {
+      this.chatGateway.server
+        .to(friendId)
+        .emit('unblocked', { userId, friendId });
+      this.chatGateway.server
+        .to(userId)
+        .emit('unblocked', { userId, friendId });
+    } catch (err) {
+      console.error('Error emitting unblocked event:', err);
     }
     return { userId, friendId };
   }
@@ -289,6 +358,13 @@ export class UsersService {
     this.chatGateway.server
       .to(body.friendId)
       .emit('cancel_friend_request', body.userId);
+    try {
+      this.chatGateway.server
+        .to(body.userId)
+        .emit('friend_status_updated', { userId: body.userId, friendId: body.friendId });
+    } catch (e) {
+      console.error(e);
+    }
 
     // Also notify the initiator (userId) so their other devices update in real-time
     try {

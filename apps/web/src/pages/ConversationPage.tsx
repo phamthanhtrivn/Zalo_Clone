@@ -204,6 +204,7 @@ const ConversationPage = () => {
     socket.on("cancel_friend_request", refreshOnFriendEvent);
     socket.on("blocked", refreshOnFriendEvent);
     socket.on("blocked_by", refreshOnFriendEvent);
+    socket.on("friend_status_updated", refreshOnFriendEvent);
 
     return () => {
       socket.off("receive_friend_request", refreshOnFriendEvent);
@@ -211,6 +212,7 @@ const ConversationPage = () => {
       socket.off("cancel_friend_request", refreshOnFriendEvent);
       socket.off("blocked", refreshOnFriendEvent);
       socket.off("blocked_by", refreshOnFriendEvent);
+      socket.off("friend_status_updated", refreshOnFriendEvent);
     };
   }, [socket, isGroup, effectiveOtherMemberId, currentUserId, refreshFriendStatus]);
   const handleSendFriendRequest = async () => {
@@ -237,7 +239,7 @@ const ConversationPage = () => {
   const handleUnblockFriendRequest = async () => {
     if (!effectiveOtherMemberId || !currentUserId) return;
     try {
-      await userService.cancelFriend(effectiveOtherMemberId, currentUserId);
+      await userService.unblockFriend(effectiveOtherMemberId, currentUserId);
       setIsFriend(false);
       setFriendStatus(null);
     } catch (err) {
@@ -883,7 +885,6 @@ const ConversationPage = () => {
 
   useEffect(() => {
     if (!id || conversation || isConversationLoading) return;
-
     if (!hasAttemptedFetch) {
       setHasAttemptedFetch(true);
       dispatch(fetchConversations());

@@ -2,7 +2,7 @@ import { formatTime } from "@/utils/format-message-time..util";
 import type { MessagesType } from "@/types/messages.type";
 
 import { saveAs } from "file-saver";
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import { VoicePlayer } from "./VoicePlayer";
 import { ImageViewer } from "./ImageViewer";
 import PollMessage from "./PollMessage";
@@ -119,7 +119,7 @@ const renderTextWithLinks = (
   });
 };
 
-export const MessageBubble = ({
+export const MessageBubble = memo(({
   message,
   isMe,
   showTime,
@@ -139,6 +139,7 @@ export const MessageBubble = ({
     state.conversation.conversations.find((c) => c.conversationId === message.conversationId)
   );
   const isGroupChat = conversation?.type === "GROUP";
+  const isSticker = !!content?.icon && (content.icon.startsWith("http") || content.icon.startsWith("/"));
 
   // Hỗ trợ cả 2 chuẩn: array files (mới) và single file (cũ)
   const files = content?.files || [];
@@ -250,15 +251,19 @@ export const MessageBubble = ({
       onClick={() => {
         if (isSelected) toggleSelectMessage(message._id);
       }}
-      className={`rounded-lg px-3 py-2 max-w-md border shadow-sm transition-colors ${isSelected ? "cursor-pointer" : ""
-        } ${isMe
-          ? selectedMessages.includes(message._id)
-            ? "bg-zalo-selected"
-            : "bg-zalo-light"
-          : selectedMessages.includes(message._id)
-            ? "bg-zalo-selected"
-            : "bg-white"
-        }`}
+      className={
+        isSticker
+          ? `max-w-md transition-colors ${isSelected ? "cursor-pointer bg-zalo-selected/30 rounded-lg p-1" : ""}`
+          : `rounded-lg px-3 py-2 max-w-md border shadow-sm transition-colors ${isSelected ? "cursor-pointer" : ""
+          } ${isMe
+            ? selectedMessages.includes(message._id)
+              ? "bg-zalo-selected"
+              : "bg-zalo-light"
+            : selectedMessages.includes(message._id)
+              ? "bg-zalo-selected"
+              : "bg-white"
+          }`
+      }
     >
       <div className="space-y-2 wrap-break-word">
         {/* REPLY BLOCK */}
@@ -457,4 +462,22 @@ export const MessageBubble = ({
       />
     </div>
   );
-};
+}, (prevProps, nextProps) => {
+  if (prevProps.message._id !== nextProps.message._id) return false;
+  if (prevProps.message.createdAt !== nextProps.message.createdAt) return false;
+  if (prevProps.message.recalled !== nextProps.message.recalled) return false;
+  if (prevProps.message.expired !== nextProps.message.expired) return false;
+
+  if (prevProps.isMe !== nextProps.isMe) return false;
+  if (prevProps.showTime !== nextProps.showTime) return false;
+  if (prevProps.isTranslating !== nextProps.isTranslating) return false;
+  if (prevProps.translatedText !== nextProps.translatedText) return false;
+
+  const wasSelected = prevProps.selectedMessages.includes(prevProps.message._id);
+  const isSelected = nextProps.selectedMessages.includes(nextProps.message._id);
+  if (wasSelected !== isSelected) return false;
+
+  if (prevProps.members !== nextProps.members) return false;
+
+  return true;
+});

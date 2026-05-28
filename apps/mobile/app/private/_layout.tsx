@@ -89,8 +89,13 @@ export default function PrivateLayout() {
           <Stack.Screen name="qr-scanner" />
           <Stack.Screen name="confirm-qr-login" />
           <Stack.Screen name="account-block" />
+          <Stack.Screen name="search-friends" />
+          <Stack.Screen name="suggest-friends" />
+          <Stack.Screen name="sessions" />
+          <Stack.Screen name="search-profile" />
+          <Stack.Screen name="change-phone" />
+          <Stack.Screen name="scan-qr" />
         </Stack>
-
       </VideoCallProvider>
     </SocketProvider>
   );

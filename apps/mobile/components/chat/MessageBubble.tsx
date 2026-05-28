@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -166,6 +166,105 @@ const TextWithLinks = ({ text, members }: { text: string; members?: any[] }) => 
   );
 };
 
+const imageSizeCache: Record<string, number> = {};
+
+const SingleMediaItem = ({ file, onPress }: { file: any; onPress: () => void }) => {
+  const cachedRatio = imageSizeCache[file.fileKey] || null;
+  const [aspectRatio, setAspectRatio] = useState<number | null>(cachedRatio);
+
+  useEffect(() => {
+    if (imageSizeCache[file.fileKey]) {
+      setAspectRatio(imageSizeCache[file.fileKey]);
+    } else {
+      setAspectRatio(null);
+    }
+  }, [file.fileKey]);
+
+  const MAX_WIDTH = SCREEN_WIDTH * 0.65;
+  const MAX_HEIGHT = 300;
+
+  // Default dimensions while loading or if aspect ratio is not yet resolved
+  let displayWidth = 200;
+  let displayHeight = 200;
+
+  if (aspectRatio) {
+    if (aspectRatio > 1) {
+      // Landscape: width is bounded by MAX_WIDTH
+      displayWidth = MAX_WIDTH;
+      displayHeight = MAX_WIDTH / aspectRatio;
+      if (displayHeight > MAX_HEIGHT) {
+        displayHeight = MAX_HEIGHT;
+        displayWidth = MAX_HEIGHT * aspectRatio;
+      }
+    } else {
+      // Portrait: height is bounded by MAX_HEIGHT
+      displayHeight = MAX_HEIGHT;
+      displayWidth = MAX_HEIGHT * aspectRatio;
+      if (displayWidth > MAX_WIDTH) {
+        displayWidth = MAX_WIDTH;
+        displayHeight = MAX_WIDTH / aspectRatio;
+      }
+    }
+  }
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={onPress}
+      style={{
+        width: displayWidth,
+        height: displayHeight,
+        borderRadius: 8,
+        overflow: "hidden",
+        backgroundColor: "#000",
+      }}
+    >
+      {file.type === "IMAGE" ? (
+        <Image
+          source={{ uri: file.fileKey }}
+          style={{ width: displayWidth, height: displayHeight }}
+          contentFit="contain"
+          onLoad={(evt) => {
+            if (evt.source?.width && evt.source?.height) {
+              const ratio = evt.source.width / evt.source.height;
+              imageSizeCache[file.fileKey] = ratio;
+              setAspectRatio(ratio);
+            }
+          }}
+        />
+      ) : (
+        <View style={{ width: displayWidth, height: displayHeight, justifyContent: "center", alignItems: "center" }}>
+          <Video
+            source={{ uri: file.fileKey }}
+            style={{ width: displayWidth, height: displayHeight }}
+            resizeMode={ResizeMode.CONTAIN}
+            onReadyForDisplay={(evt) => {
+              if (evt.naturalSize?.width && evt.naturalSize?.height) {
+                const ratio = evt.naturalSize.width / evt.naturalSize.height;
+                imageSizeCache[file.fileKey] = ratio;
+                setAspectRatio(ratio);
+              }
+            }}
+          />
+          <View
+            style={{
+              position: "absolute",
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Ionicons name="play" size={18} color="white" />
+          </View>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+};
+
 const MessageBubble = ({
   message,
   isMe,
@@ -189,6 +288,7 @@ const MessageBubble = ({
   onClearTranslation,
 }: Props) => {
   const content = message.content;
+  const isSticker = !!content?.icon && (content.icon.startsWith("http") || content.icon.startsWith("/"));
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [downloadingKeys, setDownloadingKeys] = useState<string[]>([]);
 
@@ -370,14 +470,24 @@ const MessageBubble = ({
             activeOpacity={0.8}
             onLongPress={onLongPress}
             onPress={onPress}
-            style={{
-              backgroundColor: bubbleBg,
-              borderRadius: 6,
-              paddingHorizontal: 12,
-              paddingVertical: 8,
-              borderWidth: 1,
-              borderColor: "#e5e7eb",
-            }}
+            style={
+              isSticker
+                ? {
+                  backgroundColor: isSelected ? "rgba(0,104,255,0.12)" : "transparent",
+                  borderRadius: 6,
+                  paddingHorizontal: isSelected ? 4 : 0,
+                  paddingVertical: isSelected ? 4 : 0,
+                  borderWidth: 0,
+                }
+                : {
+                  backgroundColor: bubbleBg,
+                  borderRadius: 6,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderWidth: 1,
+                  borderColor: "#e5e7eb",
+                }
+            }
           >
             {message.call || message.type === "GROUP_CALL" || message.callSessionId ? (
               <View style={{ minWidth: 180 }}>
@@ -499,349 +609,367 @@ const MessageBubble = ({
                 {renderText()}
 
                 {/* Translating loader */}
-                {isTranslating && (
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 6,
-                      marginTop: 8,
-                      paddingTop: 8,
-                      borderTopWidth: 1,
-                      borderTopColor: "rgba(0,0,0,0.05)",
-                    }}
-                  >
-                    <ActivityIndicator size="small" color="#0068ff" />
-                    <Text style={{ fontSize: 12, color: "#6b7280", fontStyle: "italic" }}>
-                      Đang dịch...
-                    </Text>
-                  </View>
-                )}
-
-                {/* Translated text block */}
-                {!!translatedText && (
-                  <View
-                    style={{
-                      marginTop: 8,
-                      paddingTop: 8,
-                      borderTopWidth: 1,
-                      borderTopColor: "rgba(0,0,0,0.05)",
-                      minWidth: 140,
-                    }}
-                  >
+                {
+                  isTranslating && (
                     <View
                       style={{
                         flexDirection: "row",
-                        justifyContent: "space-between",
                         alignItems: "center",
-                        marginBottom: 4,
+                        gap: 6,
+                        marginTop: 8,
+                        paddingTop: 8,
+                        borderTopWidth: 1,
+                        borderTopColor: "rgba(0,0,0,0.05)",
+                      }}
+                    >
+                      <ActivityIndicator size="small" color="#0068ff" />
+                      <Text style={{ fontSize: 12, color: "#6b7280", fontStyle: "italic" }}>
+                        Đang dịch...
+                      </Text>
+                    </View>
+                  )
+                }
+
+                {/* Translated text block */}
+                {
+                  !!translatedText && (
+                    <View
+                      style={{
+                        marginTop: 8,
+                        paddingTop: 8,
+                        borderTopWidth: 1,
+                        borderTopColor: "rgba(0,0,0,0.05)",
+                        minWidth: 140,
                       }}
                     >
                       <View
                         style={{
-                          backgroundColor: "#eff6ff",
-                          paddingHorizontal: 6,
-                          paddingVertical: 2,
-                          borderRadius: 4,
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom: 4,
                         }}
                       >
-                        <Text style={{ fontSize: 9, color: "#2563eb", fontWeight: "700" }}>
-                          Dịch bởi Zola AI
+                        <View
+                          style={{
+                            backgroundColor: "#eff6ff",
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            borderRadius: 4,
+                          }}
+                        >
+                          <Text style={{ fontSize: 9, color: "#2563eb", fontWeight: "700" }}>
+                            Dịch bởi Zola AI
+                          </Text>
+                        </View>
+                        {onClearTranslation && (
+                          <TouchableOpacity onPress={onClearTranslation} activeOpacity={0.7}>
+                            <Text style={{ fontSize: 10, color: "#9ca3af" }}>Ẩn bản dịch</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      <View style={{ backgroundColor: "rgba(0,0,0,0.03)", padding: 8, borderRadius: 6 }}>
+                        <Text style={{ fontSize: 14, color: "#1e293b", lineHeight: 20 }}>
+                          {translatedText}
                         </Text>
                       </View>
-                      {onClearTranslation && (
-                        <TouchableOpacity onPress={onClearTranslation} activeOpacity={0.7}>
-                          <Text style={{ fontSize: 10, color: "#9ca3af" }}>Ẩn bản dịch</Text>
-                        </TouchableOpacity>
-                      )}
                     </View>
-                    <View style={{ backgroundColor: "rgba(0,0,0,0.03)", padding: 8, borderRadius: 6 }}>
-                      <Text style={{ fontSize: 14, color: "#1e293b", lineHeight: 20 }}>
-                        {translatedText}
-                      </Text>
-                    </View>
-                  </View>
-                )}
-                {content?.storyLink?.storyId ? (
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    onPress={() => onOpenStoryLink?.(content.storyLink?.storyId || "")}
-                    style={{
-                      marginTop: 8,
-                      width: 180,
-                      borderRadius: 16,
-                      overflow: "hidden",
-                      backgroundColor: "#0f172a",
-                      borderWidth: 1,
-                      borderColor: "#dbeafe",
-                    }}
-                  >
-                    {content.storyLink.previewImage ? (
-                      <View>
-                        <Image
-                          source={{ uri: content.storyLink.previewImage }}
-                          style={{ width: 180, height: 170 }}
-                          contentFit="cover"
-                        />
+                  )
+                }
+                {
+                  content?.storyLink?.storyId ? (
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      onPress={() => onOpenStoryLink?.(content.storyLink?.storyId || "")}
+                      style={{
+                        marginTop: 8,
+                        width: 180,
+                        borderRadius: 16,
+                        overflow: "hidden",
+                        backgroundColor: "#0f172a",
+                        borderWidth: 1,
+                        borderColor: "#dbeafe",
+                      }}
+                    >
+                      {content.storyLink.previewImage ? (
+                        <View>
+                          <Image
+                            source={{ uri: content.storyLink.previewImage }}
+                            style={{ width: 180, height: 170 }}
+                            contentFit="cover"
+                          />
+                          <View
+                            style={{
+                              position: "absolute",
+                              inset: 0,
+                              backgroundColor: "rgba(15,23,42,0.18)",
+                            }}
+                          />
+                          <View
+                            style={{
+                              position: "absolute",
+                              top: 10,
+                              left: 10,
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                              borderRadius: 999,
+                              backgroundColor: "rgba(15,23,42,0.72)",
+                            }}
+                          >
+                            <Text style={{ fontSize: 11, color: "white", fontWeight: "700" }}>
+                              Story
+                            </Text>
+                          </View>
+                        </View>
+                      ) : (
                         <View
                           style={{
-                            position: "absolute",
-                            inset: 0,
-                            backgroundColor: "rgba(15,23,42,0.18)",
+                            width: "100%",
+                            height: 170,
+                            padding: 14,
+                            justifyContent: "space-between",
+                            backgroundColor: "#2563eb",
                           }}
-                        />
+                        >
+                          <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.82)", fontWeight: "700" }}>
+                            Story
+                          </Text>
+                          <Text numberOfLines={3} style={{ fontSize: 18, color: "white", fontWeight: "700" }}>
+                            {content.storyLink.previewText || "Xem lai story"}
+                          </Text>
+                        </View>
+                      )}
+                      <View
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 10,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          backgroundColor: content.storyLink.previewImage ? "rgba(15,23,42,0.92)" : "#0f172a",
+                        }}
+                      >
                         <View
                           style={{
-                            position: "absolute",
-                            top: 10,
-                            left: 10,
+                            width: 30,
+                            height: 30,
+                            borderRadius: 15,
+                            backgroundColor: "rgba(255,255,255,0.92)",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            marginRight: 10,
+                          }}
+                        >
+                          <Ionicons name="play" size={15} color="#2563eb" />
+                        </View>
+                        <View style={{ flex: 1, marginRight: 8 }}>
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              color: "#93c5fd",
+                              fontWeight: "700",
+                            }}
+                          >
+                            Tra loi story
+                          </Text>
+                          <Text
+                            numberOfLines={1}
+                            style={{
+                              fontSize: 12,
+                              color: "white",
+                              marginTop: 2,
+                              fontWeight: "500",
+                            }}
+                          >
+                            Xem story
+                          </Text>
+                        </View>
+                        <View
+                          style={{
                             paddingHorizontal: 8,
                             paddingVertical: 4,
                             borderRadius: 999,
-                            backgroundColor: "rgba(15,23,42,0.72)",
+                            backgroundColor: "#1d4ed8",
                           }}
                         >
                           <Text style={{ fontSize: 11, color: "white", fontWeight: "700" }}>
-                            Story
+                            Xem
                           </Text>
                         </View>
                       </View>
+                    </TouchableOpacity>
+                  ) : null
+                }
+                {
+                  content?.icon ? (
+                    content.icon.startsWith('http') || content.icon.startsWith('/') ? (
+                      <Image
+                        source={{ uri: content.icon }}
+                        style={{ width: 120, height: 120 }}
+                        contentFit="contain"
+                      />
                     ) : (
-                      <View
-                        style={{
-                          width: "100%",
-                          height: 170,
-                          padding: 14,
-                          justifyContent: "space-between",
-                          backgroundColor: "#2563eb",
-                        }}
-                      >
-                        <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.82)", fontWeight: "700" }}>
-                          Story
-                        </Text>
-                        <Text numberOfLines={3} style={{ fontSize: 18, color: "white", fontWeight: "700" }}>
-                          {content.storyLink.previewText || "Xem lai story"}
-                        </Text>
-                      </View>
-                    )}
-                    <View
-                      style={{
-                        paddingHorizontal: 12,
-                        paddingVertical: 10,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        backgroundColor: content.storyLink.previewImage ? "rgba(15,23,42,0.92)" : "#0f172a",
-                      }}
-                    >
-                      <View
-                        style={{
-                          width: 30,
-                          height: 30,
-                          borderRadius: 15,
-                          backgroundColor: "rgba(255,255,255,0.92)",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          marginRight: 10,
-                        }}
-                      >
-                        <Ionicons name="play" size={15} color="#2563eb" />
-                      </View>
-                      <View style={{ flex: 1, marginRight: 8 }}>
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            color: "#93c5fd",
-                            fontWeight: "700",
-                          }}
-                        >
-                          Tra loi story
-                        </Text>
-                        <Text
-                          numberOfLines={1}
-                          style={{
-                            fontSize: 12,
-                            color: "white",
-                            marginTop: 2,
-                            fontWeight: "500",
-                          }}
-                        >
-                          Xem story
-                        </Text>
-                      </View>
-                      <View
-                        style={{
-                          paddingHorizontal: 8,
-                          paddingVertical: 4,
-                          borderRadius: 999,
-                          backgroundColor: "#1d4ed8",
-                        }}
-                      >
-                        <Text style={{ fontSize: 11, color: "white", fontWeight: "700" }}>
-                          Xem
-                        </Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                ) : null}
-                {content?.icon ? (
-                  content.icon.startsWith('http') || content.icon.startsWith('/') ? (
-                    <Image
-                      source={{ uri: content.icon }}
-                      style={{ width: 120, height: 120 }}
-                      contentFit="contain"
+                      <Text style={{ fontSize: 32 }}>{content.icon}</Text>
+                    )
+                  ) : null
+                }
+
+                {
+                  voiceFiles.map((file: any, index: number) => (
+                    <VoicePlayer
+                      key={`voice-${index}`}
+                      file={file}
+                      voiceDuration={content?.voiceDuration}
+                      isMe={isMe}
                     />
-                  ) : (
-                    <Text style={{ fontSize: 32 }}>{content.icon}</Text>
-                  )
-                ) : null}
+                  ))
+                }
 
-                {voiceFiles.map((file: any, index: number) => (
-                  <VoicePlayer
-                    key={`voice-${index}`}
-                    file={file}
-                    voiceDuration={content?.voiceDuration}
-                    isMe={isMe}
-                  />
-                ))}
+                {
+                  documentFiles.length > 0 && (
+                    <View style={{ marginTop: 6, gap: 6 }}>
+                      {documentFiles.map((file: any, index: number) => {
+                        const name = getCleanFileName(file);
+                        const cleanName = decodeURIComponent(name);
+                        const isDownloading = downloadingKeys.includes(file.fileKey);
+                        const sizeStr = file.fileSize ? formatFileSize(file.fileSize) : "0 KB";
 
-                {documentFiles.length > 0 && (
-                  <View style={{ marginTop: 6, gap: 6 }}>
-                    {documentFiles.map((file: any, index: number) => {
-                      const name = getCleanFileName(file);
-                      const cleanName = decodeURIComponent(name);
-                      const isDownloading = downloadingKeys.includes(file.fileKey);
-                      const sizeStr = file.fileSize ? formatFileSize(file.fileSize) : "0 KB";
-
-                      return (
-                        <TouchableOpacity
-                          key={`doc-${index}`}
-                          activeOpacity={0.7}
-                          onPress={() => Linking.openURL(file.fileKey)}
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            backgroundColor: "rgba(0, 0, 0, 0.05)",
-                            padding: 8,
-                            borderRadius: 6,
-                            gap: 12,
-                            width: Dimensions.get("window").width * 0.65,
-                          }}
-                        >
-                          <View style={{ width: 28, height: 28, justifyContent: "center", alignItems: "center" }}>
-                            {getFileIcon(cleanName, 28)}
-                          </View>
-                          <View style={{ flex: 1, minWidth: 0 }}>
-                            <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: "500", color: "#111" }}>
-                              {truncateFileName(cleanName, 35) || cleanName}
-                            </Text>
-                            <Text style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
-                              {sizeStr}
-                            </Text>
-                          </View>
+                        return (
                           <TouchableOpacity
-                            onPress={() => handleDownload(file)}
-                            activeOpacity={0.8}
+                            key={`doc-${index}`}
+                            activeOpacity={0.7}
+                            onPress={() => Linking.openURL(file.fileKey)}
                             style={{
-                              padding: 6,
-                              borderWidth: 1,
-                              borderColor: "#d1d5db",
-                              borderRadius: 6,
-                              backgroundColor: "#ffffff",
-                              justifyContent: "center",
+                              flexDirection: "row",
                               alignItems: "center",
+                              backgroundColor: "rgba(0, 0, 0, 0.05)",
+                              padding: 8,
+                              borderRadius: 6,
+                              gap: 12,
+                              width: Dimensions.get("window").width * 0.65,
                             }}
                           >
-                            {isDownloading ? (
-                              <ActivityIndicator size="small" color="#4b5563" style={{ width: 16, height: 16 }} />
-                            ) : (
-                              <Ionicons name="download-outline" size={16} color="#4b5563" />
-                            )}
+                            <View style={{ width: 28, height: 28, justifyContent: "center", alignItems: "center" }}>
+                              {getFileIcon(cleanName, 28)}
+                            </View>
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                              <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: "500", color: "#111" }}>
+                                {truncateFileName(cleanName, 35) || cleanName}
+                              </Text>
+                              <Text style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                                {sizeStr}
+                              </Text>
+                            </View>
+                            <TouchableOpacity
+                              onPress={() => handleDownload(file)}
+                              activeOpacity={0.8}
+                              style={{
+                                padding: 6,
+                                borderWidth: 1,
+                                borderColor: "#d1d5db",
+                                borderRadius: 6,
+                                backgroundColor: "#ffffff",
+                                justifyContent: "center",
+                                alignItems: "center",
+                              }}
+                            >
+                              {isDownloading ? (
+                                <ActivityIndicator size="small" color="#4b5563" style={{ width: 16, height: 16 }} />
+                              ) : (
+                                <Ionicons name="download-outline" size={16} color="#4b5563" />
+                              )}
+                            </TouchableOpacity>
                           </TouchableOpacity>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                )}
+                        );
+                      })}
+                    </View>
+                  )
+                }
 
-                {mediaFiles.length > 0 && (
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
-                    {mediaFiles.map((file: any, index: number) => {
-                      const cols = mediaFiles.length === 1 ? 1 : mediaFiles.length === 2 ? 2 : 3;
-                      const imgSize = mediaFiles.length === 1 ? 200 : (SCREEN_WIDTH * 0.75 - 40) / cols;
-                      return (
-                        <TouchableOpacity
-                          key={`media-${index}`}
-                          activeOpacity={0.85}
-                          onPress={() => setPreviewIndex(index)}
-                          style={{
-                            width: imgSize,
-                            height: 110,
-                            borderRadius: 8,
-                            overflow: "hidden",
-                            backgroundColor: "#000",
-                          }}
-                        >
-                          {file.type === "IMAGE" ? (
-                            <Image
-                              source={{ uri: file.fileKey }}
-                              style={{ width: imgSize, height: 110 }}
-                              contentFit="cover"
-                            />
-                          ) : (
-                            <View style={{ width: imgSize, height: 110, justifyContent: "center", alignItems: "center" }}>
-                              <Video
+                {
+                  mediaFiles.length > 0 && (
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
+                      {mediaFiles.map((file: any, index: number) => {
+                        const cols = mediaFiles.length === 1 ? 1 : mediaFiles.length === 2 ? 2 : 3;
+                        const imgSize = mediaFiles.length === 1 ? 200 : (SCREEN_WIDTH * 0.75 - 40) / cols;
+                        return (
+                          <TouchableOpacity
+                            key={`media-${index}`}
+                            activeOpacity={0.85}
+                            onPress={() => setPreviewIndex(index)}
+                            style={{
+                              width: imgSize,
+                              height: 110,
+                              borderRadius: 8,
+                              overflow: "hidden",
+                              backgroundColor: "#000",
+                            }}
+                          >
+                            {file.type === "IMAGE" ? (
+                              <Image
                                 source={{ uri: file.fileKey }}
                                 style={{ width: imgSize, height: 110 }}
-                                resizeMode={ResizeMode.COVER}
+                                contentFit="cover"
                               />
-                              <View
-                                style={{
-                                  position: "absolute",
-                                  width: 36,
-                                  height: 36,
-                                  borderRadius: 18,
-                                  backgroundColor: "rgba(0,0,0,0.5)",
-                                  justifyContent: "center",
-                                  alignItems: "center",
-                                }}
-                              >
-                                <Ionicons name="play" size={18} color="white" />
+                            ) : (
+                              <View style={{ width: imgSize, height: 110, justifyContent: "center", alignItems: "center" }}>
+                                <Video
+                                  source={{ uri: file.fileKey }}
+                                  style={{ width: imgSize, height: 110 }}
+                                  resizeMode={ResizeMode.COVER}
+                                />
+                                <View
+                                  style={{
+                                    position: "absolute",
+                                    width: 36,
+                                    height: 36,
+                                    borderRadius: 18,
+                                    backgroundColor: "rgba(0,0,0,0.5)",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                  }}
+                                >
+                                  <Ionicons name="play" size={18} color="white" />
+                                </View>
                               </View>
-                            </View>
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                )}
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )
+                }
               </>
             )}
 
-            {showTime && (
-              <Text style={{ fontSize: 10, color: "#9ca3af", marginTop: 4, textAlign: "right" }}>
-                {formatTime(message.createdAt)}
-              </Text>
-            )}
-          </TouchableOpacity>
+            {
+              showTime && (
+                <Text style={{ fontSize: 10, color: "#9ca3af", marginTop: 4, textAlign: "right" }}>
+                  {formatTime(message.createdAt)}
+                </Text>
+              )
+            }
+          </TouchableOpacity >
 
-          {message.reactions?.length > 0 && (
-            <View
-              style={{
-                position: "absolute",
-                bottom: -12,
-                right: isMe ? 20 : undefined,
-                left: !isMe ? 2 : undefined,
-                zIndex: 10,
-              }}
-            >
-              <ReactionSummary
-                reactions={message.reactions}
-                onClick={() => onOpenReactionModal?.(message.reactions)}
-              />
-            </View>
-          )}
-        </View>
+          {
+            message.reactions?.length > 0 && (
+              <View
+                style={{
+                  position: "absolute",
+                  bottom: -12,
+                  right: isMe ? 20 : undefined,
+                  left: !isMe ? 2 : undefined,
+                  zIndex: 10,
+                }}
+              >
+                <ReactionSummary
+                  reactions={message.reactions}
+                  onClick={() => onOpenReactionModal?.(message.reactions)}
+                />
+              </View>
+            )
+          }
+        </View >
 
         {renderReadReceipts && message.readReceipts?.length > 0 && (
           <View style={{ flexDirection: "row", gap: -8, marginTop: 4 }}>
@@ -858,7 +986,7 @@ const MessageBubble = ({
               ))}
           </View>
         )}
-      </View>
+      </View >
 
       <MobileImageViewer
         visible={previewIndex !== null}
@@ -871,7 +999,7 @@ const MessageBubble = ({
           mimeType: f.mimeType,
         }))}
       />
-    </View>
+    </View >
   );
 };
 

@@ -135,6 +135,8 @@ const ConversationInfoPanel = ({
       : null,
   );
 
+  const isGroup = currentConversation?.type === "GROUP";
+
   const [showMuteOptions, setShowMuteOptions] = useState(false);
   const { refs, floatingStyles } = useFloating({
     open: showMuteOptions,
@@ -145,6 +147,24 @@ const ConversationInfoPanel = ({
   });
 
   const [blockUserDialogOpen, setBlockUserDialogOpen] = useState(false);
+  const [friendStatus, setFriendStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || isGroup || !currentConversation?.otherMemberId) {
+      setFriendStatus(null);
+      return;
+    }
+    const fetchStatus = async () => {
+      try {
+        const res = await userService.checkFriendStatus(currentConversation.otherMemberId);
+        const fd = res?.data?.data ?? res?.data;
+        setFriendStatus(fd?.status ?? null);
+      } catch (err) {
+        setFriendStatus(null);
+      }
+    };
+    fetchStatus();
+  }, [isOpen, isGroup, currentConversation?.otherMemberId]);
 
   const confirmBlockUser = async () => {
     if (!currentConversation || isGroup) return;
@@ -219,7 +239,6 @@ const ConversationInfoPanel = ({
   const [newName, setNewName] = useState(currentConversation?.name || "");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isGroup = currentConversation?.type === "GROUP";
   const isPinned = currentConversation?.pinned ?? false;
   const isMuted =
     !!currentConversation?.muted &&
@@ -237,7 +256,7 @@ const ConversationInfoPanel = ({
   const canInvite =
     currentConversation?.group?.allowMembersInvite || canManageMembers;
   const shouldShowUnhideButton =
-    openedFromSearch && !isGroup && !!currentConversation?.hidden;
+    openedFromSearch && !!currentConversation?.hidden;
   const visibleMedias = showAllMedia ? medias : medias.slice(0, 6);
   const visibleFiles = showAllFiles ? files : files.slice(0, 6);
   const visibleLinks = showAllLinks ? links : links.slice(0, 6);
@@ -276,6 +295,24 @@ const ConversationInfoPanel = ({
     };
     fetchData();
   }, [isOpen, currentConversation?.conversationId, currentUserId]);
+
+  useEffect(() => {
+    if (!socket || !isOpen || !currentConversation?.conversationId) return;
+
+    const handleRecalled = (data: { messageId: string; conversationId?: string }) => {
+      const targetConvId = data.conversationId || currentConversation.conversationId;
+      if (String(targetConvId) === String(currentConversation.conversationId)) {
+        setMedias((prev) => prev.filter((item) => String(item._id || item.messageId) !== String(data.messageId)));
+        setFiles((prev) => prev.filter((item) => String(item._id || item.messageId) !== String(data.messageId)));
+        setLinks((prev) => prev.filter((item) => String(item._id || item.messageId) !== String(data.messageId)));
+      }
+    };
+
+    socket.on("message_recalled", handleRecalled);
+    return () => {
+      socket.off("message_recalled", handleRecalled);
+    };
+  }, [socket, isOpen, currentConversation?.conversationId]);
 
   useEffect(() => {
     if (!isOpen || !isGroup || !currentConversation?.conversationId) {
@@ -929,36 +966,22 @@ const ConversationInfoPanel = ({
             </button>
 
             {/* Add Member / Create Group Button */}
-            {isGroup ? (
-              canInvite && (
-                <button
-                  onClick={() => setAddMemberModalOpen(true)}
-                  className="flex flex-col items-center gap-1.5 flex-1 group animate-in fade-in zoom-in duration-200 cursor-pointer"
-                >
-                  <div className="w-10 h-10 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center group-hover:bg-gray-200 transition-colors">
-                    <UserPlus size={20} />
-                  </div>
-                  <span className="text-[11px] font-medium text-gray-600">
-                    Thêm TV
-                  </span>
-                </button>
-              )
-            ) : (
+            {isGroup && canInvite && (
               <button
                 onClick={() => setAddMemberModalOpen(true)}
                 className="flex flex-col items-center gap-1.5 flex-1 group animate-in fade-in zoom-in duration-200 cursor-pointer"
               >
                 <div className="w-10 h-10 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center group-hover:bg-gray-200 transition-colors">
-                  <UsersIcon size={20} />
+                  <UserPlus size={20} />
                 </div>
                 <span className="text-[11px] font-medium text-gray-600">
-                  Tạo nhóm
+                  Thêm TV
                 </span>
               </button>
             )}
 
             {/* Block User Button */}
-            {!isGroup && (
+            {!isGroup && friendStatus !== "BLOCKED_BY_OTHER" && (
               <button
                 onClick={() => setBlockUserDialogOpen(true)}
                 className="flex flex-col items-center gap-1.5 flex-1 group cursor-pointer"

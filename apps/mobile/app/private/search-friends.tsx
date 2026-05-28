@@ -45,7 +45,7 @@ export default function SearchScreen() {
     } catch (err) {
       ToastAndroid.show(
         (err as any)?.response?.data?.message ||
-          "Không thể tìm kiếm người dùng",
+        "Không thể tìm kiếm người dùng",
         ToastAndroid.SHORT,
       );
       console.error("Error searching friend by phone:", err);
@@ -58,32 +58,32 @@ export default function SearchScreen() {
         <Header
           back
           centerChild={
-            <Text className="text-[20px] font-semibold text-black">
+            <Text className="text-sm font-semibold text-black">
               Thêm bạn
             </Text>
           }
         />
-        <View className="px-4 pb-6 pt-2 items-center">
+        <View className="px-4 pb-6 pt-2 items-center rounded-md">
           <LinearGradient
             colors={["#3f5f87", "#35567f"]}
-            className="w-full max-w-[300px] rounded-3xl px-6 py-6 items-center"
+            className="w-full max-w-[300px] px-6 py-6 items-center"
           >
             {/* Tên người dùng. Nếu có biến name từ Redux thì thay "Tri" bằng {name} */}
-            <Text className="text-white text-[28px] font-semibold">
+            <Text className="text-white text-lg font-semibold">
               {userInfo?.profile?.name || ""}
             </Text>
 
-            <View className="w-[188px] h-[188px] bg-white rounded-2xl items-center justify-center mt-4 overflow-hidden">
+            <View className="w-40 h-40 bg-white rounded-2xl items-center justify-center mt-4 overflow-hidden">
               {/* Thay thế Ionicons bằng QRCode */}
               <QRCode
                 value={userInfo?.phone || ""}
-                size={148}
+                size={120}
                 color="#111827"
                 backgroundColor="white"
               />
             </View>
 
-            <Text className="text-white/80 text-[15px] text-center mt-4">
+            <Text className="text-white/80 text-xs text-center mt-4">
               Quét mã để thêm bạn với tôi
             </Text>
           </LinearGradient>
@@ -92,9 +92,9 @@ export default function SearchScreen() {
 
       <View className="px-4 pt-4 pb-3">
         <View className="flex-row items-center">
-          <View className="flex-1 h-14 rounded-2xl border border-gray-300 bg-white overflow-hidden flex-row items-center">
+          <View className="flex-1 h-12 rounded-2xl border border-gray-300 bg-white overflow-hidden flex-row items-center">
             <TouchableOpacity className="h-full px-4 border-r border-gray-200 flex-row items-center gap-x-1">
-              <Text className="text-black text-[16px]">+84</Text>
+              <Text className="text-black text-sm">+84</Text>
               <Ionicons name="chevron-down" size={18} color="#111827" />
             </TouchableOpacity>
 
@@ -103,7 +103,7 @@ export default function SearchScreen() {
               onChangeText={setPhone}
               placeholder="Nhập số điện thoại"
               keyboardType="phone-pad"
-              className="flex-1 px-4 text-[17px] text-black"
+              className="flex-1 px-4 text-sm text-black"
               placeholderTextColor="#9ca3af"
             />
           </View>
@@ -111,9 +111,8 @@ export default function SearchScreen() {
           <TouchableOpacity
             disabled={!phone.trim()}
             onPress={handleSearchByPhone}
-            className={`ml-3 w-12 h-12 rounded-full items-center justify-center ${
-              phone.trim() ? "bg-[#0091ff]" : "bg-[#d1d5db]"
-            }`}
+            className={`ml-3 w-12 h-12 rounded-full items-center justify-center ${phone.trim() ? "bg-[#0091ff]" : "bg-[#d1d5db]"
+              }`}
           >
             <Ionicons name="arrow-forward" size={20} color="white" />
           </TouchableOpacity>
@@ -123,12 +122,12 @@ export default function SearchScreen() {
       <View className="bg-white">
         <TouchableOpacity
           className="h-16 px-4 flex-row items-center border-b border-gray-100"
-          onPress={() => router.push("/private/scan-qr")}
+          onPress={() => router.push("/private/qr-scanner")}
         >
           <View className="w-9 h-9 rounded-lg items-center justify-center bg-[#eef5ff]">
             <Ionicons name="qr-code-outline" size={20} color="#0055ff" />
           </View>
-          <Text className="ml-4 text-[18px] text-black">Quét mã QR</Text>
+          <Text className="ml-4 text-sm text-black">Quét mã QR</Text>
         </TouchableOpacity>
         <TouchableOpacity
           className="h-16 px-4 flex-row items-center"
@@ -137,14 +136,14 @@ export default function SearchScreen() {
           <View className="w-9 h-9 rounded-lg items-center justify-center bg-[#eef5ff]">
             <Ionicons name="people-outline" size={20} color="#0055ff" />
           </View>
-          <Text className="ml-4 text-[18px] text-black">
+          <Text className="ml-4 text-sm text-black">
             Bạn bè có thể quen
           </Text>
         </TouchableOpacity>
       </View>
 
       <View className="px-4 pt-8">
-        <Text className="text-[16px] text-gray-500">
+        <Text className="text-xs text-center text-gray-500">
           Xem lời mời kết bạn đã gửi tại trang Danh bạ Zalo
         </Text>
       </View>

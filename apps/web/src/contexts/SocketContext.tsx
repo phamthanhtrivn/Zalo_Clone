@@ -455,7 +455,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
     }));
 
     const isMuted = Boolean(currentConversation?.muted);
-    if (isOwnMessage || isActiveConversation || isMuted) {
+    const isHidden = Boolean(currentConversation?.hidden);
+    if (isOwnMessage || isActiveConversation || isMuted || isHidden) {
       return;
     }
 
@@ -619,13 +620,12 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!currentUserId) return;
       const friendName = payload?.name || "Người bạn";
 
-      // Invalidate received request list and all friends queries (so ContactPage refetches)
+      // Invalidate received & sent request list and all friends queries (so ContactPage refetches)
       queryClient.invalidateQueries({ queryKey: ["friendRequests", "received", currentUserId], refetchActive: true, refetchInactive: true });
+      queryClient.invalidateQueries({ queryKey: ["friendRequests", "sent", currentUserId], refetchActive: true, refetchInactive: true });
       queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === "friends", refetchActive: true, refetchInactive: true });
       // Also refresh suggestions so accepted user removed
       queryClient.invalidateQueries({ queryKey: ["friendSuggestions", currentUserId], refetchActive: true, refetchInactive: true });
-
-      // Invalidate friend queries so ContactPage refetches and shows updated list
 
       toast.success(`${friendName} đã chấp nhận lời mời kết bạn`);
     } catch (err) {
@@ -665,10 +665,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Invalidate friends / requests / blockedFriends queries so UI refreshes
       queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && (query.queryKey[0] === 'friends' || query.queryKey[0] === 'friendRequests' || query.queryKey[0] === 'blockedFriends') });
+      dispatch(fetchConversations());
     } catch (err) {
       console.error('handleBlocked error', err);
     }
-  }, [queryClient, user?.userId]);
+  }, [dispatch, queryClient, user?.userId]);
 
   const handleBlockedBy = useCallback((_payload: any) => {
     try {
@@ -677,10 +678,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Invalidate relevant queries so UI updates
       queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && (query.queryKey[0] === 'friends' || query.queryKey[0] === 'friendRequests' || query.queryKey[0] === 'blockedFriends') });
+      dispatch(fetchConversations());
     } catch (err) {
       console.error('handleBlockedBy error', err);
     }
-  }, [queryClient, user?.userId]);
+  }, [dispatch, queryClient, user?.userId]);
 
   const handleUnblocked = useCallback((_payload: any) => {
     try {
@@ -689,10 +691,23 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Invalidate relevant queries so UI updates when unblocked
       queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && (query.queryKey[0] === 'friends' || query.queryKey[0] === 'friendRequests' || query.queryKey[0] === 'blockedFriends') });
+      dispatch(fetchConversations());
     } catch (err) {
       console.error('handleUnblocked error', err);
     }
-  }, [queryClient, user?.userId]);
+  }, [dispatch, queryClient, user?.userId]);
+
+  const handleFriendStatusUpdated = useCallback((_payload: any) => {
+    try {
+      const currentUserId = user?.userId;
+      if (!currentUserId) return;
+      // Invalidate relevant queries so everything refreshes cleanly (friends, requests, suggestions)
+      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && (query.queryKey[0] === 'friends' || query.queryKey[0] === 'friendRequests' || query.queryKey[0] === 'friendSuggestions') });
+      dispatch(fetchConversations());
+    } catch (err) {
+      console.error("handleFriendStatusUpdated error", err);
+    }
+  }, [dispatch, queryClient, user?.userId]);
 
 
 
@@ -1034,6 +1049,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
     socketInstance.on('blocked', handleBlocked);
     socketInstance.on('blocked_by', handleBlockedBy);
     socketInstance.on('unblocked', handleUnblocked);
+    socketInstance.on("friend_status_updated", handleFriendStatusUpdated);
 
     return () => {
       socketInstance.off("connect", onConnect);
@@ -1080,11 +1096,12 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       socketInstance.off('blocked', handleBlocked);
       socketInstance.off('blocked_by', handleBlockedBy);
       socketInstance.off('unblocked', handleUnblocked);
+      socketInstance.off("friend_status_updated", handleFriendStatusUpdated);
 
       socketInstance.disconnect();
       socketRef.current = null;
     };
-  }, [apiUrl, user?.userId, accessToken, handleNewMessage, handleMessageReacted, handleMessageRecalled, handleMessagePinned, handleReadReceipt, handleMessagesExpired, handleUpdatePoll, handlePollOptionAdded, handleCallUpdated, handleGroupDisbanded, handleForceLogout, handleAiStatus, handleAiTypingChunk, handleReceiveFriendRequest, handleFriendAccepted, handleCancelFriendRequest, handleBlocked, handleBlockedBy, handleUnblocked]);
+  }, [apiUrl, user?.userId, accessToken, handleNewMessage, handleMessageReacted, handleMessageRecalled, handleMessagePinned, handleReadReceipt, handleMessagesExpired, handleUpdatePoll, handlePollOptionAdded, handleCallUpdated, handleGroupDisbanded, handleForceLogout, handleAiStatus, handleAiTypingChunk, handleReceiveFriendRequest, handleFriendAccepted, handleCancelFriendRequest, handleBlocked, handleBlockedBy, handleUnblocked, handleFriendStatusUpdated]);
 
   return (
     <SocketContext.Provider

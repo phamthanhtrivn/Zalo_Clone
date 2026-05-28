@@ -5,7 +5,7 @@ import { ReactionPicker } from "./ReactionPicker";
 import { ReactionSummary } from "./ReactionSummary";
 import type { MessagesType, ReactionType } from "@/types/messages.type";
 import type { EmojiType } from "@/constants/emoji.constant";
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { BsPinAngle } from "react-icons/bs";
 import { IoIosInformationCircleOutline } from "react-icons/io";
 import { CgUndo } from "react-icons/cg";
@@ -37,7 +37,7 @@ interface Props {
   onShowProfile?: (profileId: string) => void;
 }
 
-export const MessageItem = ({
+export const MessageItem = memo(({
   message,
   isMe,
   showAvatar,
@@ -298,5 +298,24 @@ export const MessageItem = ({
       )}
     </div>
   );
-};
+}, (prevProps, nextProps) => {
+  if (prevProps.message._id !== nextProps.message._id) return false;
+  if (prevProps.message.createdAt !== nextProps.message.createdAt) return false;
+  if (prevProps.message.recalled !== nextProps.message.recalled) return false;
+  if (prevProps.message.expired !== nextProps.message.expired) return false;
+
+  if (prevProps.isMe !== nextProps.isMe) return false;
+  if (prevProps.showAvatar !== nextProps.showAvatar) return false;
+  if (prevProps.showTime !== nextProps.showTime) return false;
+  if (prevProps.isSelected !== nextProps.isSelected) return false;
+
+  const wasSelected = prevProps.selectedMessages.includes(prevProps.message._id);
+  const isSelected = nextProps.selectedMessages.includes(nextProps.message._id);
+  if (wasSelected !== isSelected) return false;
+
+  if (prevProps.members !== nextProps.members) return false;
+  if (prevProps.message.reactions !== nextProps.message.reactions) return false;
+
+  return true;
+});
 

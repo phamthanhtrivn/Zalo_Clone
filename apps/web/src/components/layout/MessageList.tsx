@@ -9,7 +9,6 @@ import AppAvatar from "../common/AppAvatar";
 import type { MessagesType } from "@/types/messages.type";
 import type { RefObject } from "react";
 import { useSocket } from "@/contexts/SocketContext";
-import { setMessages } from "@/store/slices/messageSlice";
 import { userService } from "@/services/user.service"; // Assuming userService exists
 import { useAppSelector } from "@/store"; // To get current user ID
 
@@ -71,6 +70,9 @@ const MessageList = ({
           if (res.success && res.data) {
             setIsFriend(res.data.isFriend);
             setFriendStatus(res.data.status ?? null);
+            // Reset states first
+            setFriendRequestSent(false);
+            setHasReceivedRequest(false);
             // Nếu chưa là bạn
             if (!res.data.isFriend) {
               // Kiểm tra nếu mình đã gửi lời mời
@@ -91,7 +93,29 @@ const MessageList = ({
     };
 
     verifyFriendship();
-  }, [finalOtherUserId, finalIsDirect, isNewContactFromState]);
+
+    if (!socket || !finalOtherUserId || !finalIsDirect) return;
+    const handleEvent = () => {
+      verifyFriendship();
+    };
+    socket.on("receive_friend_request", handleEvent);
+    socket.on("friend_accepted", handleEvent);
+    socket.on("cancel_friend_request", handleEvent);
+    socket.on("blocked", handleEvent);
+    socket.on("blocked_by", handleEvent);
+    socket.on("unblocked", handleEvent);
+    socket.on("friend_status_updated", handleEvent);
+
+    return () => {
+      socket.off("receive_friend_request", handleEvent);
+      socket.off("friend_accepted", handleEvent);
+      socket.off("cancel_friend_request", handleEvent);
+      socket.off("blocked", handleEvent);
+      socket.off("blocked_by", handleEvent);
+      socket.off("unblocked", handleEvent);
+      socket.off("friend_status_updated", handleEvent);
+    };
+  }, [finalOtherUserId, finalIsDirect, isNewContactFromState, socket]);
 
   const handleAddFriend = async () => {
     if (!finalOtherUserId || !user?.userId) return;
@@ -118,7 +142,7 @@ const MessageList = ({
   const handleUnblockFriend = async () => {
     if (!finalOtherUserId || !user?.userId) return;
     try {
-      await userService.cancelFriend(finalOtherUserId, user.userId);
+      await userService.unblockFriend(finalOtherUserId, user.userId);
       setIsFriend(false);
       setFriendRequestSent(false);
       setHasReceivedRequest(false);
@@ -200,19 +224,23 @@ const MessageList = ({
                 ? "Bạn đã chặn người này"
                 : "Người này đã chặn bạn"
               : hasReceivedRequest
-              ? "Người này đã gửi lời mời kết bạn cho bạn"
-              : friendRequestSent
-                ? "Đã gửi lời mời kết bạn"
-                : "Gửi yêu cầu kết bạn tới người này"}
+                ? "Người này đã gửi lời mời kết bạn cho bạn"
+                : friendRequestSent
+                  ? "Đã gửi lời mời kết bạn"
+                  : "Gửi yêu cầu kết bạn tới người này"}
           </span>
 
           {/* Action button */}
           {isBlocked ? (
             <button
               onClick={handleUnblockFriend}
-              className="shrink-0 px-4 py-1.5 bg-[#0091ff] text-white text-[13px] font-medium rounded-md hover:bg-[#0075dd] transition-colors"
+              disabled={friendStatus === "BLOCKED_BY_OTHER"}
+              className={`shrink-0 px-4 py-1.5 text-[13px] font-medium rounded-md transition-colors ${friendStatus === "BLOCKED_BY_OTHER"
+                ? "bg-gray-100 text-gray-500 cursor-not-allowed border border-gray-200"
+                : "bg-[#0091ff] text-white hover:bg-[#0075dd]"
+                }`}
             >
-              Gỡ chặn
+              {friendStatus === "BLOCKED_BY_OTHER" ? "Đã bị chặn" : "Gỡ chặn"}
             </button>
           ) : hasReceivedRequest ? (
             <button

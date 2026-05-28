@@ -264,12 +264,23 @@ const ConversationInfoSheet: React.FC<Props> = ({
       }
     };
 
+    const handleRecalled = (data: { messageId: string; conversationId?: string }) => {
+      const targetConvId = data.conversationId || conversationId;
+      if (String(targetConvId) === String(conversationId)) {
+        setMedias((prev) => prev.filter((item) => String(item._id || item.messageId) !== String(data.messageId)));
+        setFiles((prev) => prev.filter((item) => String(item._id || item.messageId) !== String(data.messageId)));
+        setLinks((prev) => prev.filter((item) => String(item._id || item.messageId) !== String(data.messageId)));
+      }
+    };
+
     socket.on("new_media", handleNewMedia);
+    socket.on("message_recalled", handleRecalled);
 
     return () => {
       // Leave rooms and cleanup listener
       mediaRooms.forEach((room) => socket.emit("leave_room", room));
       socket.off("new_media", handleNewMedia);
+      socket.off("message_recalled", handleRecalled);
     };
   }, [socket, visible, conversation?.conversationId]);
 
@@ -792,7 +803,7 @@ const ConversationInfoSheet: React.FC<Props> = ({
 
   const canInvite = localSettings.allowMembersInvite || isOwner || isAdmin;
   const shouldShowUnhideButton =
-    openedFromSearch && !isGroup && !!currentConversation?.hidden;
+    openedFromSearch && !!currentConversation?.hidden;
 
   const visibleMembers = members.slice(0, 15);
   const fullListTitle =
@@ -944,6 +955,9 @@ const ConversationInfoSheet: React.FC<Props> = ({
               setFriendActionLoading("block");
               await userService.blockFriend(effectiveOtherMemberId, currentUserId);
               setIsFriend(false);
+              dispatch(removeConversation({ conversationId: currentConversation.conversationId }));
+              onClose();
+              router.replace("/private/(tabs)/chat");
             } catch (error) {
               Alert.alert("Lỗi", "Không thể chặn người này lúc này");
             } finally {
@@ -1046,39 +1060,39 @@ const ConversationInfoSheet: React.FC<Props> = ({
                     onPress: () =>
                       isMuted ? handleMute(0) : setShowMuteOptions(true),
                     active: isMuted,
+                    show: true,
                   },
                   {
                     icon: "pin-outline",
                     label: isPinned ? "Bỏ ghim" : "Ghim hội thoại",
                     onPress: handlePin,
                     active: isPinned,
+                    show: true,
                   },
                   {
-                    icon: isGroup ? "person-add-outline" : "people-outline",
-                    label: isGroup ? "Thêm TV" : "Tạo nhóm",
+                    icon: "person-add-outline",
+                    label: "Thêm TV",
                     onPress: () => {
-                      if (isGroup) {
-                        if (canInvite) {
-                          setIsAddMemberVisible(true);
-                        } else {
-                          Alert.alert(
-                            "Thông báo",
-                            "Trưởng/phó nhóm đã tắt quyền mời thành viên đối với thành viên thường.",
-                          );
-                        }
-                      } else {
+                      if (canInvite) {
                         setIsAddMemberVisible(true);
+                      } else {
+                        Alert.alert(
+                          "Thông báo",
+                          "Trưởng/phó nhóm đã tắt quyền mời thành viên đối với thành viên thường.",
+                        );
                       }
                     },
                     active: false,
+                    show: isGroup,
                   },
                   {
                     icon: "qr-code-outline",
                     label: "Mã QR",
                     onPress: () => setIsQrModalVisible(true),
                     active: false,
+                    show: true,
                   },
-                ].map((action) => (
+                ].filter(action => action.show).map((action) => (
                   <TouchableOpacity
                     key={action.label}
                     onPress={action.onPress}

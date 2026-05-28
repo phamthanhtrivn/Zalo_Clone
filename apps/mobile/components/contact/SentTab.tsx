@@ -43,6 +43,8 @@ export default function SentTab() {
     socket.on("cancel_friend_request", refresh);
     socket.on("blocked", refresh);
     socket.on("blocked_by", refresh);
+    socket.on("unblocked", refresh);
+    socket.on("friend_status_updated", refresh);
 
     return () => {
       socket.off("receive_friend_request", refresh);
@@ -50,6 +52,8 @@ export default function SentTab() {
       socket.off("cancel_friend_request", refresh);
       socket.off("blocked", refresh);
       socket.off("blocked_by", refresh);
+      socket.off("unblocked", refresh);
+      socket.off("friend_status_updated", refresh);
     };
   }, [socket, fetchSentRequests]);
 

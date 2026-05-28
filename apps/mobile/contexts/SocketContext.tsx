@@ -27,6 +27,11 @@ import {
 import { userService } from "@/services/user.service";
 import { logout2 } from "@/store/auth/authThunk";
 import { getDeviceId } from "@/utils/device.util";
+import {
+  setupNotifications,
+  scheduleLocalNotification,
+} from "@/utils/notification.util";
+
 
 interface SocketContextType {
   socket: Socket | null;
@@ -208,6 +213,9 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     const initSocket = async () => {
+      // Xin quyền và tạo notification channel một lần
+      await setupNotifications();
+
       if (!socketRef.current) {
         const deviceId = await getDeviceId();
         // Mobile lưu token trong SecureStore (không phải Redux state)
@@ -246,31 +254,40 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
           (conversation) => conversation.conversationId === conversationId,
         );
         const isMuted = Boolean(currentConversation?.muted);
+        const isHidden = Boolean(currentConversation?.hidden);
         const isActiveConversation =
           currentConversationIdRef.current === conversationId;
         const senderName =
           data?.lastMessage?.senderName || data?.senderId?.profile?.name || "";
         const isOwnMessage = senderName === "Bạn";
 
-        if (
-          isMuted ||
-          isActiveConversation ||
-          isOwnMessage ||
-          appStateRef.current !== "active"
-        ) {
+        // Không thông báo nếu: bị mute, đang ẩn, đang mở conversation đó, hoặc là tin mình gửi
+        if (isMuted || isHidden || isActiveConversation || isOwnMessage) {
           return;
         }
 
-        Toast.show({
-          type: "incomingMessage",
-          text1: currentConversation?.name || senderName || "Tin nhắn mới",
-          text2: extractMessagePreview(data?.lastMessage || data),
-          props: {
-            avatar: currentConversation?.avatar || null,
-          },
-          visibilityTime: 3000,
-        });
+        const notifTitle =
+          currentConversation?.name || senderName || "Tin nhắn mới";
+        const notifBody = extractMessagePreview(data?.lastMessage || data);
+        const avatar = currentConversation?.avatar || null;
+
+        if (appStateRef.current !== "active") {
+          // App đang ở background → hiện system notification
+          scheduleLocalNotification(notifTitle, notifBody, {
+            conversationId,
+            avatar: avatar ?? undefined,
+          });
+        } else {
+          // App đang foreground → hiện Toast như cũ
+          Toast.show({
+            type: "info",
+            text1: notifTitle,
+            text2: notifBody,
+            visibilityTime: 3000,
+          });
+        }
       };
+
 
       const handleRecallMessageSidebar = (data: any) => {
         dispatch(updateRecallMessageInConversation(data));
