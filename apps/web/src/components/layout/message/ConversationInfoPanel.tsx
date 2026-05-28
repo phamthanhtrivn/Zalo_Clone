@@ -135,6 +135,8 @@ const ConversationInfoPanel = ({
       : null,
   );
 
+  const isGroup = currentConversation?.type === "GROUP";
+
   const [showMuteOptions, setShowMuteOptions] = useState(false);
   const { refs, floatingStyles } = useFloating({
     open: showMuteOptions,
@@ -145,6 +147,24 @@ const ConversationInfoPanel = ({
   });
 
   const [blockUserDialogOpen, setBlockUserDialogOpen] = useState(false);
+  const [friendStatus, setFriendStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || isGroup || !currentConversation?.otherMemberId) {
+      setFriendStatus(null);
+      return;
+    }
+    const fetchStatus = async () => {
+      try {
+        const res = await userService.checkFriendStatus(currentConversation.otherMemberId);
+        const fd = res?.data?.data ?? res?.data;
+        setFriendStatus(fd?.status ?? null);
+      } catch (err) {
+        setFriendStatus(null);
+      }
+    };
+    fetchStatus();
+  }, [isOpen, isGroup, currentConversation?.otherMemberId]);
 
   const confirmBlockUser = async () => {
     if (!currentConversation || isGroup) return;
@@ -219,7 +239,6 @@ const ConversationInfoPanel = ({
   const [newName, setNewName] = useState(currentConversation?.name || "");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isGroup = currentConversation?.type === "GROUP";
   const isPinned = currentConversation?.pinned ?? false;
   const isMuted =
     !!currentConversation?.muted &&
@@ -237,7 +256,7 @@ const ConversationInfoPanel = ({
   const canInvite =
     currentConversation?.group?.allowMembersInvite || canManageMembers;
   const shouldShowUnhideButton =
-    openedFromSearch && !isGroup && !!currentConversation?.hidden;
+    openedFromSearch && !!currentConversation?.hidden;
   const visibleMedias = showAllMedia ? medias : medias.slice(0, 6);
   const visibleFiles = showAllFiles ? files : files.slice(0, 6);
   const visibleLinks = showAllLinks ? links : links.slice(0, 6);
@@ -958,7 +977,7 @@ const ConversationInfoPanel = ({
             )}
 
             {/* Block User Button */}
-            {!isGroup && (
+            {!isGroup && friendStatus !== "BLOCKED_BY_OTHER" && (
               <button
                 onClick={() => setBlockUserDialogOpen(true)}
                 className="flex flex-col items-center gap-1.5 flex-1 group cursor-pointer"

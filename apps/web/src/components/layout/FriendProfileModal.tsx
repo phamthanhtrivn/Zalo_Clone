@@ -276,10 +276,12 @@ export default function FriendProfileModal({
                   <Users size={18} className="text-gray-500" />
                   Nhóm chung ({commonGroupsCount})
                 </button>
-                <button onClick={() => setBlockDialogOpen(true)} className="flex w-full items-center gap-2.5 rounded-md px-1 py-2 text-[13px] text-gray-700 transition-colors hover:bg-gray-50">
-                  <Ban size={18} className="text-gray-500" />
-                  Chặn tin nhắn và cuộc gọi
-                </button>
+                {friendStatus !== "BLOCKED_BY_OTHER" && (
+                  <button onClick={() => setBlockDialogOpen(true)} className="flex w-full items-center gap-2.5 rounded-md px-1 py-2 text-[13px] text-gray-700 transition-colors hover:bg-gray-50">
+                    <Ban size={18} className="text-gray-500" />
+                    Chặn tin nhắn và cuộc gọi
+                  </button>
+                )}
                 <button onClick={() => handelDeleteFriend()} className="flex w-full items-center gap-2.5 rounded-md px-1 py-2 text-[13px] text-gray-700 transition-colors hover:bg-gray-50">
                   <User size={18} className="text-gray-500" />
                   Xóa kết bạn

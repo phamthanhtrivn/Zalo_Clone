@@ -792,7 +792,7 @@ const ConversationInfoSheet: React.FC<Props> = ({
 
   const canInvite = localSettings.allowMembersInvite || isOwner || isAdmin;
   const shouldShowUnhideButton =
-    openedFromSearch && !isGroup && !!currentConversation?.hidden;
+    openedFromSearch && !!currentConversation?.hidden;
 
   const visibleMembers = members.slice(0, 15);
   const fullListTitle =
@@ -944,6 +944,9 @@ const ConversationInfoSheet: React.FC<Props> = ({
               setFriendActionLoading("block");
               await userService.blockFriend(effectiveOtherMemberId, currentUserId);
               setIsFriend(false);
+              dispatch(removeConversation({ conversationId: currentConversation.conversationId }));
+              onClose();
+              router.replace("/private/(tabs)/chat");
             } catch (error) {
               Alert.alert("Lỗi", "Không thể chặn người này lúc này");
             } finally {

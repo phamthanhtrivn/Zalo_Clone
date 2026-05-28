@@ -62,7 +62,7 @@ export default function BlockedFriendsScreen() {
     }
     try {
       setUnblockingId(friendId);
-      await userService.cancelFriend(friendId, currentUserId);
+      await userService.unblockFriend(friendId, currentUserId);
       setBlockedUsers((prev) => prev.filter((u) => u.friendId !== friendId));
     } catch (error) {
       console.error("Lỗi gỡ chặn:", error);

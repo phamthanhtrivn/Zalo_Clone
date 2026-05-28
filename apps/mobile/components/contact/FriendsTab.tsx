@@ -97,6 +97,8 @@ export default function FriendsTab() {
     socket.on('cancel_friend_request', refreshFriends);
     socket.on('blocked', refreshFriends);
     socket.on('blocked_by', refreshFriends);
+    socket.on('unblocked', refreshFriends);
+    socket.on('friend_status_updated', refreshFriends);
 
     return () => {
       socket.off('user_status_change', handleStatusChange);
@@ -105,6 +107,8 @@ export default function FriendsTab() {
       socket.off('cancel_friend_request', refreshFriends);
       socket.off('blocked', refreshFriends);
       socket.off('blocked_by', refreshFriends);
+      socket.off('unblocked', refreshFriends);
+      socket.off('friend_status_updated', refreshFriends);
     };
   }, [socket, fetchFriends]);
 

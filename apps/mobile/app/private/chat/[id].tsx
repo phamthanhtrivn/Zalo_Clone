@@ -628,7 +628,7 @@ export default function ChatWindow() {
   const handleUnblockFriend = async () => {
     if (!effectiveOtherMemberId || !user?.userId) return;
     try {
-      await userService.cancelFriend(effectiveOtherMemberId, user.userId);
+      await userService.unblockFriend(effectiveOtherMemberId, user.userId);
       setIsFriend(false);
       setFriendStatus(null);
     } catch (err) {
@@ -920,6 +920,7 @@ export default function ChatWindow() {
     socket.on("cancel_friend_request", refreshOnFriendEvent);
     socket.on("blocked", refreshOnFriendEvent);
     socket.on("blocked_by", refreshOnFriendEvent);
+    socket.on("friend_status_updated", refreshOnFriendEvent);
 
     return () => {
       socket.off("receive_friend_request", refreshOnFriendEvent);
@@ -927,6 +928,7 @@ export default function ChatWindow() {
       socket.off("cancel_friend_request", refreshOnFriendEvent);
       socket.off("blocked", refreshOnFriendEvent);
       socket.off("blocked_by", refreshOnFriendEvent);
+      socket.off("friend_status_updated", refreshOnFriendEvent);
     };
   }, [socket, isGroup, effectiveOtherMemberId, user?.userId, refreshFriendStatus]);
 

@@ -896,7 +896,7 @@ export class ConversationsService {
     );
     const blockedFriendIds = new Set(
       (currentUser?.friends ?? [])
-        .filter((friend) => friend.status === FriendStatus.BLOCKED || friend.status === FriendStatus.BLOCKED_BY_OTHER)
+        .filter((friend) => friend.status === FriendStatus.BLOCKED)
         .map((friend) => friend.friendId.toString()),
     );
     const conversations = await this.memberModel.aggregate([

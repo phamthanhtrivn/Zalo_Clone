@@ -50,6 +50,13 @@ export const userService = {
     });
     return response.data;
   },
+  unblockFriend: async (friendId: string, userId: string) => {
+    const response = await api.post("/users/unblock-friend", {
+      userId: userId,
+      friendId: friendId,
+    });
+    return response.data;
+  },
   getBlockedFriends: async () => {
     const response = await api.get("/users/blocked-friends");
     return response.data;

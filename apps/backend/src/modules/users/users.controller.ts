@@ -45,6 +45,10 @@ export class UsersController {
   blockFriend(@Body() body: RequestFriendDto) {
     return this.usersService.blockFriend(body);
   }
+  @Post('unblock-friend')
+  unblockFriend(@Body() body: RequestFriendDto) {
+    return this.usersService.unblockFriend(body);
+  }
   // hủy hoặc thu hồi kb
   @Post('cancel-friend')
   cancelFriend(@Body() body: RequestFriendDto) {
