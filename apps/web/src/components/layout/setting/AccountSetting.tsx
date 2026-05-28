@@ -9,8 +9,8 @@ import {
   logOutOther,
   requestUpdatePhone,
   verifyUpdatePhone,
-  logOut,
 } from "@/store/auth/authThunk";
+import { clearAuth } from "@/store/auth/authSlice";
 import type { Session } from "@/types/auth.type";
 import { formatDateTime } from "@/utils/dateTimeFormat.util";
 import { getDeviceId } from "@/utils/device.util";
@@ -640,8 +640,8 @@ function ChangePhoneView({ onBack }: { onBack: () => void }) {
       await dispatch(verifyUpdatePhone({ phone, otp })).unwrap();
       toast.success("Cập nhật số điện thoại thành công! Vui lòng đăng nhập lại.");
 
-      // Đăng xuất cưỡng chế
-      dispatch(logOut());
+      // Xóa trạng thái đăng nhập trực tiếp (backend đã xóa tất cả session)
+      dispatch(clearAuth());
     } catch (err: any) {
       toast.error(err?.message || "Xác thực OTP thất bại !");
     }
