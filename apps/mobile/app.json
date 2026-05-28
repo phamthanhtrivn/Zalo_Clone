@@ -39,7 +39,9 @@
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED"
       ]
     },
     "plugins": [
@@ -47,6 +49,15 @@
       "expo-media-library",
       "expo-location",
       "expo-speech-recognition",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#0068ff",
+          "defaultChannel": "messages",
+          "sounds": []
+        }
+      ],
       [
         "@config-plugins/react-native-webrtc",
         {
