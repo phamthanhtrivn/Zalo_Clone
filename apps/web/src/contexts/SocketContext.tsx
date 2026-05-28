@@ -664,10 +664,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Invalidate friends / requests / blockedFriends queries so UI refreshes
       queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && (query.queryKey[0] === 'friends' || query.queryKey[0] === 'friendRequests' || query.queryKey[0] === 'blockedFriends') });
+      dispatch(fetchConversations());
     } catch (err) {
       console.error('handleBlocked error', err);
     }
-  }, [queryClient, user?.userId]);
+  }, [dispatch, queryClient, user?.userId]);
 
   const handleBlockedBy = useCallback((_payload: any) => {
     try {
@@ -676,10 +677,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Invalidate relevant queries so UI updates
       queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && (query.queryKey[0] === 'friends' || query.queryKey[0] === 'friendRequests' || query.queryKey[0] === 'blockedFriends') });
+      dispatch(fetchConversations());
     } catch (err) {
       console.error('handleBlockedBy error', err);
     }
-  }, [queryClient, user?.userId]);
+  }, [dispatch, queryClient, user?.userId]);
 
   const handleUnblocked = useCallback((_payload: any) => {
     try {
@@ -688,10 +690,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Invalidate relevant queries so UI updates when unblocked
       queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && (query.queryKey[0] === 'friends' || query.queryKey[0] === 'friendRequests' || query.queryKey[0] === 'blockedFriends') });
+      dispatch(fetchConversations());
     } catch (err) {
       console.error('handleUnblocked error', err);
     }
-  }, [queryClient, user?.userId]);
+  }, [dispatch, queryClient, user?.userId]);
 
   const handleFriendStatusUpdated = useCallback((_payload: any) => {
     try {
@@ -699,10 +702,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!currentUserId) return;
       // Invalidate relevant queries so everything refreshes cleanly (friends, requests, suggestions)
       queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && (query.queryKey[0] === 'friends' || query.queryKey[0] === 'friendRequests' || query.queryKey[0] === 'friendSuggestions') });
+      dispatch(fetchConversations());
     } catch (err) {
       console.error("handleFriendStatusUpdated error", err);
     }
-  }, [queryClient, user?.userId]);
+  }, [dispatch, queryClient, user?.userId]);
 
 
 

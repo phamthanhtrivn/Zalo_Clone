@@ -948,30 +948,16 @@ const ConversationInfoPanel = ({
             </button>
 
             {/* Add Member / Create Group Button */}
-            {isGroup ? (
-              canInvite && (
-                <button
-                  onClick={() => setAddMemberModalOpen(true)}
-                  className="flex flex-col items-center gap-1.5 flex-1 group animate-in fade-in zoom-in duration-200 cursor-pointer"
-                >
-                  <div className="w-10 h-10 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center group-hover:bg-gray-200 transition-colors">
-                    <UserPlus size={20} />
-                  </div>
-                  <span className="text-[11px] font-medium text-gray-600">
-                    Thêm TV
-                  </span>
-                </button>
-              )
-            ) : (
+            {isGroup && canInvite && (
               <button
                 onClick={() => setAddMemberModalOpen(true)}
                 className="flex flex-col items-center gap-1.5 flex-1 group animate-in fade-in zoom-in duration-200 cursor-pointer"
               >
                 <div className="w-10 h-10 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center group-hover:bg-gray-200 transition-colors">
-                  <UsersIcon size={20} />
+                  <UserPlus size={20} />
                 </div>
                 <span className="text-[11px] font-medium text-gray-600">
-                  Tạo nhóm
+                  Thêm TV
                 </span>
               </button>
             )}

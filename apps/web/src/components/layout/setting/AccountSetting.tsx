@@ -14,7 +14,7 @@ import {
 import type { Session } from "@/types/auth.type";
 import { formatDateTime } from "@/utils/dateTimeFormat.util";
 import { getDeviceId } from "@/utils/device.util";
-import { Globe, Tablet, Smartphone, Ellipsis, Ban } from "lucide-react";
+import { Globe, Tablet, Smartphone, Ellipsis, Ban, ChevronDown, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { NestedViewLayout } from "./NestedViewLayout";
@@ -42,6 +42,9 @@ export default function AccountSetting() {
   const [lockPassword, setLockPassword] = useState("");
   const [lockLoading, setLockLoading] = useState(false);
   const passwordInputRef = useRef<HTMLInputElement>(null);
+  const [showQr, setShowQr] = useState(false);
+
+  const { user } = useAppSelector((state) => state.auth);
 
   if (currentView === "devices") {
     return <DeviceManagementView onBack={() => setCurrentView("main")} />;
@@ -85,6 +88,45 @@ export default function AccountSetting() {
           <SettingChooseItem>
             <p className="text-sm">Email</p>
           </SettingChooseItem>
+          <SettingChooseItem
+            onClick={() => setShowQr(!showQr)}
+            rightSection={
+              showQr ? (
+                <ChevronDown size={20} color="gray" />
+              ) : (
+                <ChevronRight size={20} color="gray" />
+              )
+            }
+          >
+            <p className="text-sm">Mã QR của tôi</p>
+          </SettingChooseItem>
+
+          <div
+            className={`overflow-hidden transition-all duration-300 ease-in-out flex flex-col items-center justify-center bg-gray-50/50 rounded-lg ${showQr
+              ? "max-h-[320px] opacity-100 py-6 border-t-[0.5px] border-b-[0.5px] border-gray-100"
+              : "max-h-0 opacity-0 pointer-events-none"
+              }`}
+          >
+            {user?.phone ? (
+              <div className="flex flex-col items-center gap-3">
+                <div className="p-3 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(user.phone)}`}
+                    alt="Mã QR của tôi"
+                    className="w-[160px] h-[160px] select-none animate-fade-in"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 font-medium mt-1 text-center px-4">
+                  Quét mã QR này bằng điện thoại để kết bạn với tôi
+                </p>
+                <p className="text-[11px] text-gray-400">
+                  Mã QR chứa số điện thoại: {user.phone}
+                </p>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 py-4">Vui lòng cập nhật số điện thoại để tạo mã QR</p>
+            )}
+          </div>
         </SettingSection>
         <SettingSection title="Bảo mật">
           <SettingChooseItem onClick={() => setCurrentView("devices")}>

@@ -1,4 +1,4 @@
-import { FlatList, View, Text, RefreshControl, Pressable } from "react-native";
+import { FlatList, View, Text, RefreshControl, Pressable, TouchableOpacity, Modal, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppDispatch, useAppSelector } from "@/store/store";
 import Container from "@/components/common/Container";
@@ -8,6 +8,10 @@ import SearchLabel from "@/components/common/SearchLabel";
 import ConversationItem from "@/components/chat/ConversationItem";
 import { useEffect, useState } from "react";
 import { conversationService } from "@/services/conversation.service";
+import { useRouter } from "expo-router";
+import { scale } from "@/utils/responsive";
+import CreateGroupModal from "@/components/chat/CreateGroupModal";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   removeExpiredMessages,
@@ -40,12 +44,16 @@ const selectVisibleConversations = createSelector(
 export default function Home() {
   const dispatch = useAppDispatch();
   const { socket } = useSocket();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const conversations = useAppSelector(selectVisibleConversations);
   const user = useAppSelector((state) => state.auth.user);
 
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<"PRIORITY" | "OTHER">("PRIORITY");
+  const [showMenu, setShowMenu] = useState(false);
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
 
   // 🔥 Load conversations
   const loadConversations = async () => {
@@ -147,7 +155,14 @@ export default function Home() {
         gradient
         centerChild={<SearchLabel />}
         leftChild={<SearchIcon />}
-        rightChild={<QRIcon />}
+        rightChild={
+          <View className="flex-row items-center gap-x-6">
+            <QRIcon />
+            <TouchableOpacity onPress={() => setShowMenu(true)}>
+              <Ionicons name="add" size={scale(24)} color="white" />
+            </TouchableOpacity>
+          </View>
+        }
       />
       <View className="flex-1 bg-white">
         {/* Tabs */}
@@ -181,6 +196,95 @@ export default function Home() {
           />
         )}
       </View>
+
+      {/* Pop-up Options Modal */}
+      <Modal
+        visible={showMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMenu(false)}
+      >
+        <Pressable
+          className="flex-1 bg-black/10"
+          onPress={() => setShowMenu(false)}
+        >
+          <View
+            style={{
+              position: "absolute",
+              top: insets.top + 52,
+              right: 12,
+              backgroundColor: "white",
+              borderRadius: 8,
+              paddingVertical: 4,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.15,
+              shadowRadius: 6,
+              elevation: 8,
+              width: 185,
+              borderWidth: 0.5,
+              borderColor: "#e5e7eb",
+            }}
+          >
+            {/* 1. Thêm bạn */}
+            <TouchableOpacity
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+              }}
+              onPress={() => {
+                setShowMenu(false);
+                router.push("/private/search-friends");
+              }}
+            >
+              <Ionicons name="person-add-outline" size={19} color="#374151" style={{ marginRight: 12 }} />
+              <Text style={{ fontSize: 15, color: "#1f2937", fontWeight: "400" }}>Thêm bạn</Text>
+            </TouchableOpacity>
+
+            {/* 2. Tạo nhóm */}
+            <TouchableOpacity
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+              }}
+              onPress={() => {
+                setShowMenu(false);
+                setIsCreateGroupOpen(true);
+              }}
+            >
+              <Ionicons name="people-outline" size={19} color="#374151" style={{ marginRight: 12 }} />
+              <Text style={{ fontSize: 15, color: "#1f2937", fontWeight: "400" }}>Tạo nhóm</Text>
+            </TouchableOpacity>
+
+            {/* 3. Thiết bị đăng nhập */}
+            <TouchableOpacity
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+              }}
+              onPress={() => {
+                setShowMenu(false);
+                router.push("/private/sessions");
+              }}
+            >
+              <Ionicons name="desktop-outline" size={19} color="#374151" style={{ marginRight: 12 }} />
+              <Text style={{ fontSize: 15, color: "#1f2937", fontWeight: "400" }}>Thiết bị đăng nhập</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+
+      <CreateGroupModal
+        visible={isCreateGroupOpen}
+        onClose={() => setIsCreateGroupOpen(false)}
+        onSuccess={loadConversations}
+      />
     </Container>
   );
 }

@@ -5,6 +5,7 @@ import SearchLabel from "@/components/common/SearchLabel";
 import FriendsTab from "@/components/contact/FriendsTab";
 import GroupsTab from "@/components/contact/GroupsTab";
 import TabSwitcher from "@/components/contact/TabSwitcher";
+import { scale } from "@/utils/responsive";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -26,7 +27,7 @@ export default function Contact() {
         leftChild={<SearchIcon />}
         rightChild={
           <TouchableOpacity onPress={handleOpenAddFriend}>
-            <Ionicons name="person-add-outline" size={24} color="white" />
+            <Ionicons name="person-add-outline" size={scale(18)} color="white" />
           </TouchableOpacity>
         }
       />

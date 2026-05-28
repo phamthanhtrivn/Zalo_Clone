@@ -13,7 +13,7 @@ export default function QRIcon() {
     <TouchableOpacity onPress={onClick}>
       <MaterialCommunityIcons
         name="qrcode-scan"
-        size={scale(18)}
+        size={scale(20)}
         color="white"
       />
     </TouchableOpacity>

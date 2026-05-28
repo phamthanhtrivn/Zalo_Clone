@@ -1049,39 +1049,39 @@ const ConversationInfoSheet: React.FC<Props> = ({
                     onPress: () =>
                       isMuted ? handleMute(0) : setShowMuteOptions(true),
                     active: isMuted,
+                    show: true,
                   },
                   {
                     icon: "pin-outline",
                     label: isPinned ? "Bỏ ghim" : "Ghim hội thoại",
                     onPress: handlePin,
                     active: isPinned,
+                    show: true,
                   },
                   {
-                    icon: isGroup ? "person-add-outline" : "people-outline",
-                    label: isGroup ? "Thêm TV" : "Tạo nhóm",
+                    icon: "person-add-outline",
+                    label: "Thêm TV",
                     onPress: () => {
-                      if (isGroup) {
-                        if (canInvite) {
-                          setIsAddMemberVisible(true);
-                        } else {
-                          Alert.alert(
-                            "Thông báo",
-                            "Trưởng/phó nhóm đã tắt quyền mời thành viên đối với thành viên thường.",
-                          );
-                        }
-                      } else {
+                      if (canInvite) {
                         setIsAddMemberVisible(true);
+                      } else {
+                        Alert.alert(
+                          "Thông báo",
+                          "Trưởng/phó nhóm đã tắt quyền mời thành viên đối với thành viên thường.",
+                        );
                       }
                     },
                     active: false,
+                    show: isGroup,
                   },
                   {
                     icon: "qr-code-outline",
                     label: "Mã QR",
                     onPress: () => setIsQrModalVisible(true),
                     active: false,
+                    show: true,
                   },
-                ].map((action) => (
+                ].filter(action => action.show).map((action) => (
                   <TouchableOpacity
                     key={action.label}
                     onPress={action.onPress}
