@@ -17,7 +17,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message: string | string[] = 'Internal server error';
 
-    if (exception instanceof HttpException) {
+    if (exception && (exception as any).name === 'MulterError') {
+      const multerError = exception as any;
+      if (multerError.code === 'LIMIT_FILE_SIZE') {
+        status = HttpStatus.PAYLOAD_TOO_LARGE;
+        message = 'Chỉ cho phép gửi file dưới 50MB';
+      } else {
+        status = HttpStatus.BAD_REQUEST;
+        message = `Lỗi tải lên file: ${multerError.message}`;
+      }
+    } else if (exception instanceof HttpException) {
       status = exception.getStatus();
       const res = exception.getResponse();
 
@@ -26,6 +35,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
       } else if (typeof res === 'object' && res !== null && 'message' in res) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         message = (res as any).message || res;
+      }
+
+      if (status === HttpStatus.PAYLOAD_TOO_LARGE || message === 'File too large') {
+        status = HttpStatus.PAYLOAD_TOO_LARGE;
+        message = 'Chỉ cho phép gửi file dưới 50MB';
       }
     }
 

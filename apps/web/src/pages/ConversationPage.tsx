@@ -485,6 +485,19 @@ const ConversationPage = () => {
     if (!id || !currentUserId || !files.length) return;
     try {
       const filesArray = Array.from(files);
+
+      // Kiểm tra giới hạn dung lượng file phía client (50MB)
+      const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+      const oversizedFiles = filesArray.filter((file) => file.size > MAX_FILE_SIZE);
+      if (oversizedFiles.length > 0) {
+        if (oversizedFiles.length === 1) {
+          toastAlert(`File "${oversizedFiles[0].name}" vượt quá giới hạn 50MB.`);
+        } else {
+          toastAlert(`Có ${oversizedFiles.length} file vượt quá giới hạn 50MB.`);
+        }
+        return;
+      }
+
       const audioFiles = filesArray.filter((f) => f.type.startsWith("audio/"));
       const mediaFiles = filesArray.filter(
         (f) => f.type.startsWith("image/") || f.type.startsWith("video/"),
@@ -581,8 +594,14 @@ const ConversationPage = () => {
 
       if (replyingMessage) dispatch(clearReplyingMessage());
       scrollToBottom("smooth");
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      console.error("Gửi file thất bại:", error);
+      const apiMessage = error?.response?.data?.message;
+      if (apiMessage) {
+        toastAlert(Array.isArray(apiMessage) ? apiMessage[0] : apiMessage);
+      } else {
+        toastAlert("Không thể gửi file. Vui lòng thử lại.");
+      }
     }
   };
 
@@ -594,35 +613,45 @@ const ConversationPage = () => {
   }) => {
     if (!id || !currentUserId) return;
 
-    const formData = new FormData();
-    formData.append("conversationId", id);
-    formData.append("senderId", currentUserId);
-    if (replyingMessage?._id) {
-      formData.append("repliedId", replyingMessage._id);
+    try {
+      const formData = new FormData();
+      formData.append("conversationId", id);
+      formData.append("senderId", currentUserId);
+      if (replyingMessage?._id) {
+        formData.append("repliedId", replyingMessage._id);
+      }
+
+      const audioFile = new File([voice.blob], voice.fileName, {
+        type: voice.mimeType || "audio/webm",
+      });
+
+      formData.append(
+        "content",
+        JSON.stringify({
+          voiceDuration: Math.max(1, Math.floor(voice.durationMs / 1000)),
+        }),
+      );
+      formData.append("files", audioFile);
+
+      const res = await messageService.sendVoiceMessage(formData);
+      // Cập nhật local ngay
+      const msg = res?.data ?? res;
+      const messageObj = msg?.message ?? msg;
+      if (messageObj && (messageObj._id || messageObj.messageId)) {
+        dispatch(addMessage({ conversationId: id, message: messageObj } as any));
+      }
+
+      if (replyingMessage) dispatch(clearReplyingMessage());
+      scrollToBottom("smooth");
+    } catch (error: any) {
+      console.error("Gửi tin nhắn thoại thất bại:", error);
+      const apiMessage = error?.response?.data?.message;
+      if (apiMessage) {
+        toastAlert(Array.isArray(apiMessage) ? apiMessage[0] : apiMessage);
+      } else {
+        toastAlert("Không thể gửi tin nhắn thoại. Vui lòng thử lại.");
+      }
     }
-
-    const audioFile = new File([voice.blob], voice.fileName, {
-      type: voice.mimeType || "audio/webm",
-    });
-
-    formData.append(
-      "content",
-      JSON.stringify({
-        voiceDuration: Math.max(1, Math.floor(voice.durationMs / 1000)),
-      }),
-    );
-    formData.append("files", audioFile);
-
-    const res = await messageService.sendVoiceMessage(formData);
-    // Cập nhật local ngay
-    const msg = res?.data ?? res;
-    const messageObj = msg?.message ?? msg;
-    if (messageObj && (messageObj._id || messageObj.messageId)) {
-      dispatch(addMessage({ conversationId: id, message: messageObj } as any));
-    }
-
-    if (replyingMessage) dispatch(clearReplyingMessage());
-    scrollToBottom("smooth");
   };
 
   const handleRecalledMessage = async (messageId: string) => {

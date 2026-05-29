@@ -16,6 +16,7 @@ import { ChatModule } from './modules/chat/chat.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { SocialModule } from './modules/social/social.module';
 import { AiModule } from './modules/ai/ai.module';
+import { GlobalMulterModule } from './common/storage/global-multer.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { AiModule } from './modules/ai/ai.module';
       isGlobal: true,
       load: [envConfig],
     }),
+    GlobalMulterModule,
     MongooseModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({

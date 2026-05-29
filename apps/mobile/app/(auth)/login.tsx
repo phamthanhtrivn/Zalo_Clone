@@ -86,14 +86,14 @@ export default function Login() {
         />
 
         <Text className="text-red-600">{error.message}</Text>
-        <View className="flex-row justify-between items-center w-full pr-4 mt-1">
+        <View className="flex-row justify-between items-center w-full mt-1">
           <TouchableOpacity onPress={handleForgotPassword}>
-            <Text className="text-primary/70 font-semibold">
+            <Text className="text-primary/70 font-medium">
               Lấy lại mật khẩu
             </Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => router.push("/(auth)/unlock-account")}>
-            <Text className="text-red-500 font-semibold">
+            <Text className="text-red-500 font-medium">
               Mở khóa tài khoản
             </Text>
           </TouchableOpacity>

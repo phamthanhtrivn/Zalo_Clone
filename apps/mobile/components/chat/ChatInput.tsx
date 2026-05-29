@@ -28,6 +28,7 @@ interface SelectedFile {
   uri: string;
   name: string;
   type: string;
+  size?: number;
 }
 
 interface RecordedVoice {
@@ -327,6 +328,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               : `file://${asset.uri}`,
             name: encodeURIComponent(fileName),
             type: mimeType,
+            size: asset.fileSize,
           };
         });
 
@@ -357,6 +359,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               : `file://${asset.uri}`,
             name: fileName,
             type: mimeType,
+            size: asset.size,
           };
         });
 

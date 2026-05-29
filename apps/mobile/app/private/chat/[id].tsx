@@ -414,10 +414,22 @@ export default function ChatWindow() {
   };
 
   const handleSendFile = async (
-    files: Array<{ uri: string; name: string; type: string }>,
+    files: Array<{ uri: string; name: string; type: string; size?: number }>,
   ) => {
     if (!id || !user?.userId || files.length === 0) return;
     try {
+      // Kiểm tra giới hạn dung lượng file phía client (50MB)
+      const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+      const oversizedFiles = files.filter((file) => file.size && file.size > MAX_FILE_SIZE);
+      if (oversizedFiles.length > 0) {
+        if (oversizedFiles.length === 1) {
+          Alert.alert("Lỗi", `File "${oversizedFiles[0].name}" vượt quá giới hạn 50MB.`);
+        } else {
+          Alert.alert("Lỗi", `Có ${oversizedFiles.length} file vượt quá giới hạn 50MB.`);
+        }
+        return;
+      }
+
       const mediaFiles = files.filter(
         (file) =>
           file.type.startsWith("image/") || file.type.startsWith("video/"),
@@ -466,9 +478,14 @@ export default function ChatWindow() {
       await Promise.all(promises);
       if (replyingMessage) dispatch(clearReplyingMessage());
       scrollToBottom();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Send file error:", err);
-      Alert.alert("Lỗi", "Không thể gửi file. Vui lòng thử lại.");
+      const apiMessage = err?.response?.data?.message;
+      if (apiMessage) {
+        Alert.alert("Lỗi", Array.isArray(apiMessage) ? apiMessage[0] : apiMessage);
+      } else {
+        Alert.alert("Lỗi", "Không thể gửi file. Vui lòng thử lại.");
+      }
     }
   };
 
@@ -502,9 +519,14 @@ export default function ChatWindow() {
       await messageService.sendVoiceMessage(formData);
       if (replyingMessage) dispatch(clearReplyingMessage());
       scrollToBottom();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Send voice error:", err);
-      Alert.alert("Lỗi", "Không thể gửi bản ghi âm.");
+      const apiMessage = err?.response?.data?.message;
+      if (apiMessage) {
+        Alert.alert("Lỗi", Array.isArray(apiMessage) ? apiMessage[0] : apiMessage);
+      } else {
+        Alert.alert("Lỗi", "Không thể gửi bản ghi âm.");
+      }
     }
   };
 
