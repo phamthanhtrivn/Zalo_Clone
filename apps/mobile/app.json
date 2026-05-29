@@ -1,14 +1,19 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "Zola Zola",
+    "slug": "zola-mobile",
     "owner": "khongvantam88",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/android-z-foreground.png",
     "scheme": "mobile",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-zolazola.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#eef6fe"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.htuan04.mobile",
@@ -22,7 +27,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "foregroundImage": "./assets/images/android-z-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
@@ -52,7 +57,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/icon.png",
+          "icon": "./assets/images/android-z-foreground.png",
           "color": "#0068ff",
           "defaultChannel": "messages",
           "sounds": []
@@ -72,7 +77,15 @@
           "cameraPermission": "Ứng dụng cần truy cập Máy ảnh."
         }
       ],
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-zolazola.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#eef6fe",
+          "imageWidth": 220
+        }
+      ],
       "expo-file-system",
       "@react-native-community/datetimepicker"
     ],
@@ -82,4 +95,4 @@
       }
     }
   }
-}
+}
