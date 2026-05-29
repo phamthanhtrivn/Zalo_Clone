@@ -8,6 +8,7 @@ import { useSocket } from "@/contexts/SocketContext";
 import { conversationService } from "@/services/conversation.service";
 import { useVideoCall } from "@/contexts/VideoCallContext";
 import GroupAvatar from "@/components/ui/GroupAvatar";
+import { useAppSelector } from "@/store/store";
 
 type FriendItemType = {
   friendId: string;
@@ -37,6 +38,9 @@ const isBirthdayToday = (birthday?: string) => {
 };
 
 export default function FriendsTab() {
+  const currentUser = useAppSelector((state) => state.auth.user);
+  const isSelfHidden = currentUser?.privacy?.hideActiveStatus || false;
+
   const [friends, setFriends] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"ALL" | "ONLINE">("ALL");
   const [onlineStatuses, setOnlineStatuses] = useState<Record<string, boolean>>({});
@@ -151,16 +155,20 @@ export default function FriendsTab() {
   }, [friends]);
 
   const allCount = useMemo(() => friends.reduce((acc, group) => acc + (group.friends?.length || 0), 0), [friends]);
-  const onlineCount = useMemo(() => Object.values(onlineStatuses).filter(Boolean).length, [onlineStatuses]);
+  const onlineCount = useMemo(() => {
+    if (isSelfHidden) return 0;
+    return Object.values(onlineStatuses).filter(Boolean).length;
+  }, [onlineStatuses, isSelfHidden]);
 
   const displayGroups = useMemo(() => {
+    if (isSelfHidden && activeTab === "ONLINE") return [];
     if (activeTab === "ALL") return friends;
 
     return friends.map((group: any) => ({
       ...group,
-      friends: group.friends.filter((f: any) => onlineStatuses[f.friendId])
+      friends: group.friends.filter((f: any) => !isSelfHidden && onlineStatuses[f.friendId])
     })).filter((group: any) => group.friends.length > 0);
-  }, [friends, activeTab, onlineStatuses]);
+  }, [friends, activeTab, onlineStatuses, isSelfHidden]);
 
   return (
     <ScrollView className="flex-1 bg-white">
@@ -240,7 +248,7 @@ export default function FriendsTab() {
               <FriendItem
                 key={friend.friendId}
                 item={friend}
-                isOnline={onlineStatuses[friend.friendId] || false}
+                isOnline={!isSelfHidden && (onlineStatuses[friend.friendId] || false)}
                 onStartConversation={handleStartConversation}
                 onStartVideoCall={handleStartVideoCall}
               />

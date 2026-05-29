@@ -637,7 +637,7 @@ const ConversationListItem = ({
           src={conversation.avatar}
           name={conversation.name}
           isAI={conversation.type === "AI"}
-          isOnline={conversation.type === "DIRECT" && conversation.isOnline}
+          isOnline={conversation.type === "DIRECT" && conversation.isOnline && !(user?.privacy?.hideActiveStatus || false)}
           className="h-12 w-12"
         />
 

@@ -3,11 +3,12 @@ import Header from "@/components/common/Header";
 import SearchIcon from "@/components/common/SearchIcon";
 import SearchLabel from "@/components/common/SearchLabel";
 import GroupAvatar from "@/components/ui/GroupAvatar";
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ScrollView, Text, TextInput, TouchableOpacity, View, Switch, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { useAppDispatch, useAppSelector } from "@/store/store";
 import { showToast } from "@/utils/toast";
 import { logOut } from "@/store/auth/authThunk";
+import { updatePrivacy } from "@/store/auth/authSlice";
 import OptionItem from "@/components/auth/OptionItem";
 import Button from "@/components/common/Button";
 import { scale } from "@/utils/responsive";
@@ -35,6 +36,35 @@ export default function Personal() {
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
+
+  const hideActiveStatus = user?.privacy?.hideActiveStatus || false;
+  const isShowActiveStatus = !hideActiveStatus;
+
+  const handleToggleActiveStatus = async (value: boolean) => {
+    const newHideValue = !value;
+
+    // Optimistic Update
+    dispatch(updatePrivacy({ hideActiveStatus: newHideValue }));
+
+    try {
+      const res = await userService.updatePrivacySettings({ hideActiveStatus: newHideValue });
+
+      if (res?.success) {
+        showToast(
+          value
+            ? "Đã bật trạng thái hoạt động"
+            : "Đã tắt trạng thái hoạt động"
+        );
+      } else {
+        throw new Error("Không thể cập nhật cấu hình riêng tư");
+      }
+    } catch (error: any) {
+      // Rollback on error
+      dispatch(updatePrivacy({ hideActiveStatus: !newHideValue }));
+      console.error("Lỗi khi cập nhật trạng thái riêng tư:", error);
+      showToast(error?.response?.data?.message || error?.message || "Lỗi cập nhật cấu hình !");
+    }
+  };
 
   useEffect(() => {
     setEmail(userInfo?.email || "");
@@ -302,6 +332,24 @@ export default function Personal() {
               />
               <Text className="text-sm text-black flex-1">Danh sách chặn</Text>
             </OptionItem>
+
+            {/* Hiện trạng thái truy cập */}
+            <View className="flex-row items-center justify-between py-4 px-4 bg-white">
+              <View className="flex-row items-center gap-4 flex-1">
+                <Ionicons
+                  name="eye-outline"
+                  size={scale(20)}
+                  color="black"
+                />
+                <Text className="text-sm text-black flex-1">Hiện trạng thái truy cập</Text>
+              </View>
+              <Switch
+                value={isShowActiveStatus}
+                onValueChange={handleToggleActiveStatus}
+                trackColor={{ false: "#d1d5db", true: "#0068ff" }}
+                thumbColor={isShowActiveStatus ? "#ffffff" : "#f4f3f4"}
+              />
+            </View>
           </View>
 
           {/* Nút Đăng xuất */}

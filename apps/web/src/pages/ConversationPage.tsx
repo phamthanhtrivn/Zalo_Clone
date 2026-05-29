@@ -34,6 +34,7 @@ import { conversationService } from "@/services/conversation.service";
 import HomePage from "./HomePage";
 import { FriendRequestBar } from "@/components/layout/message/FriendRequestBar";
 import { ConversationProfileModal } from "@/components/layout/message/ConversationProfileModal";
+import PinnedMessagesBar from "@/components/layout/message/PinnedMessagesBar";
 
 const EMPTY_MESSAGES: MessagesType[] = [];
 
@@ -956,7 +957,7 @@ const ConversationPage = () => {
           }}
           friendStatus={friendStatus}
         />
-        {/* Thanh gửi yêu cầu kết bạn */}
+        {/* Thanh gửi yêu cầu kết bạn - luôn đứng trên cùng */}
         <FriendRequestBar
           isGroup={isGroup}
           isFriend={isFriend}
@@ -964,6 +965,12 @@ const ConversationPage = () => {
           onAccept={handleAcceptFriendRequest}
           onSend={handleSendFriendRequest}
           onUnblock={handleUnblockFriendRequest}
+        />
+        {/* Tin nhắn ghim - hiển thị bên dưới thanh kết bạn */}
+        <PinnedMessagesBar
+          pinnedMessages={pinnedMessages}
+          handlePinnedMessage={handlePinnedMessage}
+          onClickMessage={handleJumpToMessage}
         />
         <MessageList
           messages={messages}

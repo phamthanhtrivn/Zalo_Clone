@@ -100,6 +100,16 @@ export class User {
 
   @Prop({ type: [BlockedDevice], default: [] })
   blockedDevices?: BlockedDevice[];
+
+  @Prop({
+    type: {
+      hideActiveStatus: { type: Boolean, default: false },
+    },
+    default: { hideActiveStatus: false },
+  })
+  privacy?: {
+    hideActiveStatus: boolean;
+  };
 }
 export type UserDocument = User & Document;
 export const UserSchema = SchemaFactory.createForClass(User);

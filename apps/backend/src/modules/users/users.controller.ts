@@ -15,6 +15,7 @@ import { RequestFriendPhone } from './dto/request-friend-phone';
 import { SearchFriendDto } from './dto/search-friend.dto';
 import { InforUser } from './dto/infor-user.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { UpdatePrivacyDto } from './dto/update-privacy.dto';
 
 @Controller('users')
 export class UsersController {
@@ -107,5 +108,13 @@ export class UsersController {
   @Post('status/bulk')
   getBulkStatus(@Body('userIds') userIds: string[]) {
     return this.usersService.getBulkStatus(userIds);
+  }
+
+  @Patch('profile/privacy')
+  updatePrivacy(
+    @Request() req,
+    @Body() body: UpdatePrivacyDto,
+  ) {
+    return this.usersService.updatePrivacy(req.user.userId, body);
   }
 }

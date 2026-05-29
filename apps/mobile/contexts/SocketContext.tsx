@@ -26,6 +26,7 @@ import {
 } from "@/store/slices/conversationSlice";
 import { userService } from "@/services/user.service";
 import { logout2 } from "@/store/auth/authThunk";
+import { updatePrivacy } from "@/store/auth/authSlice";
 import { getDeviceId } from "@/utils/device.util";
 import {
   setupNotifications,
@@ -559,6 +560,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
         dispatch(updateUserStatus(data));
       };
 
+      // Handler thay đổi cấu hình quyền riêng tư realtime từ thiết bị khác của cùng tài khoản
+      const handlePrivacyUpdated = (data: { hideActiveStatus: boolean }) => {
+        dispatch(updatePrivacy({ hideActiveStatus: data.hideActiveStatus }));
+      };
+
       // --- ĐĂNG KÝ LISTENERS (mỗi event 1 lần, truyền đầy đủ callback ref) ---
       socketInstance.on("connect", onConnect);
       socketInstance.on("disconnect", onDisconnect);
@@ -587,6 +593,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       socketInstance.on("update_profile", handleUpdateProfile);
       socketInstance.on("social:notification", handleSocialNotification);
       socketInstance.on("user_status_change", handleUserStatusChange);
+      socketInstance.on("privacy_updated", handlePrivacyUpdated);
 
       const handleUpdatePoll = (data: any) => {
         if (data.conversationId) {
@@ -636,6 +643,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
         socketInstance.off("role_updated", handleRoleUpdated);
         socketInstance.off("new_approval_request", handleNewApprovalRequest);
         socketInstance.off("user_status_change", handleUserStatusChange);
+        socketInstance.off("privacy_updated", handlePrivacyUpdated);
       };
     };
 

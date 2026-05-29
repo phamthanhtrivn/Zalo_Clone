@@ -94,7 +94,6 @@ export default function PrivateLayout() {
           <Stack.Screen name="sessions" />
           <Stack.Screen name="search-profile" />
           <Stack.Screen name="change-phone" />
-          <Stack.Screen name="scan-qr" />
         </Stack>
       </VideoCallProvider>
     </SocketProvider>

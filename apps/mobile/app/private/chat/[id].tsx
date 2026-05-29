@@ -1311,12 +1311,6 @@ export default function ChatWindow() {
       <Animated.View
         style={[{ flex: 1 }, animatedKeyboardStyle]}
       >
-        <PinnedMessagesBar
-          pinnedMessages={pinnedMessages}
-          onUnpin={handleTogglePin}
-          onJumpToMessage={handleJumpToMessage}
-        />
-
         <FriendBanner
           isGroup={isGroup}
           isFriend={isFriend}
@@ -1324,6 +1318,12 @@ export default function ChatWindow() {
           handleAcceptFriend={handleAcceptFriend}
           handleAddFriend={handleAddFriend}
           handleUnblockFriend={handleUnblockFriend}
+        />
+
+        <PinnedMessagesBar
+          pinnedMessages={pinnedMessages}
+          onUnpin={handleTogglePin}
+          onJumpToMessage={handleJumpToMessage}
         />
 
         <View className="flex-1 bg-[#F1F2F4]">

@@ -16,10 +16,13 @@ const refreshApi = axios.create({
 
 api.interceptors.request.use(async (config) => {
   config.headers["x-device-id"] = await getDeviceId();
-  const token = await SecureStore.getItemAsync("access_token");
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  // Không gắn Authorization cho sign-in và token/refresh
+  if (!config.url?.includes("/auth/sign-in") && !config.url?.includes("/auth/token/refresh")) {
+    const token = await SecureStore.getItemAsync("access_token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
 
   return config;
@@ -33,7 +36,9 @@ api.interceptors.response.use(
     if (
       error.response?.status === 401 &&
       originalRequest.headers?.Authorization &&
-      !originalRequest._retry
+      !originalRequest._retry &&
+      !originalRequest.url?.includes("/auth/sign-in") &&
+      !originalRequest.url?.includes("/auth/token/refresh")
     ) {
       originalRequest._retry = true;
 
