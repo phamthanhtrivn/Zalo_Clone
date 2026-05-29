@@ -2,7 +2,7 @@
   "expo": {
     "name": "Zola Zola",
     "slug": "zola-mobile",
-    "owner": "khongvantam88",
+    "owner": "htuan04",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/android-z-foreground.png",
@@ -91,8 +91,8 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "c619151f-f709-4849-98b9-d0c2ce7b43bd"
+        "projectId": "4acb257f-bc24-4cb6-8fa3-492b237e9639"
       }
     }
   }
-}
+}

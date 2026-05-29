@@ -11,14 +11,24 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_USE_LEGACY_PEER_DEPS": "true"
+        "EXPO_USE_LEGACY_PEER_DEPS": "true",
+        "EXPO_PUBLIC_API_URL": "https://zola14.ddns.net"
       }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://zola14.ddns.net"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://zola14.ddns.net"
+      }
     }
   },
   "submit": {
