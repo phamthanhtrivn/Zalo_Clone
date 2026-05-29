@@ -206,7 +206,9 @@ export default function QRScannerScreen() {
               <Ionicons name="close" size={28} color="white" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(0,0,0,0.4)', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 100, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
+            <TouchableOpacity onPress={() => router.push({
+              pathname: "/private/search-friends",
+            })} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(0,0,0,0.4)', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 100, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
               <FontAwesome5 name="user" size={14} color="white" />
               <Text style={{ color: 'white', fontSize: 14, fontWeight: '500' }}>Mã QR của tôi</Text>
             </TouchableOpacity>

@@ -5,7 +5,6 @@ import type { ConversationItemType } from "@/types/conversation-item.type";
 import AppAvatar from "@/components/common/AppAvatar";
 import { Button } from "@/components/ui/button";
 import type { MessagesType } from "@/types/messages.type";
-import PinnedMessagesBar from "./PinnedMessagesBar";
 import { useCall } from "@/contexts/VideoCallContext";
 import { useAppSelector } from "@/store";
 import { CallType } from "@/constants/types";
@@ -15,9 +14,9 @@ type ChatHeaderProps = {
   conversation: ConversationItemType;
   isInfoOpen: boolean;
   toggleInfo: () => void;
-  pinnedMessages: MessagesType[];
-  handlePinnedMessage: (messageId: string) => void;
-  handleJumpToMessage: (messageId: string) => void;
+  pinnedMessages?: MessagesType[];
+  handlePinnedMessage?: (messageId: string) => void;
+  handleJumpToMessage?: (messageId: string) => void;
   isSearchOpen: boolean;
   toggleSearch: () => void;
   friendStatus?: string | null;
@@ -161,12 +160,6 @@ const ChatHeader = ({
           </Button>
         </div>
       </header>
-
-      <PinnedMessagesBar
-        pinnedMessages={pinnedMessages}
-        handlePinnedMessage={handlePinnedMessage}
-        onClickMessage={handleJumpToMessage}
-      />
     </>
   );
 };
