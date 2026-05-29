@@ -23,6 +23,7 @@ import MentionSuggestions from "./MentionSuggestions";
 import { useAppSelector } from "@/store/store";
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
 import { StickerPickerPanel } from "./StickerPickerPanel";
+import { MobileImageViewer } from "../ui/MobileImageViewer";
 
 interface SelectedFile {
   uri: string;
@@ -172,6 +173,24 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const [showEmoji, setShowEmoji] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [showVoicePanel, setShowVoicePanel] = useState(false);
+  const [isViewerVisible, setIsViewerVisible] = useState(false);
+  const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
+
+  const previewMediaList = selectedFiles
+    .filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"))
+    .map((f) => ({
+      fileKey: f.uri,
+      type: (f.type.startsWith("video/") ? "VIDEO" : "IMAGE") as "VIDEO" | "IMAGE",
+      fileName: decodeURIComponent(f.name),
+    }));
+
+  const handlePressPreviewItem = (fileUri: string) => {
+    const idx = previewMediaList.findIndex((item) => item.fileKey === fileUri);
+    if (idx !== -1) {
+      setViewerInitialIndex(idx);
+      setIsViewerVisible(true);
+    }
+  };
   const [voiceMode, setVoiceMode] = useState<"audio" | "text">("audio");
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDurationMs, setRecordingDurationMs] = useState(0);
@@ -323,9 +342,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             asset.fileName || `media_${Date.now()}_${index}.${extension}`;
 
           return {
-            uri: asset.uri.startsWith("file://")
-              ? asset.uri
-              : `file://${asset.uri}`,
+            uri: asset.uri,
             name: encodeURIComponent(fileName),
             type: mimeType,
             size: asset.fileSize,
@@ -354,9 +371,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           const mimeType = asset.mimeType || "application/octet-stream";
 
           return {
-            uri: asset.uri.startsWith("file://")
-              ? asset.uri
-              : `file://${asset.uri}`,
+            uri: asset.uri,
             name: fileName,
             type: mimeType,
             size: asset.size,
@@ -603,44 +618,76 @@ const ChatInput: React.FC<ChatInputProps> = ({
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          className="max-h-[110px] px-2.5 py-2.5 border-t border-[#e5e7eb]"
-          contentContainerClassName="gap-3 pr-5"
+          style={{ maxHeight: 110, borderTopWidth: 1, borderTopColor: "#e5e7eb" }}
+          contentContainerStyle={{ paddingHorizontal: 10, paddingVertical: 10, gap: 12, paddingRight: 20 }}
         >
           {selectedFiles.map((file, index) => (
             <View
               key={index}
-              className="w-20 h-20 relative"
+              style={{ width: 80, height: 80, position: "relative" }}
             >
               {file.type.startsWith("image/") ? (
-                <Image
-                  source={{ uri: file.uri }}
-                  className="w-20 h-20 rounded-lg"
-                  contentFit="cover"
-                />
-              ) : (
-                <View
-                  className="w-20 h-20 rounded-lg bg-[#f3f4f6] justify-center items-center p-1 border border-[#e5e7eb]"
+                <TouchableOpacity
+                  onPress={() => handlePressPreviewItem(file.uri)}
+                  style={{ width: 80, height: 80, borderRadius: 8, overflow: "hidden" }}
                 >
-                  <Ionicons
-                    name={
-                      file.type.startsWith("video/")
-                        ? "play-circle"
-                        : "document"
-                    }
-                    size={32}
-                    color="#6b7280"
+                  <Image
+                    source={{ uri: file.uri }}
+                    style={{ width: 80, height: 80 }}
+                    contentFit="cover"
                   />
-                  <Text
-                    numberOfLines={1}
-                    className="text-[9px] text-[#6b7280] mt-1"
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  disabled={!file.type.startsWith("video/")}
+                  onPress={() => file.type.startsWith("video/") && handlePressPreviewItem(file.uri)}
+                  style={{ width: 80, height: 80, borderRadius: 8, overflow: "hidden" }}
+                >
+                  <View
+                    style={{
+                      width: 80,
+                      height: 80,
+                      borderRadius: 8,
+                      backgroundColor: "#f3f4f6",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      padding: 4,
+                      borderWidth: 1,
+                      borderColor: "#e5e7eb",
+                    }}
                   >
-                    {file.name}
-                  </Text>
-                </View>
+                    <Ionicons
+                      name={
+                        file.type.startsWith("video/")
+                          ? "play-circle"
+                          : "document"
+                      }
+                      size={32}
+                      color="#6b7280"
+                    />
+                    <Text
+                      numberOfLines={1}
+                      style={{ fontSize: 9, color: "#6b7280", marginTop: 4 }}
+                    >
+                      {decodeURIComponent(file.name)}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
               )}
               <TouchableOpacity
                 onPress={() => removeFile(index)}
-                className="absolute -top-1.5 -right-1.5 bg-black/60 rounded-full w-[22px] h-[22px] justify-center items-center z-10"
+                style={{
+                  position: "absolute",
+                  top: -6,
+                  right: -6,
+                  backgroundColor: "rgba(0,0,0,0.6)",
+                  borderRadius: 11,
+                  width: 22,
+                  height: 22,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  zIndex: 10,
+                }}
               >
                 <Ionicons name="close" size={14} color="white" />
               </TouchableOpacity>
@@ -721,7 +768,43 @@ const ChatInput: React.FC<ChatInputProps> = ({
           </View>
         </View>
 
-        {!(text.trim() || selectedFiles.length > 0) ? (
+        {selectedFiles.length > 0 ? (
+          <View className="flex-row items-center">
+            <TouchableOpacity onPress={pickImages} className="p-1.5" disabled={disabled}>
+              <MaterialIcons name="image" size={moderateScale(25)} color="#6b7280" />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={pickDocuments} className="p-1.5" disabled={disabled}>
+              <Ionicons name="attach-outline" size={moderateScale(25)} color="#6b7280" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleSend}
+              disabled={disabled}
+              className="w-[38px] h-[38px] items-center justify-center"
+            >
+              <Ionicons
+                name="send"
+                size={moderateScale(22)}
+                color="#0068ff"
+              />
+            </TouchableOpacity>
+          </View>
+        ) : text.trim() !== "" ? (
+          <View className="h-[40px] justify-center">
+            <TouchableOpacity
+              onPress={handleSend}
+              disabled={disabled}
+              className="w-[38px] h-[38px] items-center justify-center"
+            >
+              <Ionicons
+                name="send"
+                size={moderateScale(22)}
+                color="#0068ff"
+              />
+            </TouchableOpacity>
+          </View>
+        ) : (
           <View className="flex-row items-center">
             <TouchableOpacity onPress={pickImages} className="p-1.5" disabled={disabled}>
               <MaterialIcons name="image" size={moderateScale(25)} color="#6b7280" />
@@ -745,35 +828,19 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 <Ionicons name="bar-chart-outline" size={moderateScale(25)} color="#6b7280" />
               </TouchableOpacity>
             )}
-          </View>
-        ) : (
-          <View className="h-[40px] justify-center">
-            <TouchableOpacity
-              onPress={handleSend}
-              disabled={disabled}
-              className="w-[38px] h-[38px] items-center justify-center"
-            >
-              <Ionicons
-                name="send"
-                size={moderateScale(22)}
-                color="#0068ff"
-              />
-            </TouchableOpacity>
-          </View>
-        )}
 
-        {!(text.trim() || selectedFiles.length > 0) && (
-          <View className="h-[40px] justify-center">
-            <TouchableOpacity
-              disabled
-              className="w-[38px] h-[38px] items-center justify-center"
-            >
-              <Ionicons
-                name="send"
-                size={moderateScale(20)}
-                color="#6b7280"
-              />
-            </TouchableOpacity>
+            <View className="h-[40px] justify-center">
+              <TouchableOpacity
+                disabled
+                className="w-[38px] h-[38px] items-center justify-center"
+              >
+                <Ionicons
+                  name="send"
+                  size={moderateScale(20)}
+                  color="#6b7280"
+                />
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </Animated.View>
@@ -970,6 +1037,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
           conversationId={conversationId}
         />
       )}
+      {/* Mobile Image/Video Viewer for Preview */}
+      <MobileImageViewer
+        visible={isViewerVisible}
+        onClose={() => setIsViewerVisible(false)}
+        mediaList={previewMediaList}
+        initialIndex={viewerInitialIndex}
+      />
     </View>
   );
 };

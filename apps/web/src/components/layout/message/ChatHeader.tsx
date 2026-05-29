@@ -35,7 +35,10 @@ const ChatHeader = ({
   friendStatus,
 }: ChatHeaderProps) => {
   const { startGroupCall, startDirectCall } = useCall();
-  const currentUserId = useAppSelector((state) => state.auth.user?.userId);
+  const currentUser = useAppSelector((state) => state.auth.user);
+  const currentUserId = currentUser?.userId;
+  const isSelfHidden = currentUser?.privacy?.hideActiveStatus || false;
+
   const [isInitializingCall, setIsInitializingCall] = useState(false);
   const [, setTick] = useState(0);
 
@@ -95,7 +98,7 @@ const ChatHeader = ({
             src={conversation?.avatar}
             name={conversation?.name || ""}
             isAI={conversation?.type === "AI"}
-            isOnline={conversation?.type === "DIRECT" && conversation?.isOnline}
+            isOnline={conversation?.type === "DIRECT" && conversation?.isOnline && !isSelfHidden}
             className="w-10 h-10 border-0 shadow-sm"
           />
 
@@ -106,11 +109,13 @@ const ChatHeader = ({
             {conversation.type !== "AI" && (
               <span className="text-[12px] text-gray-400 select-none">
                 {conversation.type === "DIRECT" ? (
-                  conversation.isOnline ? (
-                    <span className="text-[#0084ff] font-medium">Đang hoạt động</span>
-                  ) : (
-                    <span>{formatLastSeen(conversation.lastSeenAt)}</span>
-                  )
+                  !isSelfHidden && (conversation.isOnline || !!conversation.lastSeenAt) ? (
+                    conversation.isOnline ? (
+                      <span className="text-[#0084ff] font-medium">Đang hoạt động</span>
+                    ) : (
+                      <span>{formatLastSeen(conversation.lastSeenAt)}</span>
+                    )
+                  ) : null
                 ) : (
                   <span>Trò chuyện nhóm</span>
                 )}

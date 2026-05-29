@@ -35,6 +35,14 @@ const authSlice = createSlice({
       state.user = null;
       state.loading = false;
     },
+    updatePrivacy(state, action) {
+      if (state.user) {
+        state.user.privacy = {
+          ...state.user.privacy,
+          hideActiveStatus: action.payload.hideActiveStatus,
+        };
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -141,4 +149,5 @@ const authSlice = createSlice({
 });
 
 const { reducer } = authSlice;
+export const { clearAuth, updatePrivacy } = authSlice.actions;
 export default reducer;

@@ -22,6 +22,7 @@ import { Gender } from 'src/common/types/enums/gender';
 import { FriendStatus } from 'src/common/types/enums/friend-status';
 import { ChatGateway } from '../chat/chat.gateway';
 import { RedisService } from 'src/common/redis/redis.service';
+import { UpdatePrivacyDto } from './dto/update-privacy.dto';
 
 @Injectable()
 export class UsersService {
@@ -661,7 +662,7 @@ export class UsersService {
         .find({
           _id: { $in: userIds.map((id) => new Types.ObjectId(id)) },
         })
-        .select('lastSeenAt')
+        .select('lastSeenAt privacy')
         .lean(),
     ]);
 
@@ -670,23 +671,26 @@ export class UsersService {
     if (!results) {
       return userIds.map((id) => {
         const u = userMap.get(id);
+        const isHidden = u?.privacy?.hideActiveStatus || false;
         return {
           userId: id,
           isOnline: false,
-          lastSeenAt: u?.lastSeenAt || null,
+          lastSeenAt: isHidden ? null : u?.lastSeenAt || null,
         };
       });
     }
 
     return userIds.map((id, index) => {
-      const [err, existsCount] = results[index];
-      const isOnline = !err && existsCount === 1;
       const u = userMap.get(id);
+      const isHidden = u?.privacy?.hideActiveStatus || false;
+
+      const [err, existsCount] = results[index];
+      const isOnline = !isHidden && !err && existsCount === 1;
 
       return {
         userId: id,
         isOnline,
-        lastSeenAt: isOnline ? null : u?.lastSeenAt || null,
+        lastSeenAt: isOnline ? null : (isHidden ? null : u?.lastSeenAt || null),
       };
     });
   }
@@ -722,5 +726,77 @@ export class UsersService {
       $pull: { blockedDevices: { deviceId } },
     });
     return { success: true };
+  }
+
+  async updatePrivacy(userId: string, dto: UpdatePrivacyDto) {
+    const updateData: any = {};
+    if (dto.hideActiveStatus !== undefined) {
+      updateData['privacy.hideActiveStatus'] = dto.hideActiveStatus;
+    }
+
+    const user = await this.userModel.findByIdAndUpdate(
+      userId,
+      { $set: updateData },
+      { new: true }
+    ).lean();
+
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+
+    // Cache in Redis for Gateway O(1) check
+    const redis = this.redisService.getClient();
+    if (dto.hideActiveStatus !== undefined) {
+      await redis.set(`user_privacy:hideActiveStatus:${userId}`, dto.hideActiveStatus ? 'true' : 'false');
+
+      try {
+        const redisKey = `online:${userId}`;
+        const activeConnections = await redis.scard(redisKey);
+        const isActuallyOnline = activeConnections > 0;
+
+        // 1. Broadcast status change to all other users
+        if (dto.hideActiveStatus) {
+          this.chatGateway.server.emit('user_status_change', {
+            userId,
+            isOnline: false,
+            lastSeenAt: null,
+          });
+        } else {
+          const lastSeenStr = user.lastSeenAt
+            ? (user.lastSeenAt instanceof Date ? user.lastSeenAt.toISOString() : new Date(user.lastSeenAt).toISOString())
+            : null;
+          this.chatGateway.server.emit('user_status_change', {
+            userId,
+            isOnline: isActuallyOnline,
+            lastSeenAt: isActuallyOnline ? null : lastSeenStr,
+          });
+        }
+
+        // 2. Broadcast privacy update to all devices of the same user
+        this.chatGateway.server.to(userId).emit('privacy_updated', {
+          hideActiveStatus: dto.hideActiveStatus,
+        });
+      } catch (err) {
+        console.error('Error emitting real-time privacy/status socket events:', err);
+      }
+    }
+
+    return {
+      success: true,
+      privacy: user.privacy || { hideActiveStatus: false }
+    };
+  }
+
+  async getPrivacySetting(userId: string): Promise<{ hideActiveStatus: boolean }> {
+    const redis = this.redisService.getClient();
+    const cached = await redis.get(`user_privacy:hideActiveStatus:${userId}`);
+    if (cached !== null) {
+      return { hideActiveStatus: cached === 'true' };
+    }
+
+    const user = await this.userModel.findById(userId).select('privacy').lean();
+    const hideActiveStatus = user?.privacy?.hideActiveStatus || false;
+    await redis.set(`user_privacy:hideActiveStatus:${userId}`, hideActiveStatus ? 'true' : 'false');
+    return { hideActiveStatus };
   }
 }

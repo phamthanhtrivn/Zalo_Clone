@@ -671,7 +671,7 @@ const ConversationItem: React.FC<Props> = React.memo(({
             size={48}
           />
           {/* Chấm xanh online - chỉ cho DIRECT, không phải AI */}
-          {conversation.type === "DIRECT" && conversation.isOnline && (
+          {conversation.type === "DIRECT" && conversation.isOnline && !(user?.privacy?.hideActiveStatus || false) && (
             <View
               style={{
                 position: "absolute",

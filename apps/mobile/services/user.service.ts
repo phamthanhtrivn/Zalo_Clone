@@ -151,4 +151,9 @@ export const userService = {
     const response = await api.post("/users/status/bulk", { userIds });
     return response.data || [];
   },
+
+  updatePrivacySettings: async (settings: { hideActiveStatus: boolean }) => {
+    const response = await api.patch("/users/profile/privacy", settings);
+    return response.data;
+  },
 };

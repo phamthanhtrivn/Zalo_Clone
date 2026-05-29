@@ -115,7 +115,10 @@ export const userService = {
   },
   getBlockedFriends: async () => {
     const response = await apiClient.get("/api/users/blocked-friends");
-    console.log(response)
     return response.data;
-  }
+  },
+  updatePrivacySettings: async (settings: { hideActiveStatus: boolean }) => {
+    const response = await apiClient.patch("/api/users/profile/privacy", settings);
+    return response.data;
+  },
 };

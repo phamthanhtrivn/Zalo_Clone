@@ -25,6 +25,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     state.conversation.conversations.find((c) => c.conversationId === id)
   );
 
+  const currentUser = useAppSelector((state) => state.auth.user);
+  const isSelfHidden = currentUser?.privacy?.hideActiveStatus || false;
+
   const type = liveConversation?.type || conversation?.type;
   const isOnline = liveConversation?.isOnline;
   const lastSeenAt = liveConversation?.lastSeenAt;
@@ -41,6 +44,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     return () => clearInterval(timer);
   }, [isOnline, isDirect]);
 
+  // Chỉ hiển thị trạng thái hoạt động nếu bản thân không ẩn và có dữ liệu trạng thái của đối phương
+  const showActiveStatus = isDirect && !isAI && !isSelfHidden && (isOnline || !!lastSeenAt);
+
   return (
     <Header
       back
@@ -53,7 +59,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             size={38}
           />
           {/* Chấm xanh lá báo trạng thái hoạt động */}
-          {isDirect && isOnline && (
+          {isDirect && isOnline && !isSelfHidden && (
             <View
               style={{
                 position: "absolute",
@@ -90,7 +96,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             )}
           </View>
           <View className="flex-row items-center gap-1.5 mt-0.5">
-            {isDirect && !isAI && (
+            {showActiveStatus && (
               <Text
                 className={`text-[11px] ${isOnline ? "text-emerald-300 font-semibold" : "text-white/70"}`}
                 numberOfLines={1}

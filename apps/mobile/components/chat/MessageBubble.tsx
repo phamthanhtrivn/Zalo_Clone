@@ -7,6 +7,7 @@ import {
   Dimensions,
   Alert,
   ActivityIndicator,
+  Image as RNImage,
 } from "react-native";
 import { useRouter } from "expo-router";
 import Markdown from "react-native-markdown-display";
@@ -168,7 +169,7 @@ const TextWithLinks = ({ text, members }: { text: string; members?: any[] }) => 
 
 const imageSizeCache: Record<string, number> = {};
 
-const SingleMediaItem = ({ file, onPress }: { file: any; onPress: () => void }) => {
+const SingleMediaItem = ({ file, onPress, height = 360 }: { file: any; onPress: () => void; height?: number }) => {
   const cachedRatio = imageSizeCache[file.fileKey] || null;
   const [aspectRatio, setAspectRatio] = useState<number | null>(cachedRatio);
 
@@ -180,12 +181,32 @@ const SingleMediaItem = ({ file, onPress }: { file: any; onPress: () => void }) 
     }
   }, [file.fileKey]);
 
-  const MAX_WIDTH = SCREEN_WIDTH * 0.65;
-  const MAX_HEIGHT = 300;
+  useEffect(() => {
+    if (!aspectRatio && file.fileKey && file.type === "IMAGE") {
+      RNImage.getSize(
+        file.fileKey,
+        (w, h) => {
+          if (w && h) {
+            const ratio = w / h;
+            imageSizeCache[file.fileKey] = ratio;
+            setAspectRatio(ratio);
+          }
+        },
+        () => {
+          // Fallback or ignore
+        }
+      );
+    }
+  }, [file.fileKey, aspectRatio]);
+
+  const MAX_WIDTH = SCREEN_WIDTH * 0.7;
+  const MAX_HEIGHT = height;
+  const MIN_WIDTH = height === 360 ? 120 : 80;
+  const MIN_HEIGHT = height === 360 ? 120 : 80;
 
   // Default dimensions while loading or if aspect ratio is not yet resolved
-  let displayWidth = 200;
-  let displayHeight = 200;
+  let displayWidth = height === 360 ? 200 : 120;
+  let displayHeight = height === 360 ? 150 : height;
 
   if (aspectRatio) {
     if (aspectRatio > 1) {
@@ -207,6 +228,10 @@ const SingleMediaItem = ({ file, onPress }: { file: any; onPress: () => void }) 
     }
   }
 
+  // Enforce bounds to prevent extreme scaling issues
+  displayWidth = Math.max(MIN_WIDTH, Math.min(displayWidth, MAX_WIDTH));
+  displayHeight = Math.max(MIN_HEIGHT, Math.min(displayHeight, MAX_HEIGHT));
+
   return (
     <TouchableOpacity
       activeOpacity={0.85}
@@ -216,14 +241,14 @@ const SingleMediaItem = ({ file, onPress }: { file: any; onPress: () => void }) 
         height: displayHeight,
         borderRadius: 8,
         overflow: "hidden",
-        backgroundColor: "#000",
+        backgroundColor: "rgba(0, 0, 0, 0.03)",
       }}
     >
       {file.type === "IMAGE" ? (
         <Image
           source={{ uri: file.fileKey }}
           style={{ width: displayWidth, height: displayHeight }}
-          contentFit="contain"
+          contentFit="cover"
           onLoad={(evt) => {
             if (evt.source?.width && evt.source?.height) {
               const ratio = evt.source.width / evt.source.height;
@@ -888,55 +913,75 @@ const MessageBubble = ({
 
                 {
                   mediaFiles.length > 0 && (
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
-                      {mediaFiles.map((file: any, index: number) => {
-                        const cols = mediaFiles.length === 1 ? 1 : mediaFiles.length === 2 ? 2 : 3;
-                        const imgSize = mediaFiles.length === 1 ? 200 : (SCREEN_WIDTH * 0.75 - 40) / cols;
-                        return (
-                          <TouchableOpacity
-                            key={`media-${index}`}
-                            activeOpacity={0.85}
-                            onPress={() => setPreviewIndex(index)}
-                            style={{
-                              width: imgSize,
-                              height: 110,
-                              borderRadius: 8,
-                              overflow: "hidden",
-                              backgroundColor: "#000",
-                            }}
-                          >
-                            {file.type === "IMAGE" ? (
-                              <Image
-                                source={{ uri: file.fileKey }}
-                                style={{ width: imgSize, height: 110 }}
-                                contentFit="cover"
-                              />
-                            ) : (
-                              <View style={{ width: imgSize, height: 110, justifyContent: "center", alignItems: "center" }}>
-                                <Video
+                    mediaFiles.length === 1 ? (
+                      <View style={{ marginTop: 6 }}>
+                        <SingleMediaItem
+                          file={mediaFiles[0]}
+                          onPress={() => setPreviewIndex(0)}
+                        />
+                      </View>
+                    ) : (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          flexWrap: "wrap",
+                          gap: 6,
+                          marginTop: 6,
+                          width: SCREEN_WIDTH * 0.7,
+                        }}
+                      >
+                        {mediaFiles.map((file: any, index: number) => {
+                          const cols = (mediaFiles.length === 2 || mediaFiles.length === 4) ? 2 : 3;
+                          const containerWidth = SCREEN_WIDTH * 0.7;
+                          const gapSize = 6;
+                          const imgSize = (containerWidth - (cols - 1) * gapSize) / cols;
+
+                          return (
+                            <TouchableOpacity
+                              key={`media-${index}`}
+                              activeOpacity={0.85}
+                              onPress={() => setPreviewIndex(index)}
+                              style={{
+                                width: imgSize,
+                                height: imgSize,
+                                borderRadius: 12,
+                                overflow: "hidden",
+                                backgroundColor: "rgba(0,0,0,0.03)",
+                              }}
+                            >
+                              {file.type === "IMAGE" ? (
+                                <Image
                                   source={{ uri: file.fileKey }}
-                                  style={{ width: imgSize, height: 110 }}
-                                  resizeMode={ResizeMode.COVER}
+                                  style={{ width: imgSize, height: imgSize }}
+                                  contentFit="cover"
                                 />
-                                <View
-                                  style={{
-                                    position: "absolute",
-                                    width: 36,
-                                    height: 36,
-                                    borderRadius: 18,
-                                    backgroundColor: "rgba(0,0,0,0.5)",
-                                    justifyContent: "center",
-                                    alignItems: "center",
-                                  }}
-                                >
-                                  <Ionicons name="play" size={18} color="white" />
+                              ) : (
+                                <View style={{ width: imgSize, height: imgSize, justifyContent: "center", alignItems: "center" }}>
+                                  <Video
+                                    source={{ uri: file.fileKey }}
+                                    style={{ width: imgSize, height: imgSize }}
+                                    resizeMode={ResizeMode.COVER}
+                                  />
+                                  <View
+                                    style={{
+                                      position: "absolute",
+                                      width: 32,
+                                      height: 32,
+                                      borderRadius: 16,
+                                      backgroundColor: "rgba(0,0,0,0.5)",
+                                      justifyContent: "center",
+                                      alignItems: "center",
+                                    }}
+                                  >
+                                    <Ionicons name="play" size={16} color="white" />
+                                  </View>
                                 </View>
-                              </View>
-                            )}
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )
                   )
                 }
               </>

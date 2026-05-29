@@ -20,6 +20,9 @@ export interface AuthUser {
   userId: string;
   phone: string;
   name: string;
+  privacy?: {
+    hideActiveStatus: boolean;
+  };
 }
 
 export interface CompleteSignUp {

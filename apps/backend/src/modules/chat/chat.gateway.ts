@@ -80,21 +80,27 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       await redis.sadd(deviceRedisKey, socket.id);
       await redis.expire(deviceRedisKey, 86400);
 
-      // Emit device status change globally to keep active sessions real-time
-      this.server.emit('device_status_change', {
-        userId,
-        deviceId,
-        isOnline: true,
-      });
+      // Check privacy setting
+      const privacy = await this.usersService.getPrivacySetting(userId);
+      const isHidden = privacy?.hideActiveStatus || false;
 
-      const activeConnections = await redis.scard(redisKey);
-      if (activeConnections === 1) {
-        // Emit user_status_change globally
-        this.server.emit('user_status_change', {
+      if (!isHidden) {
+        // Emit device status change globally to keep active sessions real-time
+        this.server.emit('device_status_change', {
           userId,
+          deviceId,
           isOnline: true,
-          lastSeenAt: null,
         });
+
+        const activeConnections = await redis.scard(redisKey);
+        if (activeConnections === 1) {
+          // Emit user_status_change globally
+          this.server.emit('user_status_change', {
+            userId,
+            isOnline: true,
+            lastSeenAt: null,
+          });
+        }
       }
     } catch (err: any) {
       console.log(`Lỗi xác thực Socket (${socket.id}):`, err.message);
@@ -130,12 +136,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           const activeDeviceConnections = await redis.scard(deviceRedisKey);
           if (activeDeviceConnections === 0) {
             await redis.del(deviceRedisKey);
-            // Emit device status change globally to keep active sessions real-time
-            this.server.emit('device_status_change', {
-              userId,
-              deviceId,
-              isOnline: false,
-            });
+            
+            // Check privacy setting
+            const privacy = await this.usersService.getPrivacySetting(userId);
+            const isHidden = privacy?.hideActiveStatus || false;
+
+            if (!isHidden) {
+              // Emit device status change globally to keep active sessions real-time
+              this.server.emit('device_status_change', {
+                userId,
+                deviceId,
+                isOnline: false,
+              });
+            }
           }
         }
 
@@ -146,11 +159,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           const now = new Date();
           await this.usersService.updateLastSeen(userId);
 
-          this.server.emit('user_status_change', {
-            userId,
-            isOnline: false,
-            lastSeenAt: now.toISOString(),
-          });
+          // Check privacy setting
+          const privacy = await this.usersService.getPrivacySetting(userId);
+          const isHidden = privacy?.hideActiveStatus || false;
+
+          if (!isHidden) {
+            this.server.emit('user_status_change', {
+              userId,
+              isOnline: false,
+              lastSeenAt: now.toISOString(),
+            });
+          }
         }
       } catch (err) {
         console.error('Error tracking offline status in Redis:', err);

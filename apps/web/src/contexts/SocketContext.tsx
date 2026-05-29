@@ -46,7 +46,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "react-toastify";
 import { useQueryClient } from "@tanstack/react-query";
-import { clearAuth } from "@/store/auth/authSlice";
+import { clearAuth, updatePrivacy } from "@/store/auth/authSlice";
 import { getDeviceId } from "@/utils/device.util";
 import { userService } from "@/services/user.service";
 import AppAvatar from "@/components/common/AppAvatar";
@@ -1005,6 +1005,10 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       dispatch(updateUserStatus(data));
     };
 
+    const handlePrivacyUpdated = (data: { hideActiveStatus: boolean }) => {
+      dispatch(updatePrivacy({ hideActiveStatus: data.hideActiveStatus }));
+    };
+
     socketInstance.on("connect", onConnect);
     socketInstance.on("disconnect", onDisconnect);
     socketInstance.on("mark_as_read:success", handleMarkAsReadSuccess);
@@ -1043,6 +1047,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
     socketInstance.on("ai_status", handleAiStatus);
     socketInstance.on("ai_typing_chunk", handleAiTypingChunk);
     socketInstance.on("user_status_change", handleUserStatusChange);
+    socketInstance.on("privacy_updated", handlePrivacyUpdated);
     socketInstance.on("receive_friend_request", handleReceiveFriendRequest);
     socketInstance.on("friend_accepted", handleFriendAccepted);
     socketInstance.on("cancel_friend_request", handleCancelFriendRequest);
@@ -1090,6 +1095,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       socketInstance.off("ai_status", handleAiStatus);
       socketInstance.off("ai_typing_chunk", handleAiTypingChunk);
       socketInstance.off("user_status_change", handleUserStatusChange);
+      socketInstance.off("privacy_updated", handlePrivacyUpdated);
       socketInstance.off("receive_friend_request", handleReceiveFriendRequest);
       socketInstance.off("friend_accepted", handleFriendAccepted);
       socketInstance.off("cancel_friend_request", handleCancelFriendRequest);

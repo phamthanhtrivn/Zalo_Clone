@@ -1086,9 +1086,17 @@ const ConversationInfoSheet: React.FC<Props> = ({
                     show: isGroup,
                   },
                   {
-                    icon: "qr-code-outline",
-                    label: "Mã QR",
-                    onPress: () => setIsQrModalVisible(true),
+                    icon: isGroup ? "qr-code-outline" : "search-outline",
+                    label: isGroup ? "Mã QR" : "Tìm tin nhắn",
+                    onPress: isGroup
+                      ? () => setIsQrModalVisible(true)
+                      : () => {
+                        onClose();
+                        router.push({
+                          pathname: "/private/search",
+                          params: { conversationId: conversation?.conversationId || currentConversation?.conversationId },
+                        });
+                      },
                     active: false,
                     show: true,
                   },

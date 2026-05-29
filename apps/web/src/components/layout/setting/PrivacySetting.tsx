@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { toast } from "react-toastify";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { userService } from "@/services/user.service";
-import { useAppSelector } from "@/store";
+import { useAppSelector, useAppDispatch } from "@/store";
+import { updatePrivacy } from "@/store/auth/authSlice";
+import { Switch } from "@/components/ui/switch";
 import { Ban, Loader2, UserMinus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { conversationService } from "@/services/conversation.service";
@@ -14,6 +16,36 @@ import { conversationService } from "@/services/conversation.service";
 export default function PrivacySetting() {
   const [currentView, setCurrentView] = useState<"main" | "blocked">("main");
   const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
+  const { user } = useAppSelector((state) => state.auth);
+  const hideActiveStatus = user?.privacy?.hideActiveStatus || false;
+  const isShowActiveStatus = !hideActiveStatus;
+
+  const handleToggleActiveStatus = async (checked: boolean) => {
+    const newHideValue = !checked;
+
+    // Optimistic Update
+    dispatch(updatePrivacy({ hideActiveStatus: newHideValue }));
+
+    try {
+      const res = await userService.updatePrivacySettings({ hideActiveStatus: newHideValue });
+
+      if (res?.success) {
+        toast.success(
+          checked
+            ? "Đã bật hiển thị trạng thái truy cập"
+            : "Đã ẩn trạng thái truy cập"
+        );
+      } else {
+        throw new Error("Không thể cập nhật cấu hình riêng tư");
+      }
+    } catch (error: any) {
+      // Rollback on error
+      dispatch(updatePrivacy({ hideActiveStatus: !newHideValue }));
+      console.error("Lỗi khi cập nhật trạng thái riêng tư:", error);
+      toast.error(error?.response?.data?.message || error?.message || "Lỗi cập nhật cấu hình !");
+    }
+  };
 
   // Fetch blocked list to show count on main tab
   const { data: blockedData, refetch } = useQuery({
@@ -53,6 +85,25 @@ export default function PrivacySetting() {
             ) : (
               <span className="text-xs text-gray-400">Trống</span>
             )}
+          </div>
+        </SettingChooseItem>
+
+        <SettingChooseItem
+          onClick={() => handleToggleActiveStatus(!isShowActiveStatus)}
+          className="text-left"
+          rightSection={
+            <Switch
+              checked={isShowActiveStatus}
+              onCheckedChange={handleToggleActiveStatus}
+              onClick={(e) => e.stopPropagation()}
+            />
+          }
+        >
+          <div className="flex flex-col gap-1 text-left">
+            <p className="text-sm text-gray-800 font-medium">Hiện trạng thái truy cập</p>
+            <p className="text-xs text-gray-400 max-w-[400px]">
+              Khi tắt, bạn bè sẽ không thấy bạn hoạt động và bạn cũng không thấy trạng thái hoạt động của họ.
+            </p>
           </div>
         </SettingChooseItem>
       </SettingSection>
