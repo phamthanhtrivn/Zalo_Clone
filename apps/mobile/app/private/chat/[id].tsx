@@ -160,6 +160,7 @@ export default function ChatWindow() {
   // AI Status
   const [aiStatus, setAiStatus] = useState<"thinking" | "typing" | null>(null);
   const [aiStreamingText, setAiStreamingText] = useState("");
+  const [typingUsers, setTypingUsers] = useState<Array<{ userId: string; device?: 'computer' | 'mobile' }>>([]);
 
   const flatListRef = useRef<FlatList>(null);
   const isFirstLoad = useRef(true);
@@ -172,6 +173,7 @@ export default function ChatWindow() {
 
   useEffect(() => {
     setActiveConversationId(id || null);
+    setTypingUsers([]);
     return () => setActiveConversationId(null);
   }, [id, setActiveConversationId]);
 
@@ -181,6 +183,77 @@ export default function ChatWindow() {
     });
     return () => interaction.cancel();
   }, []);
+
+  // Scroll to bottom (offset 0) when typing users appear
+  useEffect(() => {
+    if (typingUsers && typingUsers.length > 0) {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    }
+  }, [typingUsers]);
+
+  const getTypingUserProfile = (uid: string) => {
+    // 1. If it is direct chat and uid is the other member, use conversation name and avatar
+    if (!isGroup && String(effectiveOtherMemberId) === String(uid)) {
+      return {
+        name: conversation?.name || "Người dùng",
+        avatarUrl: conversation?.avatar || "",
+      };
+    }
+
+    // 2. Try to find in groupMembers (if group chat)
+    const member = groupMembers?.find((m) => {
+      const memberId = m.userId?._id || m.userId;
+      return String(memberId) === String(uid);
+    });
+    if (member) {
+      const u = member.userId;
+      if (typeof u === "object") {
+        return {
+          name: u.profile?.name || u.name || "Người dùng",
+          avatarUrl: u.profile?.avatarUrl || u.avatarUrl || "",
+        };
+      }
+      return {
+        name: member.name || "Người dùng",
+        avatarUrl: member.avatarUrl || "",
+      };
+    }
+
+    // 3. Fallback: find sender in messages
+    const otherMessage = messages.find((m) => {
+      const senderId = typeof m.senderId === "string" ? m.senderId : m.senderId?._id;
+      return String(senderId) === String(uid);
+    });
+    if (otherMessage?.senderId && typeof otherMessage.senderId === "object") {
+      const profile = (otherMessage.senderId as any).profile;
+      return {
+        name: profile?.name || "Người dùng",
+        avatarUrl: profile?.avatarUrl || "",
+      };
+    }
+
+    return {
+      name: "Người dùng",
+      avatarUrl: "",
+    };
+  };
+
+  const getTypingUsersText = () => {
+    if (typingUsers.length === 0) return "";
+    if (typingUsers.length > 2) return "Nhiều người";
+    const names = typingUsers.map(item => {
+      const u = getTypingUserProfile(item.userId);
+      return u.name;
+    });
+    return names.join(", ");
+  };
+
+  const getTypingDeviceText = () => {
+    if (typingUsers.length === 1) {
+      return typingUsers[0].device === "mobile" ? "điện thoại" : "máy tính";
+    }
+    return "";
+  };
 
   const isPinned =
     contextMenuMsg && pinnedMessages.some((m) => m._id === contextMenuMsg._id);
@@ -1176,6 +1249,21 @@ export default function ChatWindow() {
       }
     };
 
+    const handleTypingEvent = (data: { conversationId: string; userId: string; isTyping: boolean; device?: 'computer' | 'mobile' }) => {
+      if (data.conversationId !== id) return;
+      if (data.userId === authUserId) return; // Don't show ourselves typing
+      setTypingUsers((prev) => {
+        if (data.isTyping) {
+          if (!prev.some((item) => item.userId === data.userId)) {
+            return [...prev, { userId: data.userId, device: data.device }];
+          }
+        } else {
+          return prev.filter((item) => item.userId !== data.userId);
+        }
+        return prev;
+      });
+    };
+
     socket.on("call_updated", handleCallUpdated);
     socket.on("group_call_updated", handleGroupCallUpdated);
     socket.on("read_receipt", handleReadReceipt);
@@ -1187,6 +1275,7 @@ export default function ChatWindow() {
     socket.on("update_poll", handleUpdatePoll);
     socket.on("ai_status", handleAiStatus);
     socket.on("ai_typing_chunk", handleAiTypingChunk);
+    socket.on("typing", handleTypingEvent);
 
     return () => {
       socket.off("new_message", handleNewMessage);
@@ -1200,6 +1289,7 @@ export default function ChatWindow() {
       socket.off("group_call_updated", handleGroupCallUpdated);
       socket.off("ai_status", handleAiStatus);
       socket.off("ai_typing_chunk", handleAiTypingChunk);
+      socket.off("typing", handleTypingEvent);
 
       socket.emit("leave_room", id);
     };
@@ -1326,7 +1416,7 @@ export default function ChatWindow() {
           onJumpToMessage={handleJumpToMessage}
         />
 
-        <View className="flex-1 bg-[#F1F2F4]">
+        <View className="flex-1 bg-[#F1F2F4] relative">
           {isLoading && messages.length === 0 ? (
             <View className="flex-1 justify-center items-center">
               <ActivityIndicator size="large" color="#0068FF" />
@@ -1415,7 +1505,7 @@ export default function ChatWindow() {
               onEndReachedThreshold={0.5}
               contentContainerClassName="pt-2 pb-2"
               ListHeaderComponent={
-                <View className="pb-1">
+                <View style={{ paddingBottom: 25 }}>
                   {aiStatus && (
                     <AiTypingIndicator
                       key="ai-indicator"
@@ -1434,6 +1524,21 @@ export default function ChatWindow() {
                 </View>
               }
             />
+          )}
+
+          {/* Floating Typing Indicator */}
+          {typingUsers && typingUsers.length > 0 && (
+            <View
+              className="absolute bottom-0 left-0 bg-white border-t border-r border-[#e5e7eb] px-3 py-1 flex-row items-center gap-1.5 z-20 shadow-sm"
+              style={{
+                borderTopRightRadius: 8,
+              }}
+            >
+              <Text className="text-xs text-[#081c36]">
+                {getTypingUsersText()} đang soạn tin {getTypingDeviceText() ? `trên ${getTypingDeviceText()}` : ""}
+              </Text>
+              <Text className="text-[12px] text-[#0068ff] font-bold">...</Text>
+            </View>
           )}
         </View>
 

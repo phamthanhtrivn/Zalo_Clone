@@ -67,3 +67,5 @@ temp/
 secrets/
 **/secrets/
 # package-lock.json
+
+docs/

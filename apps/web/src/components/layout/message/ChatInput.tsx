@@ -22,6 +22,7 @@ import { useAppDispatch, useAppSelector } from "@/store";
 import { clearReplyingMessage } from "@/store/slices/conversationSlice";
 import { X, Quote, Speech } from "lucide-react";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
+import { useSocket } from "@/contexts/SocketContext";
 
 type Props = {
   conversationId: string;
@@ -61,6 +62,10 @@ const ChatInput = ({
   const replyingMessage = useAppSelector(
     (state) => state.conversation.replyingMessage,
   );
+
+  const { socket } = useSocket();
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isTypingRef = useRef<boolean>(false);
 
   const [text, setText] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
@@ -172,6 +177,28 @@ const ChatInput = ({
   const isManager = myRole === "OWNER" || myRole === "ADMIN";
   const isMutedByAdmin = isGroup && !allowSend && !isManager;
 
+  // Reset typing state on conversationId change or unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+      if (isTypingRef.current && socket) {
+        socket.emit("typing", { conversationId, isTyping: false });
+        isTypingRef.current = false;
+      }
+    };
+  }, [conversationId, socket]);
+
+  const emitTyping = (isTyping: boolean) => {
+    if (!socket) return;
+    if (isTypingRef.current !== isTyping) {
+      socket.emit("typing", { conversationId, isTyping, device: "computer" });
+      isTypingRef.current = isTyping;
+    }
+  };
+
   // --- CÁC HÀM XỬ LÝ SỰ KIỆN ---
   const handleSelectEmoji = (emojiData: EmojiClickData) => {
     const textarea = textareaRef.current;
@@ -195,6 +222,25 @@ const ChatInput = ({
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setText(val);
+
+    // Emit typing status
+    if (val.trim().length > 0) {
+      emitTyping(true);
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      typingTimeoutRef.current = setTimeout(() => {
+        emitTyping(false);
+      }, 3000);
+    } else {
+      emitTyping(false);
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    }
+
     const el = textareaRef.current;
     if (el) {
       el.style.height = "auto";
@@ -220,6 +266,14 @@ const ChatInput = ({
     if (trimmed) {
       onSendMessage(trimmed);
       setText("");
+
+      // Stop typing status immediately
+      emitTyping(false);
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+
       if (replyingMessage) {
         dispatch(clearReplyingMessage());
       }
@@ -587,7 +641,7 @@ const ChatInput = ({
         )}
         <div className="flex-1"></div>
       </div>
-      <div className="flex items-center gap-2 p-2 relative">
+      <div className="flex items-center gap-2 p-1 relative">
         <div className="flex-1 relative min-w-0">
           {/* Highlight overlay */}
           <div

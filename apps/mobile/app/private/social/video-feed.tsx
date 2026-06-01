@@ -27,8 +27,8 @@ import {
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const TOP_TABS = [
-  { key: "following", label: "Theo doi" },
-  { key: "for-you", label: "Cho ban" },
+  { key: "following", label: "Theo dõi" },
+  { key: "for-you", label: "Cho bạn" },
 ];
 
 export default function VideoFeedScreen() {
@@ -139,7 +139,7 @@ export default function VideoFeedScreen() {
   const handleShareVideo = useCallback(
     async (item: any) => {
       await Share.share({
-        message: `${item.text || "Xem video nay tren Zalo Clone"}\n${item.videoUrl}`,
+        message: `${item.text || "Xem video này trên Zalo Clone"}\n${item.videoUrl}`,
       });
       try {
         const res: any = await sharePost(item.id);
@@ -280,7 +280,7 @@ export default function VideoFeedScreen() {
                       className={`rounded-xl px-4 py-2 ${item.isFollowing ? "bg-white/15" : "bg-[#0b63ce]"}`}
                     >
                       <Text className="text-[15px] font-semibold text-white">
-                        {item.isFollowing ? "Dang theo doi" : "Theo doi"}
+                        {item.isFollowing ? "Đang theo dõi" : "Theo dõi"}
                       </Text>
                     </Pressable>
                   ) : null}
@@ -290,7 +290,7 @@ export default function VideoFeedScreen() {
                   numberOfLines={2}
                   className="mb-3 text-[15px] leading-6 text-white"
                 >
-                  {item.text || "Video tu Zalo Video"}
+                  {item.text || "Video từ Zalo Video"}
                 </Text>
 
                 <View className="h-1 overflow-hidden rounded-full bg-white/35">
@@ -377,7 +377,7 @@ export default function VideoFeedScreen() {
         >
           <Ionicons name="chevron-back" size={28} color="white" />
         </Pressable>
-        <Text className="text-white/80">Chua co video de hien thi</Text>
+        <Text className="text-white/80">Chưa có video để hiển thị</Text>
       </View>
     );
   }

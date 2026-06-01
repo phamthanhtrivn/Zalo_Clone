@@ -79,7 +79,7 @@ export default function VideoProfileScreen() {
   const handleShareProfile = async () => {
     try {
       await Share.share({
-        message: `Xem trang video cua ${profile?.profile?.name || "toi"} tren Zalo Clone`,
+        message: `Xem trang video của ${profile?.profile?.name || "tôi"} trên Zalo Clone`,
       });
     } catch {
       // ignore native share cancel
@@ -87,7 +87,7 @@ export default function VideoProfileScreen() {
   };
 
   const handlePlaceholderAction = (label: string) => {
-    Alert.alert("Thong bao", `${label} se duoc hoan thien o buoc tiep theo.`);
+    Alert.alert("Thông báo", `${label} sẽ được hoàn thiện ở bước tiếp theo.`);
   };
 
   const handleToggleFollow = async () => {
@@ -103,17 +103,17 @@ export default function VideoProfileScreen() {
       setProfile((prev: any) =>
         prev
           ? {
-              ...prev,
-              meta: {
-                ...prev.meta,
-                isFollowing: payload?.isFollowing ?? !prev.meta?.isFollowing,
-              },
-              stats: {
-                ...prev.stats,
-                followerCount:
-                  payload?.followerCount ?? prev.stats?.followerCount ?? 0,
-              },
-            }
+            ...prev,
+            meta: {
+              ...prev.meta,
+              isFollowing: payload?.isFollowing ?? !prev.meta?.isFollowing,
+            },
+            stats: {
+              ...prev.stats,
+              followerCount:
+                payload?.followerCount ?? prev.stats?.followerCount ?? 0,
+            },
+          }
           : prev,
       );
     } finally {
@@ -192,7 +192,7 @@ export default function VideoProfileScreen() {
                     {formatCompactNumber(stats.followerCount)}
                   </Text>
                   <Text className="mt-1 text-[15px] text-[#8b8b8b]">
-                    Theo doi
+                    Theo dõi
                   </Text>
                 </View>
                 <View className="items-center">
@@ -200,14 +200,14 @@ export default function VideoProfileScreen() {
                     {formatCompactNumber(stats.totalLikes)}
                   </Text>
                   <Text className="mt-1 text-[15px] text-[#8b8b8b]">
-                    Luot thich
+                    Lượt thích
                   </Text>
                 </View>
               </View>
             </View>
 
             <Text className="mt-6 text-[18px] font-bold text-white">
-              {profile?.profile?.name || "Nguoi dung Zalo"}
+              {profile?.profile?.name || "Người dùng Zalo"}
             </Text>
 
             {meta.isOwner ? (
@@ -215,24 +215,24 @@ export default function VideoProfileScreen() {
                 <View className="mt-5 flex-row gap-3">
                   <Pressable
                     onPress={() =>
-                      handlePlaceholderAction("Them so lien he Zalo")
+                      handlePlaceholderAction("Thêm số liên hệ Zalo")
                     }
                     className="flex-1 flex-row items-center justify-center rounded-full border border-[#404040] px-4 py-3"
                   >
                     <Ionicons name="add" size={20} color="#d4d4d4" />
                     <Text className="ml-2 text-[15px] font-medium text-[#d4d4d4]">
-                      Them so lien he Zalo
+                      Thêm số liên hệ Zalo
                     </Text>
                   </Pressable>
                   <Pressable
                     onPress={() =>
-                      handlePlaceholderAction("Them trang thong tin")
+                      handlePlaceholderAction("Thêm trang thông tin")
                     }
                     className="flex-1 flex-row items-center justify-center rounded-full border border-[#404040] px-4 py-3"
                   >
                     <Ionicons name="add" size={20} color="#d4d4d4" />
                     <Text className="ml-2 text-[15px] font-medium text-[#d4d4d4]">
-                      Them trang thong tin
+                      Thêm trang thông tin
                     </Text>
                   </Pressable>
                 </View>
@@ -248,7 +248,7 @@ export default function VideoProfileScreen() {
                       color="#d4d4d4"
                     />
                     <Text className="ml-3 text-[17px] font-semibold text-[#d4d4d4]">
-                      Dang video
+                      Đăng video
                     </Text>
                   </Pressable>
                   <Pressable
@@ -272,10 +272,10 @@ export default function VideoProfileScreen() {
                 >
                   <Text className="text-[17px] font-semibold text-white">
                     {followLoading
-                      ? "Dang xu ly..."
+                      ? "Đang xử lý..."
                       : meta.isFollowing
-                        ? "Dang theo doi"
-                        : "Theo doi"}
+                        ? "Đang theo dõi"
+                        : "Theo dõi"}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -294,12 +294,12 @@ export default function VideoProfileScreen() {
             {videos.length === 0 ? (
               <View className="items-center justify-center pb-20 pt-40">
                 <Text className="text-[20px] font-bold text-[#f5f5f5]">
-                  Chua co video nao
+                  Chưa có video nào
                 </Text>
                 <Text className="mt-3 text-center text-[16px] text-[#777]">
                   {meta.isOwner
-                    ? "Dang video cho moi nguoi cung xem"
-                    : "Nguoi dung nay chua co video cong khai de hien thi"}
+                    ? "Đăng video cho mọi người cùng xem"
+                    : "Người dùng này chưa có video công khai để hiển thị"}
                 </Text>
                 {meta.isOwner ? (
                   <Pressable
@@ -307,7 +307,7 @@ export default function VideoProfileScreen() {
                     className="mt-7 rounded-2xl bg-[#1677ff] px-8 py-4"
                   >
                     <Text className="text-[18px] font-semibold text-white">
-                      Dang video
+                      Đăng video
                     </Text>
                   </Pressable>
                 ) : null}
@@ -329,7 +329,7 @@ export default function VideoProfileScreen() {
                     />
                     <View className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2 py-1">
                       <Text className="text-[11px] font-medium text-white">
-                        {formatCompactNumber(item.likes || 0)} thich
+                        {formatCompactNumber(item.likes || 0)} thích
                       </Text>
                     </View>
                   </Pressable>
