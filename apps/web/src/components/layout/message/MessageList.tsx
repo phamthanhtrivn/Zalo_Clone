@@ -74,7 +74,7 @@ const MessageList = ({
         handleScrollToTop();
         handleScrollToBottom();
       }}
-      className="flex-1 overflow-y-auto p-4 space-y-1"
+      className="flex-1 overflow-y-auto p-4 pb-8 space-y-1"
     >
       {selectedMessageReactions && (
         <ReactionModal

@@ -293,7 +293,7 @@ export default function SearchProfileScreen() {
             <TouchableOpacity
               disabled={isOpeningChat}
               className={`h-14 rounded-full items-center justify-center flex-row ${
-                isFriend ? "w-full bg-[#dbeafe]" : "flex-1 bg-[#dbeafe]"
+                isFriend || friendId === "69f438929cf8b39d88abd220" ? "w-full bg-[#dbeafe]" : "flex-1 bg-[#dbeafe]"
               } ${isOpeningChat ? "opacity-80" : ""}`}
               onPress={handleOpenConversation}
             >
@@ -313,7 +313,7 @@ export default function SearchProfileScreen() {
               )}
             </TouchableOpacity>
 
-            {!isFriend && (
+            {!isFriend && friendId !== "69f438929cf8b39d88abd220" && (
               <TouchableOpacity
                 disabled={isActing}
                 onPress={handlePrimaryAction}

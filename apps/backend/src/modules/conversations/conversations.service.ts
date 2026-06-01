@@ -36,6 +36,7 @@ import {
   ConversationSetting,
   ConversationSettingDocument,
 } from '../conversation-settings/schemas/conversation-setting.schema';
+import { updateFriendStatus } from '../users/helper/updateFriendStatus.helper';
 
 @Injectable()
 export class ConversationsService {
@@ -2403,5 +2404,44 @@ export class ConversationsService {
     });
 
     return { count };
+  }
+
+  async autoCreateBotConversation(userId: string, userName: string) {
+    const BOT_ID = process.env.BOT_ID || "69f438929cf8b39d88abd220";
+    const botObjectId = new Types.ObjectId(BOT_ID);
+
+    try {
+      // 1. Check if Bot user exists
+      const botUser = await this.userModel.findById(botObjectId);
+      if (!botUser) {
+        console.log(`[AI Bot Auto-setup] Bot user with ID ${BOT_ID} not found in DB.`);
+        return;
+      }
+
+      // 3. Create the direct conversation of type AI
+      const conversation = await this.getOrCreateDirectConversation(userId, BOT_ID);
+
+      // 4. Create the automated welcome message from the Bot
+      const welcomeText = `Chào mừng ${userName} đến với Zola Zola! 🎉 Tôi là Zola AI, trợ lý ảo của bạn. Hãy gửi tin nhắn cho tôi bất kỳ lúc nào nếu bạn cần trợ giúp hoặc muốn trò chuyện nhé! 🤖💬`;
+
+      const welcomeMessage = await this.messageModel.create({
+        conversationId: conversation._id,
+        senderId: botObjectId,
+        content: { text: welcomeText },
+        type: 'USER_MESSAGE',
+      });
+
+      // Update conversation's lastMessage
+      await this.conversationModel.findByIdAndUpdate(conversation._id, {
+        $set: {
+          lastMessageId: welcomeMessage._id,
+          lastMessageAt: (welcomeMessage as any).createdAt,
+        },
+      });
+
+      console.log(`[AI Bot Auto-setup] Successfully configured Zola AI bot for registered user: ${userName} (${userId})`);
+    } catch (err) {
+      console.error("[AI Bot Auto-setup] Failed to setup AI bot onboarding:", err);
+    }
   }
 }

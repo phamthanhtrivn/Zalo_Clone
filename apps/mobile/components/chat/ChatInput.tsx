@@ -24,6 +24,7 @@ import { useAppSelector } from "@/store/store";
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
 import { StickerPickerPanel } from "./StickerPickerPanel";
 import { MobileImageViewer } from "../ui/MobileImageViewer";
+import { useSocket } from "@/contexts/SocketContext";
 
 interface SelectedFile {
   uri: string;
@@ -96,13 +97,59 @@ const ChatInput: React.FC<ChatInputProps> = ({
       height: stickerSlideAnim.value * stickerPanelHeight.value,
     };
   });
+
+  const { socket } = useSocket();
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isTypingRef = useRef<boolean>(false);
+
   const [text, setText] = useState("");
   const [showPollModal, setShowPollModal] = useState(false);
   const [showMentionList, setShowMentionList] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
 
+  // Reset typing state on conversationId change or unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+      if (isTypingRef.current && socket) {
+        socket.emit("typing", { conversationId, isTyping: false });
+        isTypingRef.current = false;
+      }
+    };
+  }, [conversationId, socket]);
+
+  const emitTyping = (isTyping: boolean) => {
+    if (!socket) return;
+    if (isTypingRef.current !== isTyping) {
+      socket.emit("typing", { conversationId, isTyping, device: "mobile" });
+      isTypingRef.current = isTyping;
+    }
+  };
+
   const handleTextChange = (val: string) => {
     setText(val);
+
+    // Emit typing status
+    if (val.trim().length > 0) {
+      emitTyping(true);
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      typingTimeoutRef.current = setTimeout(() => {
+        emitTyping(false);
+      }, 3000);
+    } else {
+      emitTyping(false);
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    }
+
     const lastAtIndex = val.lastIndexOf("@");
     if (lastAtIndex !== -1) {
       const textAfterAt = val.slice(lastAtIndex + 1);
@@ -245,6 +292,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
     if (text.trim()) {
       onSendMessage(text.trim());
       setText("");
+
+      // Stop typing status immediately
+      emitTyping(false);
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
     }
     if (selectedFiles.length > 0) {
       onSendFiles(selectedFiles);

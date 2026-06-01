@@ -94,6 +94,7 @@ const ConversationPage = () => {
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<Array<{ userId: string; device?: 'computer' | 'mobile' }>>([]);
   const lastMessageId = messages[messages.length - 1]?._id;
   const {
     setActiveConversationId,
@@ -102,6 +103,55 @@ const ConversationPage = () => {
     aiStreamingText,
     streamingTargetId,
   } = useSocket();
+
+  useEffect(() => {
+    setTypingUsers([]);
+  }, [id]);
+
+  const getTypingUsersText = () => {
+    if (typingUsers.length === 0) return "";
+
+    const names = typingUsers.map(item => {
+      const uid = item.userId;
+      const member = groupMembers?.find((m) => {
+        const memberId = m.userId?._id || m.userId;
+        return String(memberId) === String(uid);
+      });
+      if (member) {
+        const u = member.userId;
+        if (typeof u === "object") {
+          return u.profile?.name || u.name || "Người dùng";
+        }
+        return member.name || "Người dùng";
+      }
+
+      const otherMessage = messages.find((m) => m.senderId?._id === uid);
+      if (otherMessage?.senderId?.profile) {
+        return otherMessage.senderId.profile.name;
+      }
+
+      if (!isGroup && conversation?.name) {
+        return conversation.name;
+      }
+
+      return "Người dùng";
+    });
+
+    if (names.length === 1) {
+      return names[0];
+    }
+    if (names.length === 2) {
+      return `${names[0]} và ${names[1]}`;
+    }
+    return `${names[0]} và ${names.length - 1} người khác`;
+  };
+
+  const getTypingDeviceText = () => {
+    if (typingUsers.length === 1) {
+      return typingUsers[0].device === "mobile" ? "điện thoại" : "máy tính";
+    }
+    return "";
+  };
 
   const selectedMessageId = new URLSearchParams(location.search).get(
     "messageId",
@@ -886,6 +936,21 @@ const ConversationPage = () => {
       }
     };
 
+    const handleTypingEvent = (data: { conversationId: string; userId: string; isTyping: boolean; device?: 'computer' | 'mobile' }) => {
+      if (data.conversationId !== id) return;
+      if (data.userId === currentUserId) return; // Don't show ourselves typing
+      setTypingUsers((prev) => {
+        if (data.isTyping) {
+          if (!prev.some((item) => item.userId === data.userId)) {
+            return [...prev, { userId: data.userId, device: data.device }];
+          }
+        } else {
+          return prev.filter((item) => item.userId !== data.userId);
+        }
+        return prev;
+      });
+    };
+
     socket.on("new_message", handleNewMessage);
     socket.on("message_reacted", handleMessageReacted);
     socket.on("message_recalled", handleMessageRecalled);
@@ -894,6 +959,7 @@ const ConversationPage = () => {
     socket.on("read_receipt", handleReadReceipt);
     socket.on("call_updated", handleCallUpdated);
     socket.on("group_call_updated", handleGroupCallUpdated);
+    socket.on("typing", handleTypingEvent);
 
     return () => {
       socket.off("new_message", handleNewMessage);
@@ -904,6 +970,7 @@ const ConversationPage = () => {
       socket.off("read_receipt", handleReadReceipt);
       socket.off("call_updated", handleCallUpdated);
       socket.off("group_call_updated", handleGroupCallUpdated);
+      socket.off("typing", handleTypingEvent);
       socket.emit("leave_room", id);
     };
   }, [socket, id, dispatch, handleMessagesExpired, handleReadReceipt]);
@@ -958,14 +1025,16 @@ const ConversationPage = () => {
           friendStatus={friendStatus}
         />
         {/* Thanh gửi yêu cầu kết bạn - luôn đứng trên cùng */}
-        <FriendRequestBar
-          isGroup={isGroup}
-          isFriend={isFriend}
-          friendStatus={friendStatus}
-          onAccept={handleAcceptFriendRequest}
-          onSend={handleSendFriendRequest}
-          onUnblock={handleUnblockFriendRequest}
-        />
+        {conversation?.type !== "AI" && (
+          <FriendRequestBar
+            isGroup={isGroup}
+            isFriend={isFriend}
+            friendStatus={friendStatus}
+            onAccept={handleAcceptFriendRequest}
+            onSend={handleSendFriendRequest}
+            onUnblock={handleUnblockFriendRequest}
+          />
+        )}
         {/* Tin nhắn ghim - hiển thị bên dưới thanh kết bạn */}
         <PinnedMessagesBar
           pinnedMessages={pinnedMessages}
@@ -1017,20 +1086,35 @@ const ConversationPage = () => {
           onShowProfile={(userId) => setSelectedProfileId(userId)}
         />
 
-        <ChatInput
-          chatName={conversation.name}
-          onSendMessage={onSendMessage}
-          onSendSticker={onSendSticker}
-          onSendFiles={onSendFiles}
-          onSendVoice={onSendVoice}
-          isSelected={isSelected}
-          setIsSelected={setIsSelected}
-          selectedMessages={selectedMessages}
-          setSelectedMessages={setSelectedMessages}
-          onOpenForwardModal={() => setShowForwardModal(true)}
-          conversationId={conversation.conversationId}
-          isMessageBlocked={isMessageBlocked}
-        />
+        <div className="relative">
+          {typingUsers && typingUsers.length > 0 && (
+            <div className="absolute bottom-full left-0 bg-[#F4F5F7] border-t border-r border-[#E5E7EB] px-2.5 py-1 rounded-tr-md flex items-center gap-1.5 select-none z-30 animate-in fade-in slide-in-from-bottom-1 duration-150">
+              <span className="text-xs text-[#081C36]">
+                {getTypingUsersText()} đang soạn tin {getTypingDeviceText() ? `trên ${getTypingDeviceText()}` : ""}
+              </span>
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="w-1 h-1 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                <span className="w-1 h-1 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                <span className="w-1 h-1 bg-gray-400 rounded-full animate-bounce"></span>
+              </div>
+            </div>
+          )}
+
+          <ChatInput
+            chatName={conversation.name}
+            onSendMessage={onSendMessage}
+            onSendSticker={onSendSticker}
+            onSendFiles={onSendFiles}
+            onSendVoice={onSendVoice}
+            isSelected={isSelected}
+            setIsSelected={setIsSelected}
+            selectedMessages={selectedMessages}
+            setSelectedMessages={setSelectedMessages}
+            onOpenForwardModal={() => setShowForwardModal(true)}
+            conversationId={conversation.conversationId}
+            isMessageBlocked={isMessageBlocked}
+          />
+        </div>
 
         {showScrollToBottomBtn && (
           <button

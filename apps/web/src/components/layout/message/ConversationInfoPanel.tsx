@@ -88,7 +88,6 @@ import PollMessage from "./PollMessage";
 import type { ConversationItemType } from "@/types/conversation-item.type";
 import { getFileIcon } from "@/utils/file-icon.util";
 import { getDateLabel } from "@/utils/format-message-time..util";
-import { Users as UsersIcon } from "lucide-react";
 import ConversationPinDialog from "@/components/layout/ConversationPinDialog";
 
 type ConversationMemberRow = {

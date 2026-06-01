@@ -1,5 +1,6 @@
 import { TempVerifyPayload } from './../types/tmp-verify-payload.type';
 import { UsersService } from '../../users/users.service';
+import { ConversationsService } from '../../conversations/conversations.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import {
   BadRequestException,
@@ -30,6 +31,7 @@ export class AuthService {
     private chatGateway: ChatGateway,
     private authGateway: AuthGateway,
     private readonly storageService: StorageService,
+    private conversationsService: ConversationsService,
   ) { }
 
   private async sendInfiniReachSms(toPhone: string, otp: string): Promise<boolean> {
@@ -50,23 +52,22 @@ export class AuthService {
         formattedPhone = '+' + formattedPhone;
       }
 
-      // await axios.post(
-      //   'https://api.infinireach.io/api/v1/messages',
-      //   {
-      //     to: formattedPhone,
-      //     from: fromPhone,
-      //     message,
-      //     channel: 'sms',
-      //   },
-      //   {
-      //     headers: {
-      //       'X-API-Key': apiKey,
-      //       'Content-Type': 'application/json',
-      //     },
-      //   },
-      // );
+      await axios.post(
+        'https://api.infinireach.io/api/v1/messages',
+        {
+          to: formattedPhone,
+          from: fromPhone,
+          message,
+          channel: 'sms',
+        },
+        {
+          headers: {
+            'X-API-Key': apiKey,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
       console.log(message);
-      console.log(`Đã gửi SMS thành công tới ${formattedPhone}`);
       return true;
     } catch (error: any) {
       console.error('Lỗi khi gửi SMS InfiniReach:', error.response?.data || error.message);
@@ -226,6 +227,15 @@ export class AuthService {
       birthday,
       password,
     );
+
+    try {
+      await this.conversationsService.autoCreateBotConversation(
+        user._id.toString(),
+        user.profile?.name || 'Bạn',
+      );
+    } catch (botErr) {
+      console.error('[AI Bot Auto-setup Error]:', botErr);
+    }
 
     const authUser: AuthUser = {
       userId: user._id.toString(),

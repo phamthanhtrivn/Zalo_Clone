@@ -1349,7 +1349,7 @@ const ConversationInfoSheet: React.FC<Props> = ({
               </View>
             )}
 
-            {isReady && (
+            {isGroup && isReady && (
               <View className="bg-white mb-2">
                 <SectionHeader
                   icon={

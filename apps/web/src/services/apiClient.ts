@@ -46,6 +46,20 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 apiClient.interceptors.response.use(
   (res) => res,
   async (error) => {
@@ -61,7 +75,20 @@ apiClient.interceptors.response.use(
     }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers["Authorization"] = `Bearer ${token}`;
+            return apiClient(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
       originalRequest._retry = true;
+      isRefreshing = true;
+
       try {
         const res = await refreshApi.post(
           "/api/auth/token/refresh",
@@ -73,12 +100,17 @@ apiClient.interceptors.response.use(
 
         store.dispatch(updateToken(newAccessToken));
 
+        processQueue(null, newAccessToken);
+
         originalRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
 
         return apiClient(originalRequest);
       } catch (err) {
+        processQueue(err, null);
         store.dispatch(clearAuth()); // Refresh lỗi thì xóa sạch data
         return Promise.reject(err);
+      } finally {
+        isRefreshing = false;
       }
     }
 

@@ -14,6 +14,8 @@ import { ChatModule } from '../chat/chat.module';
 import { AuthGateway } from './auth.gateway';
 import { StorageModule } from 'src/common/storage/storage.module';
 
+import { ConversationsModule } from '../conversations/conversations.module';
+
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Session.name, schema: SessionSchema }]),
@@ -25,6 +27,7 @@ import { StorageModule } from 'src/common/storage/storage.module';
     TokenModule,
     ChatModule,
     StorageModule,
+    ConversationsModule,
   ],
   controllers: [AuthController],
   providers: [
@@ -35,4 +38,4 @@ import { StorageModule } from 'src/common/storage/storage.module';
     AuthGateway,
   ],
 })
-export class AuthModule {}
+export class AuthModule { }

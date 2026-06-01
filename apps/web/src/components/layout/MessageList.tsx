@@ -205,7 +205,7 @@ const MessageList = ({
   return (
     <>
       {/* Thanh gửi yêu cầu kết bạn - hiện khi đang chat với người chưa kết bạn */}
-      {finalIsDirect && finalOtherUserId && !isFriend && (
+      {finalIsDirect && finalOtherUserId && !isFriend && currentConversation?.type !== "AI" && finalOtherUserId !== "69f438929cf8b39d88abd220" && (
         <div className="px-4 py-2.5 bg-white border-b border-gray-100 flex items-center gap-3 text-sm shadow-sm">
           {/* Icon */}
           <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">

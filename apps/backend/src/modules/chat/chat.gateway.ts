@@ -136,7 +136,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           const activeDeviceConnections = await redis.scard(deviceRedisKey);
           if (activeDeviceConnections === 0) {
             await redis.del(deviceRedisKey);
-            
+
             // Check privacy setting
             const privacy = await this.usersService.getPrivacySetting(userId);
             const isHidden = privacy?.hideActiveStatus || false;
@@ -227,6 +227,21 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (event && room) {
         this.server.to(room).emit(event, data);
       }
+    });
+  }
+
+  @SubscribeMessage('typing')
+  handleTyping(
+    @MessageBody() data: { conversationId: string; isTyping: boolean; device?: 'computer' | 'mobile' },
+    @ConnectedSocket() socket: Socket,
+  ) {
+    const userId = socket.data?.userId;
+    if (!userId) return;
+    socket.to(data.conversationId).emit('typing', {
+      conversationId: data.conversationId,
+      userId,
+      isTyping: data.isTyping,
+      device: data.device,
     });
   }
 
