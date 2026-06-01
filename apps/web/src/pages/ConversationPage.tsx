@@ -1025,14 +1025,16 @@ const ConversationPage = () => {
           friendStatus={friendStatus}
         />
         {/* Thanh gửi yêu cầu kết bạn - luôn đứng trên cùng */}
-        <FriendRequestBar
-          isGroup={isGroup}
-          isFriend={isFriend}
-          friendStatus={friendStatus}
-          onAccept={handleAcceptFriendRequest}
-          onSend={handleSendFriendRequest}
-          onUnblock={handleUnblockFriendRequest}
-        />
+        {conversation?.type !== "AI" && (
+          <FriendRequestBar
+            isGroup={isGroup}
+            isFriend={isFriend}
+            friendStatus={friendStatus}
+            onAccept={handleAcceptFriendRequest}
+            onSend={handleSendFriendRequest}
+            onUnblock={handleUnblockFriendRequest}
+          />
+        )}
         {/* Tin nhắn ghim - hiển thị bên dưới thanh kết bạn */}
         <PinnedMessagesBar
           pinnedMessages={pinnedMessages}

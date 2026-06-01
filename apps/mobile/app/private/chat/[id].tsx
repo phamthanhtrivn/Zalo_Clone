@@ -1401,14 +1401,16 @@ export default function ChatWindow() {
       <Animated.View
         style={[{ flex: 1 }, animatedKeyboardStyle]}
       >
-        <FriendBanner
-          isGroup={isGroup}
-          isFriend={isFriend}
-          friendStatus={friendStatus}
-          handleAcceptFriend={handleAcceptFriend}
-          handleAddFriend={handleAddFriend}
-          handleUnblockFriend={handleUnblockFriend}
-        />
+        {conversation?.type !== "AI" && conversation?.otherMemberId !== "69f438929cf8b39d88abd220" && (
+          <FriendBanner
+            isGroup={isGroup}
+            isFriend={isFriend}
+            friendStatus={friendStatus}
+            handleAcceptFriend={handleAcceptFriend}
+            handleAddFriend={handleAddFriend}
+            handleUnblockFriend={handleUnblockFriend}
+          />
+        )}
 
         <PinnedMessagesBar
           pinnedMessages={pinnedMessages}
@@ -1423,7 +1425,7 @@ export default function ChatWindow() {
             </View>
           ) : isReady && messages.length === 0 ? (
             <View className="flex-1 items-center justify-end pb-10">
-              {isFriend === false && (
+              {isFriend === false && conversation?.type !== "AI" && conversation?.otherMemberId !== "69f438929cf8b39d88abd220" && (
                 <View className="bg-white rounded-xl mx-4 mt-2.5 overflow-hidden w-[90%] shadow-sm">
                   <View className="h-[120px] bg-[#e5e7eb]">
                     <Image

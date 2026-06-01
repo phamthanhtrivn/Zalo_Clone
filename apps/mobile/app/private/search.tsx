@@ -327,6 +327,7 @@ export default function SearchScreen() {
       isContact &&
       !item.isFriend &&
       !!item.userId &&
+      item.userId !== "69f438929cf8b39d88abd220" &&
       item.status !== "PENDING" &&
       item.status !== "REQUESTED";
 

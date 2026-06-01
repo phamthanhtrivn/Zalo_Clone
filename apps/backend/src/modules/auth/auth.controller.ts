@@ -61,6 +61,7 @@ export class AuthController {
     @ClientContext() client: IClientInfo,
     @Body() signUpDto: SignUpDto,
     @Headers('authorization') authHeader: string,
+    @Res({ passthrough: true }) res: Response,
   ) {
     if (signUpDto.password !== signUpDto.repassword) {
       throw new BadRequestException('Mật khẩu xác nhận không khớp !');
@@ -77,6 +78,16 @@ export class AuthController {
       await this.redisService.del(
         `tmp_token_valid:${authHeader.split(' ')[1]}`,
       );
+
+      const isProduction = process.env.NODE_ENV === 'production';
+      res.cookie('refreshToken', session.refreshToken, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+        path: '/',
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+
       return session;
     } catch (err) {
       console.log(`Lỗi khi sign up: ${err}`);
@@ -100,6 +111,7 @@ export class AuthController {
     @Body() resetPasswordDto: ResetPasswordDto,
     @ClientContext() client: IClientInfo,
     @Headers('authorization') authHeader: string,
+    @Res({ passthrough: true }) res: Response,
   ) {
     if (resetPasswordDto.confirmPassword !== resetPasswordDto.newPassword) {
       throw new BadRequestException('Mật khẩu xác nhận không khớp !');
@@ -112,6 +124,15 @@ export class AuthController {
     );
     await this.redisService.del(`tmp_token_valid:${authHeader.split(' ')[1]}`);
 
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.cookie('refreshToken', session.refreshToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
     return session;
   }
 
@@ -123,8 +144,9 @@ export class AuthController {
     @Request() req,
     @ClientContext() client: IClientInfo,
     @Headers('authorization') authHeader: string,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    const session = this.authService.signIn(
+    const session = await this.authService.signIn(
       {
         userId: req.user.userId as string,
         phone: req.user.phone as string,
@@ -134,6 +156,15 @@ export class AuthController {
     );
 
     await this.redisService.del(`tmp_token_valid:${authHeader.split(' ')[1]}`);
+
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.cookie('refreshToken', session.refreshToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
 
     return session;
   }

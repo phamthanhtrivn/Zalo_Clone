@@ -6,6 +6,9 @@ import {
   Square,
   SendHorizontal,
   BarChart3,
+  X as XIcon,
+  FileText,
+  Play,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
@@ -15,6 +18,7 @@ import { RiShareForward2Fill } from "react-icons/ri";
 import CreatePollModal from "./CreatePollModal";
 import { MentionSuggestions } from "./MentionSuggestions";
 import StickerPickerPanel from "./StickerPickerPanel";
+import { ImageViewer } from "./ImageViewer";
 
 import { conversationService } from "@/services/conversation.service";
 
@@ -23,6 +27,13 @@ import { clearReplyingMessage } from "@/store/slices/conversationSlice";
 import { X, Quote, Speech } from "lucide-react";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useSocket } from "@/contexts/SocketContext";
+
+interface PendingFile {
+  file: File;
+  previewUrl: string | null; // only for images/videos
+  isImage: boolean;
+  isVideo: boolean;
+}
 
 type Props = {
   conversationId: string;
@@ -82,6 +93,57 @@ const ChatInput = ({
   } | null>(null);
   const [showPollModal, setShowPollModal] = useState(false);
   const [myRole, setMyRole] = useState<string>("MEMBER");
+
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
+
+  const viewerItems = pendingFiles
+    .filter((pf) => pf.isImage || pf.isVideo)
+    .map((pf) => ({
+      url: pf.previewUrl || "",
+      type: (pf.isVideo ? "VIDEO" : "IMAGE") as "VIDEO" | "IMAGE",
+      fileName: pf.file.name,
+    }));
+
+  const addFilesToPending = (fileList: FileList) => {
+    const newPending: PendingFile[] = [];
+    Array.from(fileList).forEach((file) => {
+      const isImage = file.type.startsWith("image/");
+      const isVideo = file.type.startsWith("video/");
+      const previewUrl =
+        isImage || isVideo ? URL.createObjectURL(file) : null;
+      newPending.push({ file, previewUrl, isImage, isVideo });
+    });
+    setPendingFiles((prev) => [...prev, ...newPending]);
+  };
+
+  const removePendingFile = (index: number) => {
+    setPendingFiles((prev) => {
+      const toRemove = prev[index];
+      if (toRemove?.previewUrl) URL.revokeObjectURL(toRemove.previewUrl);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const openImageViewer = (pf: PendingFile) => {
+    const mediaFiles = pendingFiles.filter((f) => f.isImage || f.isVideo);
+    const idx = mediaFiles.indexOf(pf);
+    if (idx !== -1) {
+      setViewerIndex(idx);
+      setViewerOpen(true);
+    }
+  };
+
+  // Cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      pendingFiles.forEach((pf) => {
+        if (pf.previewUrl) URL.revokeObjectURL(pf.previewUrl);
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [members, setMembers] = useState<any[]>([]);
 
@@ -278,6 +340,18 @@ const ChatInput = ({
         dispatch(clearReplyingMessage());
       }
     }
+
+    // Send pending files
+    if (pendingFiles.length > 0) {
+      const dt = new DataTransfer();
+      pendingFiles.forEach((pf) => dt.items.add(pf.file));
+      onSendFiles(dt.files);
+      // Revoke object URLs
+      pendingFiles.forEach((pf) => {
+        if (pf.previewUrl) URL.revokeObjectURL(pf.previewUrl);
+      });
+      setPendingFiles([]);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -290,7 +364,7 @@ const ChatInput = ({
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.length) {
-      onSendFiles(e.target.files);
+      addFilesToPending(e.target.files);
       e.target.value = "";
     }
   };
@@ -490,6 +564,57 @@ const ChatInput = ({
 
   return (
     <div className="bg-white border-t relative">
+      {/* ImageViewer for pending file preview */}
+      <ImageViewer
+        isOpen={viewerOpen}
+        onClose={() => setViewerOpen(false)}
+        items={viewerItems}
+        initialIndex={viewerIndex}
+      />
+
+      {/* File preview strip */}
+      {pendingFiles.length > 0 && (
+        <div className="border-b border-gray-100 px-3 py-2 flex items-center gap-2 overflow-x-auto bg-gray-50/60">
+          {pendingFiles.map((pf, index) => (
+            <div key={index} className="relative flex-shrink-0 group">
+              {pf.isImage && pf.previewUrl ? (
+                <button
+                  type="button"
+                  onClick={() => openImageViewer(pf)}
+                  className="block w-20 h-20 rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
+                >
+                  <img
+                    src={pf.previewUrl}
+                    alt={pf.file.name}
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+              ) : pf.isVideo && pf.previewUrl ? (
+                <button
+                  type="button"
+                  onClick={() => openImageViewer(pf)}
+                  className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200 bg-gray-100 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-gray-200 transition-colors"
+                >
+                  <Play size={28} className="text-gray-500" />
+                  <span className="text-[9px] text-gray-500 truncate max-w-[68px] px-1">{pf.file.name}</span>
+                </button>
+              ) : (
+                <div className="w-20 h-20 rounded-lg border border-gray-200 bg-gray-100 flex flex-col items-center justify-center gap-1 px-1">
+                  <FileText size={26} className="text-gray-400" />
+                  <span className="text-[9px] text-gray-500 truncate w-full text-center">{pf.file.name}</span>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => removePendingFile(index)}
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10"
+              >
+                <XIcon size={11} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
       <MentionSuggestions
         text={text}
         setText={setText}
@@ -705,7 +830,7 @@ const ChatInput = ({
           disabled={isMessageBlocked}
         >
           <span className="font-bold text-sm ">
-            {text.trim().length > 0 ? <SendHorizontal /> : "GỬI"}
+            {text.trim().length > 0 || pendingFiles.length > 0 ? <SendHorizontal /> : "GỬI"}
           </span>
         </Button>
       </div>
