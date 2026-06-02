@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -17,6 +19,7 @@ import { REDIS_CHANNEL_SOCKET_EVENTS } from 'src/common/constants/redis.constant
 import { CallSession } from '../schemas/call-session.schema';
 import { InitiateGroupCallDto } from '../dto/initiate-group-call.dto';
 import { MessageType } from 'src/common/enums/message-type.enum';
+import { ConversationsService } from '../../conversations/conversations.service';
 
 interface PopulatedSender {
   _id: Types.ObjectId;
@@ -43,6 +46,8 @@ export class MessagesCallService {
     private readonly callSessionModel: Model<CallSession>,
     private readonly transformService: MessagesTransformService,
     private readonly redisService: RedisService,
+    @Inject(forwardRef(() => ConversationsService))
+    private readonly conversationService: ConversationsService,
   ) { }
 
   async createCallMessage(callMessageDto: CallMessageDto) {
@@ -112,24 +117,9 @@ export class MessagesCallService {
         data: signedMessage,
       });
 
-      const members = await this.memberModel.find({
-        conversationId: new Types.ObjectId(conversationIdStr),
-        leftAt: null,
-      });
-
-      // Phase 1: Remove Redis Bottleneck - use Promise.all
-      await Promise.all(
-        members.map((m) =>
-          this.redisService.publish(REDIS_CHANNEL_SOCKET_EVENTS, {
-            room: m.userId.toString(),
-            event: 'new_message_sidebar',
-            data: signedMessage,
-          }),
-        ),
-      );
+      await this.emitConversationSidebarForMembers(conversationIdStr);
 
       await this.invalidateMessagesCache(conversationIdStr);
-      await this.invalidateConversationCacheForMembers(conversationIdStr);
     }
 
     return messageDoc;
@@ -448,24 +438,10 @@ export class MessagesCallService {
           data: signedMessage,
         });
 
-        const members = await this.memberModel.find({
-          conversationId: new Types.ObjectId(conversationIdStr),
-          leftAt: null,
-        });
-
-        await Promise.all(
-          members.map((m) =>
-            this.redisService.publish(REDIS_CHANNEL_SOCKET_EVENTS, {
-              room: m.userId.toString(),
-              event: 'new_message_sidebar',
-              data: signedMessage,
-            }),
-          ),
-        );
+        await this.emitConversationSidebarForMembers(conversationIdStr);
       }
       console.log(`[initiateGroupCall] Broadcast complete`);
       await this.invalidateMessagesCache(conversationIdStr);
-      await this.invalidateConversationCacheForMembers(conversationIdStr);
 
       return { session: sessionDoc, message: messageDoc };
     } catch (err) {
@@ -625,6 +601,34 @@ export class MessagesCallService {
     } catch (err) {
       console.error('Failed to invalidate messages/media-preview cache in call service:', err);
     }
+  }
+
+  private async emitConversationSidebarForMembers(conversationId: string) {
+    const members = await this.memberModel.find({
+      conversationId: new Types.ObjectId(conversationId),
+      leftAt: null,
+    });
+
+    await Promise.all(
+      members.map(async (m) => {
+        const memberId = m.userId.toString();
+        await this.redisService.del(`user:conversations:${memberId}`);
+
+        const conversations =
+          await this.conversationService.getConversationsFromUser(memberId);
+        const conv = conversations.find(
+          (c) => c.conversationId.toString() === conversationId,
+        );
+
+        if (conv) {
+          await this.redisService.publish(REDIS_CHANNEL_SOCKET_EVENTS, {
+            room: memberId,
+            event: 'new_message_sidebar',
+            data: conv,
+          });
+        }
+      }),
+    );
   }
 
   private async invalidateConversationCacheForMembers(conversationId: string) {
