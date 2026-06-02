@@ -222,16 +222,18 @@ export class MessagesActionService {
       });
 
       for (const m of members) {
+        const mId = m.userId.toString();
+        // Xóa cache hội thoại của member để lấy tin nhắn mới nhất
+        await this.redisService.del(`user:conversations:${mId}`);
+
         const conversations =
-          await this.conversationService.getConversationsFromUser(
-            m.userId.toString(),
-          );
+          await this.conversationService.getConversationsFromUser(mId);
         const conv = conversations.find(
           (c) => c.conversationId.toString() === conversationId,
         );
         if (conv) {
           await this.redisService.publish(REDIS_CHANNEL_SOCKET_EVENTS, {
-            room: m.userId.toString(),
+            room: mId,
             event: 'new_message_sidebar',
             data: conv,
           });
@@ -414,16 +416,18 @@ export class MessagesActionService {
       });
 
       for (const m of members) {
+        const mId = m.userId.toString();
+        // Xóa cache hội thoại của member để lấy tin nhắn mới nhất
+        await this.redisService.del(`user:conversations:${mId}`);
+
         const conversations =
-          await this.conversationService.getConversationsFromUser(
-            m.userId.toString(),
-          );
+          await this.conversationService.getConversationsFromUser(mId);
         const conv = conversations.find(
           (c) => c.conversationId.toString() === conversationId,
         );
         if (conv) {
           await this.redisService.publish(REDIS_CHANNEL_SOCKET_EVENTS, {
-            room: m.userId.toString(),
+            room: mId,
             event: 'new_message_sidebar',
             data: conv,
           });
@@ -505,6 +509,11 @@ export class MessagesActionService {
         conversationId: new Types.ObjectId(conversationIdStr),
         leftAt: null,
       });
+
+      // Xóa cache hội thoại của các thành viên khi có tin nhắn bị thu hồi
+      for (const m of members) {
+        await this.redisService.del(`user:conversations:${m.userId.toString()}`);
+      }
 
       members.forEach((m) => {
         this.redisService.publish(REDIS_CHANNEL_SOCKET_EVENTS, {
@@ -643,16 +652,18 @@ export class MessagesActionService {
         });
 
         for (const m of members) {
+          const mId = m.userId.toString();
+          // Xóa cache hội thoại của member để lấy tin nhắn mới nhất
+          await this.redisService.del(`user:conversations:${mId}`);
+
           const conversations =
-            await this.conversationService.getConversationsFromUser(
-              m.userId.toString(),
-            );
+            await this.conversationService.getConversationsFromUser(mId);
           const conv = conversations.find(
             (c) => c.conversationId.toString() === convId,
           );
           if (conv) {
             this.redisService.publish(REDIS_CHANNEL_SOCKET_EVENTS, {
-              room: m.userId.toString(),
+              room: mId,
               event: 'new_message_sidebar',
               data: conv,
             });

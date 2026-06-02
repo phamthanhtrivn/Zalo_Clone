@@ -16,27 +16,21 @@ import { CreateGroupDto } from './dto/create-group.dto';
 import { Message } from '../messages/schemas/message.schema';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 import { TransferOwnerDto } from './dto/transfer-owner.dto';
-import { RemoveMemberDto } from './dto/remove-member.dto';
 import { AddMemberDto } from './dto/add-member.dto';
-
-import e from 'express';
 import { User } from '../users/schemas/user.schema';
-
-import { ConversationItemDto } from './dto/conversation-item.dto';
 import { StorageService } from 'src/common/storage/storage.service';
 import { ConversationType } from 'src/common/types/enums/conversation-type';
 import { MemberRole } from 'src/common/types/enums/member-role';
 import { ChatGateway } from '../chat/chat.gateway';
 import { CallStatus } from 'src/common/types/enums/call-status';
 import { MessagesService } from '../messages/messages.service';
-import { UpdateGroupDto } from './dto/udate-group.dto';
 import { SearchConversationsDto } from './dto/search-conversations.dto';
 import { FriendStatus } from 'src/common/types/enums/friend-status';
 import {
   ConversationSetting,
   ConversationSettingDocument,
 } from '../conversation-settings/schemas/conversation-setting.schema';
-import { updateFriendStatus } from '../users/helper/updateFriendStatus.helper';
+import { RedisService } from 'src/common/redis/redis.service';
 
 @Injectable()
 export class ConversationsService {
@@ -58,6 +52,7 @@ export class ConversationsService {
     private readonly messagesService: MessagesService,
     @InjectModel(JoinRequest.name)
     private readonly joinRequestModel: Model<JoinRequest>,
+    private readonly redisService: RedisService,
   ) { }
 
   private escapeRegex(value: string) {
@@ -148,30 +143,36 @@ export class ConversationsService {
 
       await session.commitTransaction();
 
+      // Xóa cache hội thoại của tất cả thành viên trong nhóm mới tạo
+      const allMemberIdsStrings = [creatorId, ...uniqueMemberIds];
+      for (const memberId of allMemberIdsStrings) {
+        await this.redisService.del(`user:conversations:${memberId.toString()}`);
+      }
+
       const fullConversation = await this.conversationModel
         .findById(conversationId)
         .lean();
 
-      const socketData = {
-        conversationId: conversationId.toString(),
-        name: fullConversation?.group?.name,
-        avatar: fullConversation?.group?.avatarUrl,
-        type: fullConversation?.type,
-        lastMessage: {
-          _id: systemMsg._id,
-          content: systemMsg.content,
-          type: systemMsg.type,
-          senderName: '',
-          createdAt: systemMsg.createdAt,
-        },
-        lastMessageAt: fullConversation?.lastMessageAt,
-        unreadCount: 0,
-        pinned: false,
-      };
-
-      const allMemberIdsStrings = [creatorId, ...uniqueMemberIds];
-
       allMemberIdsStrings.forEach((memberId) => {
+        const role = memberId.toString() === creatorId.toString() ? MemberRole.OWNER : MemberRole.MEMBER;
+        const socketData = {
+          conversationId: conversationId.toString(),
+          name: fullConversation?.group?.name,
+          avatar: fullConversation?.group?.avatarUrl,
+          type: fullConversation?.type,
+          group: fullConversation?.group, // Gửi đầy đủ thông tin group thiết lập quyền gửi tin nhắn
+          myRole: role, // Gửi đúng vai trò của người nhận sự kiện socket
+          lastMessage: {
+            _id: systemMsg._id,
+            content: systemMsg.content,
+            type: systemMsg.type,
+            senderName: '',
+            createdAt: systemMsg.createdAt,
+          },
+          lastMessageAt: fullConversation?.lastMessageAt,
+          unreadCount: 0,
+          pinned: false,
+        };
         this.chatGateway.server
           .to(memberId.toString())
           .emit('new_conversation', socketData);
@@ -240,6 +241,12 @@ export class ConversationsService {
       await session.commitTransaction();
 
       const convIdStr = convObjectId.toString();
+
+      // Xóa cache hội thoại của toàn bộ thành viên trong nhóm bị giải tán
+      const disbandedMembers = await this.memberModel.find({ conversationId: convObjectId });
+      for (const m of disbandedMembers) {
+        await this.redisService.del(`user:conversations:${m.userId.toString()}`);
+      }
 
       this.chatGateway.server.to(convIdStr).emit('group_disbanded', {
         conversationId: convIdStr,
@@ -333,6 +340,12 @@ export class ConversationsService {
       await session.commitTransaction();
 
       const convIdStr = convObjectId.toString();
+
+      // Xóa cache hội thoại của tất cả thành viên khi phân quyền thay đổi
+      const activeMembers = await this.memberModel.find({ conversationId: convObjectId, leftAt: null });
+      for (const m of activeMembers) {
+        await this.redisService.del(`user:conversations:${m.userId.toString()}`);
+      }
 
       await this.broadcastSystemMessage(convIdStr, systemMsg);
 
@@ -448,6 +461,12 @@ export class ConversationsService {
 
       const convIdStr = convObjectId.toString();
 
+      // Xóa cache hội thoại của tất cả thành viên khi chuyển nhượng trưởng nhóm
+      const activeMembers = await this.memberModel.find({ conversationId: convObjectId, leftAt: null });
+      for (const m of activeMembers) {
+        await this.redisService.del(`user:conversations:${m.userId.toString()}`);
+      }
+
       await this.broadcastSystemMessage(convIdStr, systemMsg);
 
       const roleUpdatePayload = {
@@ -542,6 +561,11 @@ export class ConversationsService {
       await session.commitTransaction();
 
       const convIdStr = conversationId.toString();
+
+      const affectedMembers = await this.memberModel.find({ conversationId: convObjectId });
+      for (const m of affectedMembers) {
+        await this.redisService.del(`user:conversations:${m.userId.toString()}`);
+      }
 
       // 1. Thông báo tin nhắn hệ thống cho cả nhóm
       await this.broadcastSystemMessage(convIdStr, systemMsg);
@@ -784,6 +808,12 @@ export class ConversationsService {
 
       await session.commitTransaction();
 
+      // Xóa cache hội thoại của toàn bộ thành viên (cũ và mới thêm)
+      const allGroupMembers = await this.memberModel.find({ conversationId: convObjectId, leftAt: null });
+      for (const m of allGroupMembers) {
+        await this.redisService.del(`user:conversations:${m.userId.toString()}`);
+      }
+
       // 5. Socket thông báo Real-time
       const convIdStr = convObjectId.toString();
 
@@ -884,7 +914,17 @@ export class ConversationsService {
     }
   }
 
-  async getConversationsFromUser(userId: string) {
+  async getConversationsFromUser(userId: string): Promise<any[]> {
+    const cacheKey = `user:conversations:${userId}`;
+    try {
+      const cached = await this.redisService.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (err) {
+      console.error('Failed to get conversations cache from Redis:', err);
+    }
+
     const userObjectId = new Types.ObjectId(userId);
     const currentUser = await this.userModel
       .findById(userObjectId)
@@ -1227,7 +1267,7 @@ export class ConversationsService {
       { $replaceRoot: { newRoot: '$data' } },
     ]);
 
-    return conversations
+    const result = conversations
       .filter((c) => {
         if (c.type === ConversationType.DIRECT) {
           const otherId = c?.otherMemberId?.toString?.() ?? c?.otherMemberId;
@@ -1249,6 +1289,14 @@ export class ConversationsService {
           !c?.hasSentMessage,
         avatar: c.avatar ? this.storageService.signFileUrl(c.avatar) : null,
       }));
+
+    try {
+      await this.redisService.set(cacheKey, JSON.stringify(result), 'EX', 3600);
+    } catch (err) {
+      console.error('Failed to set conversations cache in Redis:', err);
+    }
+
+    return result;
   }
 
   async getOrCreateDirectConversation(user1Id: string, user2Id: string) {
@@ -1279,6 +1327,9 @@ export class ConversationsService {
           new: true,
         },
       );
+
+      // Xóa cache của user1 để cập nhật sidebar khi mở lại chat
+      await this.redisService.del(`user:conversations:${user1Id}`);
 
       return conversation;
     }
@@ -1314,6 +1365,10 @@ export class ConversationsService {
       );
       await session.commitTransaction();
 
+      // Xóa cache hội thoại của cả 2 thành viên
+      await this.redisService.del(`user:conversations:${user1Id}`);
+      await this.redisService.del(`user:conversations:${user2Id}`);
+
       const formatted = await this.getFormattedConversationForUser(
         savedConv._id.toString(),
         user2Id,
@@ -1332,6 +1387,8 @@ export class ConversationsService {
   }
 
   async markAsRead(conversationId: string, userId: string) {
+    // Xóa cache của user khi đánh dấu đã đọc
+    await this.redisService.del(`user:conversations:${userId}`);
     return this.memberModel.updateOne(
       {
         conversationId: new Types.ObjectId(conversationId),
@@ -1985,7 +2042,7 @@ export class ConversationsService {
         );
 
         const searchableObjectIds = searchableUserIds.map(
-          (id) => new Types.ObjectId(id),
+          (id) => new Types.ObjectId(id as any),
         );
 
         if (searchableObjectIds.length > 0) {

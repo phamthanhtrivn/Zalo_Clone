@@ -259,9 +259,9 @@ export default function ChatWindow() {
     contextMenuMsg && pinnedMessages.some((m) => m._id === contextMenuMsg._id);
 
   const userMember = isGroup
-    ? conversation?.group?.members?.find((m: any) => m.userId === user?.userId)
+    ? groupMembers?.find((m: any) => (m.userId?._id || m.userId) === user?.userId)
     : null;
-  const userRole = userMember?.role || (isGroup ? "MEMBER" : "OWNER");
+  const userRole = userMember?.role || conversation?.myRole || (isGroup ? "MEMBER" : "OWNER");
   const isOwner = userRole === "OWNER";
   const isAdmin = userRole === "ADMIN";
 

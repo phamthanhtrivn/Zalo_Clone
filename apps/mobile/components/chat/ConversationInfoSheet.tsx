@@ -131,11 +131,12 @@ const ConversationInfoSheet: React.FC<Props> = ({
   const [isQrModalVisible, setIsQrModalVisible] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [tempName, setTempName] = useState(conversation?.name || "");
+  const activeConversationId = conversation?.conversationId || (conversation as any)?._id || (conversation as any)?.id || "";
   const isGroup = conversation?.type === "GROUP";
   const currentConversation =
     useAppSelector((state) =>
       state.conversation.conversations?.find(
-        (c) => c.conversationId === conversation?.conversationId,
+        (c) => c.conversationId === activeConversationId,
       ),
     ) || conversation;
   const isAI = conversation?.type === "AI" || currentConversation?.type === "AI";
@@ -198,7 +199,7 @@ const ConversationInfoSheet: React.FC<Props> = ({
         const [mediaRes] = await Promise.all([
           messageService.getMediasPreview(
             currentUserId!,
-            conversation.conversationId,
+            activeConversationId,
           ),
           isGroup ? fetchMembers() : Promise.resolve(null),
         ]);
@@ -223,7 +224,7 @@ const ConversationInfoSheet: React.FC<Props> = ({
     });
 
     return () => interaction.cancel();
-  }, [visible, conversation?.conversationId, currentUserId]);
+  }, [visible, activeConversationId, currentUserId]);
 
   useEffect(() => {
     if (currentConversation?.group) {
@@ -238,9 +239,9 @@ const ConversationInfoSheet: React.FC<Props> = ({
   }, [currentConversation?.group]);
 
   useEffect(() => {
-    if (!socket || !visible || !conversation?.conversationId) return;
+    if (!socket || !visible || !activeConversationId) return;
 
-    const conversationId = conversation.conversationId;
+    const conversationId = activeConversationId;
     const mediaRooms = [
       `media_${conversationId}_IMAGE_VIDEO`,
       `media_${conversationId}_FILE`,
@@ -320,7 +321,7 @@ const ConversationInfoSheet: React.FC<Props> = ({
 
     dispatch(
       updateConversationSetting({
-        conversationId: conversation.conversationId,
+        conversationId: activeConversationId,
         pinned: newPinned,
       }),
     );
@@ -328,14 +329,14 @@ const ConversationInfoSheet: React.FC<Props> = ({
     (async () => {
       try {
         if (newPinned) {
-          await pinConversation(currentUserId, conversation.conversationId);
+          await pinConversation(currentUserId, activeConversationId);
         } else {
-          await unpinConversation(currentUserId, conversation.conversationId);
+          await unpinConversation(currentUserId, activeConversationId);
         }
       } catch (err) {
         dispatch(
           updateConversationSetting({
-            conversationId: conversation.conversationId,
+            conversationId: activeConversationId,
             pinned: !newPinned,
           }),
         );
@@ -365,7 +366,7 @@ const ConversationInfoSheet: React.FC<Props> = ({
 
     dispatch(
       updateConversationSetting({
-        conversationId: conversation.conversationId,
+        conversationId: activeConversationId,
         muted: newMuted,
         mutedUntil,
       }),
@@ -374,18 +375,18 @@ const ConversationInfoSheet: React.FC<Props> = ({
     (async () => {
       try {
         if (duration === 0) {
-          await unmuteConversation(currentUserId, conversation.conversationId);
+          await unmuteConversation(currentUserId, activeConversationId);
         } else {
           await muteConversation(
             currentUserId,
-            conversation.conversationId,
+            activeConversationId,
             duration,
           );
         }
       } catch (err) {
         dispatch(
           updateConversationSetting({
-            conversationId: conversation.conversationId,
+            conversationId: activeConversationId,
             muted: !newMuted,
             mutedUntil: null,
           }),
@@ -436,7 +437,7 @@ const ConversationInfoSheet: React.FC<Props> = ({
   const fetchMembers = async () => {
     if (!isGroup) return;
     const res: any = await conversationService.getListMembers(
-      conversation.conversationId,
+      activeConversationId,
     );
     if (res.success) setMembers(res.data);
   };
@@ -444,7 +445,7 @@ const ConversationInfoSheet: React.FC<Props> = ({
   const fetchJoinRequests = async () => {
     try {
       const res: any = await conversationService.getJoinRequests(
-        currentConversation!.conversationId,
+        activeConversationId,
       );
       if (res?.success) {
         const requestsArray = Array.isArray(res.data)
@@ -577,11 +578,11 @@ const ConversationInfoSheet: React.FC<Props> = ({
             setLoading(true);
             try {
               const res: any = await conversationService.deleteGroup(
-                conversation.conversationId,
+                activeConversationId,
               );
               if (res.success) {
                 onClose();
-                router.replace("/private/chat");
+                router.replace("/private/(tabs)/chat");
               }
             } catch (err: any) {
               const errorMsg =
@@ -613,21 +614,21 @@ const ConversationInfoSheet: React.FC<Props> = ({
           try {
             if (isGroup) {
               const res: any = await conversationService.leaveGroup(
-                conversation.conversationId,
+                activeConversationId,
               );
 
               if (res.success) {
                 onClose();
-                router.replace("/private/chat");
+                router.replace("/private/(tabs)/chat");
               }
             } else {
               const res: any = await conversationService.deleteGroup(
-                conversation.conversationId,
+                activeConversationId,
               );
               if (res.success) {
                 onClose();
-                dispatch(removeConversation(conversation.conversationId));
-                router.replace("/private/chat");
+                dispatch(removeConversation(activeConversationId));
+                router.replace("/private/(tabs)/chat");
               }
             }
           } catch (err: any) {
@@ -710,11 +711,11 @@ const ConversationInfoSheet: React.FC<Props> = ({
   const handleTogglePolls = async () => {
     const willExpand = !expandedPoll;
     setExpandedPoll(willExpand);
-    if (willExpand && conversation?.conversationId) {
+    if (willExpand && activeConversationId) {
       setLoadingPolls(true);
       try {
         const res: any = await pollService.getPolls(
-          conversation.conversationId,
+          activeConversationId,
         );
         if (res) {
           setPolls(res);
@@ -731,7 +732,7 @@ const ConversationInfoSheet: React.FC<Props> = ({
     try {
       setLoading(true);
       const res: any = await conversationService.updateGroupMetadata(
-        currentConversation.conversationId,
+        activeConversationId,
         { avatar: selectedFile },
       );
       if (res.success) {
