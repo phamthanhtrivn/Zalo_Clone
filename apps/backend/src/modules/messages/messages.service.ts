@@ -394,6 +394,9 @@ export class MessagesService {
     //     console.log(`    - User ${receipt.userId?._id}: avatar=${receipt.userId?.profile?.avatarUrl}`);
     //   }
     // }
+    // Xóa cache hội thoại của user khi đánh dấu chưa đọc để sidebar cập nhật unreadCount chính xác
+    await this.redisService.del(`user:conversations:${userId}`);
+
     return {
       success: true,
       unreadCount: 1,

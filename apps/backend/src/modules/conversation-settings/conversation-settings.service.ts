@@ -6,6 +6,7 @@ import { Model, Types } from "mongoose";
 import { ConversationSetting, ConversationSettingDocument } from "./schemas/conversation-setting.schema";
 import { ConversationSettingGateway } from "./conversation-setting.gateway";
 import { User, UserDocument } from "../users/schemas/user.schema";
+import { RedisService } from "src/common/redis/redis.service";
 import * as bcrypt from "bcrypt";
 
 @Injectable()
@@ -16,8 +17,15 @@ export class ConversationSettingsService {
         @InjectModel(User.name)
         private readonly userModel: Model<UserDocument>,
         private readonly gateway: ConversationSettingGateway,
+        private readonly redisService: RedisService,
     ) { }
     private async emitFullState(userId: string, conversationId: string, setting: any) {
+        try {
+            await this.redisService.del(`user:conversations:${userId}`);
+        } catch (err) {
+            console.error("Failed to delete user conversations cache in settings service:", err);
+        }
+
         this.gateway.emitConversationUpdated(userId, {
             conversationId,
             pinned: setting.pinned,
@@ -173,6 +181,12 @@ export class ConversationSettingsService {
             { new: true, upsert: true },
         );
 
+        try {
+            await this.redisService.del(`user:conversations:${userId.toString()}`);
+        } catch (err) {
+            console.error("Failed to delete user conversations cache in settings service:", err);
+        }
+
         this.gateway.emitConversationDeleted(userId.toString(), {
             conversationId: conversationId.toString(),
             deletedAt: setting.deletedAt,
@@ -208,6 +222,12 @@ export class ConversationSettingsService {
             { $set: { expireDuration: duration } },
             { new: true, upsert: true },
         );
+
+        try {
+            await this.redisService.del(`user:conversations:${userId}`);
+        } catch (err) {
+            console.error("Failed to delete user conversations cache in settings service:", err);
+        }
 
         this.gateway.emitConversationUpdated(userId, {
             conversationId,

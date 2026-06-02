@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException, Inject, forwardRef } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { Poll } from "../schemas/poll.schema";
@@ -15,7 +15,8 @@ import { MessageType } from "src/common/enums/message-type.enum";
 import { ForbiddenException } from "@nestjs/common";
 import { CreatePollDto } from "../dto/create-poll.dto";
 import { VotePollDto } from "../dto/vote-poll.dto";
-import { REDIS_CHANNEL_SOCKET_EVENTS } from "../../../common/constants/redis.constant"
+import { REDIS_CHANNEL_SOCKET_EVENTS } from "../../../common/constants/redis.constant";
+import { ConversationsService } from "../../conversations/conversations.service";
 
 @Injectable()
 export class PollService {
@@ -27,9 +28,11 @@ export class PollService {
     @InjectModel(Conversation.name) private readonly conversationModel: Model<Conversation>,
     private readonly redisService: RedisService,
     private readonly transformService: MessagesTransformService,
-    private readonly queryService: MessagesQueryService, 
+    private readonly queryService: MessagesQueryService,
     @InjectConnection() private readonly connection: Connection,
-  ) {}
+    @Inject(forwardRef(() => ConversationsService))
+    private readonly conversationService: ConversationsService,
+  ) { }
 
   async createPoll(userId: string, conversationId: string, dto: CreatePollDto) {
     const session = await this.connection.startSession();
@@ -83,6 +86,10 @@ export class PollService {
 
       await session.commitTransaction();
 
+      // Clear cache for messages and sidebar conversation list
+      await this.invalidateMessagesCache(conversationId);
+      await this.invalidateConversationCacheForMembers(conversationId);
+
       // 5. Transform & Publish Socket
       const populatedMessage = await this.messageModel
         .findById(message._id)
@@ -97,6 +104,31 @@ export class PollService {
         data: transformed,
       });
 
+      // Emit new_message_sidebar to update sidebar and unread count for all members
+      const members = await this.memberModel.find({
+        conversationId: objectConvId,
+        leftAt: null,
+      });
+
+      for (const m of members) {
+        const mId = m.userId.toString();
+        // Xóa cache hội thoại của member để lấy tin nhắn mới nhất
+        await this.redisService.del(`user:conversations:${mId}`);
+
+        const conversations =
+          await this.conversationService.getConversationsFromUser(mId);
+        const conv = conversations.find(
+          (c) => c.conversationId.toString() === conversationId,
+        );
+        if (conv) {
+          await this.redisService.publish(REDIS_CHANNEL_SOCKET_EVENTS, {
+            room: mId,
+            event: 'new_message_sidebar',
+            data: conv,
+          });
+        }
+      }
+
       return transformed;
     } catch (error) {
       await session.abortTransaction();
@@ -109,11 +141,11 @@ export class PollService {
   async vote(userId: string, conversationId: string, dto: VotePollDto) {
     const objectUserId = new Types.ObjectId(userId);
     const objectPollId = new Types.ObjectId(dto.pollId);
-  
+
     // 1. Kiểm tra Poll có thuộc Conversation này không và User có quyền không
-    const poll = await this.pollModel.findOne({ 
-        _id: objectPollId, 
-        conversationId: new Types.ObjectId(conversationId) 
+    const poll = await this.pollModel.findOne({
+      _id: objectPollId,
+      conversationId: new Types.ObjectId(conversationId)
     });
     if (!poll) throw new NotFoundException('Poll not found in this conversation');
 
@@ -150,16 +182,16 @@ export class PollService {
       await session.commitTransaction();
 
       // 3. Lấy thống kê mới nhất & Bắn Socket
-    
+      await this.redisService.del(`poll:stats:${dto.pollId}`);
       const stats = await this.queryService.getPollStatistics(dto.pollId);
       const transformedStats = this.transformService.transformPoll(stats);
-      
+
       await this.redisService.publish(REDIS_CHANNEL_SOCKET_EVENTS, {
         room: conversationId,
-        event: 'update_poll', 
-        data: { 
-          ...transformedStats, 
-          _id: dto.pollId, 
+        event: 'update_poll',
+        data: {
+          ...transformedStats,
+          _id: dto.pollId,
           conversationId
         },
       });
@@ -181,17 +213,17 @@ export class PollService {
       const objectPollId = new Types.ObjectId(pollId);
       // Kiểm tra quyền Member trước khi cho phép thêm Option
       const member = await this.memberModel.exists({
-          userId: new Types.ObjectId(userId),
-          conversationId: new Types.ObjectId(conversationId),
-          leftAt: null
+        userId: new Types.ObjectId(userId),
+        conversationId: new Types.ObjectId(conversationId),
+        leftAt: null
       }).session(session);
-      
+
       if (!member) throw new ForbiddenException('You are not in this conversation');
 
       // Kiểm tra Poll có thuộc Group không
-      const poll = await this.pollModel.findOne({ 
-          _id: new Types.ObjectId(pollId), 
-          conversationId: new Types.ObjectId(conversationId) 
+      const poll = await this.pollModel.findOne({
+        _id: new Types.ObjectId(pollId),
+        conversationId: new Types.ObjectId(conversationId)
       }).session(session);
 
       if (!poll || !poll.allowAddOptions) {
@@ -215,20 +247,57 @@ export class PollService {
       await this.redisService.publish(REDIS_CHANNEL_SOCKET_EVENTS, {
         room: conversationId,
         event: 'poll_option_added',
-        data: { 
-          pollId: pollId.toString(), 
-          newOption, 
-          conversationId: conversationId.toString() 
+        data: {
+          pollId: pollId.toString(),
+          newOption,
+          conversationId: conversationId.toString()
         },
       });
 
       await session.commitTransaction();
+      await this.redisService.del(`poll:stats:${pollId}`);
       return newOption;
     } catch (error) {
       await session.abortTransaction();
       throw error;
     } finally {
       session.endSession();
+    }
+  }
+
+  private async invalidateMessagesCache(conversationId: string) {
+    try {
+      const client = this.redisService.getClient();
+
+      // 1. Invalidate messages page cache
+      const messagesPattern = `user:conv:${conversationId}:messages:*`;
+      const messagesKeys = await client.keys(messagesPattern);
+      if (messagesKeys.length > 0) {
+        await client.del(...messagesKeys);
+      }
+
+      // 2. Invalidate media preview cache
+      const mediaPattern = `user:media-preview:${conversationId}:*`;
+      const mediaKeys = await client.keys(mediaPattern);
+      if (mediaKeys.length > 0) {
+        await client.del(...mediaKeys);
+      }
+    } catch (err) {
+      console.error('Failed to invalidate messages cache in poll service:', err);
+    }
+  }
+
+  private async invalidateConversationCacheForMembers(conversationId: string) {
+    try {
+      const members = await this.memberModel.find({
+        conversationId: new Types.ObjectId(conversationId),
+        leftAt: null,
+      });
+      for (const m of members) {
+        await this.redisService.del(`user:conversations:${m.userId.toString()}`);
+      }
+    } catch (err) {
+      console.error('Failed to invalidate conversation cache for members in poll service:', err);
     }
   }
 }

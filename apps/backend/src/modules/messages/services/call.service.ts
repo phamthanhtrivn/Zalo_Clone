@@ -43,7 +43,7 @@ export class MessagesCallService {
     private readonly callSessionModel: Model<CallSession>,
     private readonly transformService: MessagesTransformService,
     private readonly redisService: RedisService,
-  ) {}
+  ) { }
 
   async createCallMessage(callMessageDto: CallMessageDto) {
     const { senderId, conversationId } = callMessageDto;
@@ -127,12 +127,25 @@ export class MessagesCallService {
           }),
         ),
       );
+
+      await this.invalidateMessagesCache(conversationIdStr);
+      await this.invalidateConversationCacheForMembers(conversationIdStr);
     }
 
     return messageDoc;
   }
 
   async updateCallMessage(updateCallMessageDto: UpdateCallMessageDto) {
+    const result = await this._updateCallMessageDoc(updateCallMessageDto);
+    if (result) {
+      const convId = updateCallMessageDto.conversationId.toString();
+      await this.invalidateMessagesCache(convId);
+      await this.invalidateConversationCacheForMembers(convId);
+    }
+    return result;
+  }
+
+  async _updateCallMessageDoc(updateCallMessageDto: UpdateCallMessageDto) {
     const { messageId, conversationId, status } = updateCallMessageDto;
     const objectMessageId = new Types.ObjectId(messageId);
 
@@ -337,11 +350,11 @@ export class MessagesCallService {
           console.log(`[initiateGroupCall] Ending old active session: ${session._id}`);
           await this.callSessionModel.updateOne(
             { _id: session._id },
-            { 
-              $set: { 
-                status: 'ENDED', 
+            {
+              $set: {
+                status: 'ENDED',
                 endedAt: new Date()
-              } 
+              }
             }
           );
           // Manually update participants to avoid positional operator issues
@@ -451,6 +464,8 @@ export class MessagesCallService {
         );
       }
       console.log(`[initiateGroupCall] Broadcast complete`);
+      await this.invalidateMessagesCache(conversationIdStr);
+      await this.invalidateConversationCacheForMembers(conversationIdStr);
 
       return { session: sessionDoc, message: messageDoc };
     } catch (err) {
@@ -472,19 +487,19 @@ export class MessagesCallService {
 
     const userObjId = new Types.ObjectId(userId);
     const existing = activeParticipants.find(p => p.userId.toString() === userId);
-    
+
     if (!existing) {
       // Atomic Update
       await this.callSessionModel.updateOne(
         { _id: new Types.ObjectId(sessionId) },
-        { 
-          $push: { 
-            participants: { 
-              userId: userObjId, 
-              joinedAt: new Date(), 
-              leftAt: null 
-            } 
-          } 
+        {
+          $push: {
+            participants: {
+              userId: userObjId,
+              joinedAt: new Date(),
+              leftAt: null
+            }
+          }
         }
       );
     }
@@ -517,7 +532,7 @@ export class MessagesCallService {
 
     // ✅ Mark the participant as left
     const updated = await this.callSessionModel.findOneAndUpdate(
-      { 
+      {
         _id: objSessionId,
         status: { $ne: 'ENDED' },
         participants: {
@@ -527,8 +542,8 @@ export class MessagesCallService {
           }
         }
       },
-      { 
-        $set: { 'participants.$.leftAt': new Date() } 
+      {
+        $set: { 'participants.$.leftAt': new Date() }
       },
       { new: true }
     );
@@ -537,7 +552,7 @@ export class MessagesCallService {
     const sessionToCheck = updated || session;
     const activeParticipants = sessionToCheck.participants.filter(p => !p.leftAt);
     console.log(`[leaveGroupCall] Session: ${sessionId}, Active count: ${activeParticipants.length}${!updated ? ' (already left, using fallback)' : ''}`);
-    
+
     if (activeParticipants.length === 0) {
       console.log(`[leaveGroupCall] All left - terminating session: ${sessionId}`);
       await this.callSessionModel.updateOne(
@@ -565,6 +580,10 @@ export class MessagesCallService {
             duration
           }
         });
+
+        const convId = sessionToCheck.conversationId.toString();
+        await this.invalidateMessagesCache(convId);
+        await this.invalidateConversationCacheForMembers(convId);
       }
     } else if (!updated) {
       console.log(`[leaveGroupCall] User ${userId} not found as active in session ${sessionId}`);
@@ -584,5 +603,41 @@ export class MessagesCallService {
     }
 
     return activeSessions.map(s => ({ sessionId: s._id.toString(), conversationId: s.conversationId.toString() }));
+  }
+
+  private async invalidateMessagesCache(conversationId: string) {
+    try {
+      const client = this.redisService.getClient();
+
+      // 1. Invalidate messages page cache
+      const messagesPattern = `user:conv:${conversationId}:messages:*`;
+      const messagesKeys = await client.keys(messagesPattern);
+      if (messagesKeys.length > 0) {
+        await client.del(...messagesKeys);
+      }
+
+      // 2. Invalidate media preview cache
+      const mediaPattern = `user:media-preview:${conversationId}:*`;
+      const mediaKeys = await client.keys(mediaPattern);
+      if (mediaKeys.length > 0) {
+        await client.del(...mediaKeys);
+      }
+    } catch (err) {
+      console.error('Failed to invalidate messages/media-preview cache in call service:', err);
+    }
+  }
+
+  private async invalidateConversationCacheForMembers(conversationId: string) {
+    try {
+      const members = await this.memberModel.find({
+        conversationId: new Types.ObjectId(conversationId),
+        leftAt: null,
+      });
+      for (const m of members) {
+        await this.redisService.del(`user:conversations:${m.userId.toString()}`);
+      }
+    } catch (err) {
+      console.error('Failed to invalidate conversation cache for members in call service:', err);
+    }
   }
 }
