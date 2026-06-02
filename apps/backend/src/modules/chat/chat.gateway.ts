@@ -311,23 +311,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         conversationId: data.conversationId,
         unreadCount: 0,
       });
-      // ✅ Broadcast conversation:update cho USERS KHÁC
-      const members = await this.messagesService.getConversationMembers(
-        data.conversationId,
-      );
-
-      for (const member of members) {
-        const isCurrentUser = member.userId.toString() === data.userId;
-
-        if (!isCurrentUser) {
-          // Chỉ broadcast cho users khác
-          this.server.to(member.userId.toString()).emit('conversation:update', {
-            conversationId: data.conversationId,
-            unreadCount: member.unreadCount || 0,
-          });
-        }
-      }
-
       console.log(
         `✅ User ${data.userId} marked ${data.conversationId} as read`,
       );
@@ -378,23 +361,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         conversationId: data.conversationId,
         unreadCount: result.unreadCount,
       });
-
-      // ✅ Broadcast conversation:update cho USERS KHÁC
-      const members = await this.messagesService.getConversationMembers(
-        data.conversationId,
-      );
-
-      for (const member of members) {
-        const isCurrentUser = member.userId.toString() === data.userId;
-
-        if (!isCurrentUser) {
-          // Chỉ broadcast cho users khác
-          this.server.to(member.userId.toString()).emit('conversation:update', {
-            conversationId: data.conversationId,
-            unreadCount: member.unreadCount || 0,
-          });
-        }
-      }
 
       console.log(
         `✅ User ${data.userId} marked ${data.conversationId} as unread`,

@@ -21,6 +21,7 @@ import { ConversationSetting } from 'src/modules/conversation-settings/schemas/c
 import { SearchMessagesDto } from '../dto/search-messages.dto';
 import { Poll } from '../schemas/poll.schema';
 import { PollVote } from '../schemas/poll-vote.schema';
+import { RedisService } from 'src/common/redis/redis.service';
 import { MessageType } from 'src/common/enums/message-type.enum';
 
 @Injectable()
@@ -40,6 +41,7 @@ export class MessagesQueryService {
     private readonly pollModel: Model<Poll>,
     @InjectModel(PollVote.name)
     private readonly pollVoteModel: Model<PollVote>,
+    private readonly redisService: RedisService,
   ) { }
 
   private async enrichPollMessages(messages: any[]) {
@@ -65,6 +67,21 @@ export class MessagesQueryService {
 
     const conversationObjectId = new Types.ObjectId(conversationId);
     const userObjectId = new Types.ObjectId(userId);
+
+    // Chỉ cache tin nhắn ở trang đầu (cursor rỗng)
+    const cacheKey = `user:conv:${conversationId}:messages:${userId}:${limit}`;
+    const canUseCache = !cursor;
+
+    if (canUseCache) {
+      try {
+        const cached = await this.redisService.get(cacheKey);
+        if (cached) {
+          return JSON.parse(cached);
+        }
+      } catch (err) {
+        console.error('Failed to get messages cache from Redis:', err);
+      }
+    }
 
     const member = await this.memberModel.findOne({
       userId: userObjectId,
@@ -124,11 +141,21 @@ export class MessagesQueryService {
 
     const finalMessages = transformedMessages.reverse();
 
-    return {
+    const result = {
       messages: finalMessages,
       nextCursor:
         transformedMessages.length > 0 ? transformedMessages[0]._id : null,
     };
+
+    if (canUseCache) {
+      try {
+        await this.redisService.set(cacheKey, JSON.stringify(result), 'EX', 3600);
+      } catch (err) {
+        console.error('Failed to set messages cache in Redis:', err);
+      }
+    }
+
+    return result;
   }
 
   async getNewerMessages(
@@ -353,6 +380,16 @@ export class MessagesQueryService {
   ) {
     const { userId } = getMediasPreviewDto;
 
+    const cacheKey = `user:media-preview:${conversationId}:${userId}`;
+    try {
+      const cached = await this.redisService.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (err) {
+      console.error('Failed to get media preview cache from Redis:', err);
+    }
+
     const member = await this.memberModel.findOne({
       userId: new Types.ObjectId(userId),
       conversationId: new Types.ObjectId(conversationId),
@@ -373,6 +410,7 @@ export class MessagesQueryService {
         })
         .select('_id content.files createdAt')
         .sort({ _id: -1 })
+        .limit(20)
         .lean(),
 
       this.messageModel
@@ -382,6 +420,7 @@ export class MessagesQueryService {
         })
         .select('_id content.files createdAt')
         .sort({ _id: -1 })
+        .limit(10)
         .lean(),
 
       this.messageModel
@@ -392,6 +431,7 @@ export class MessagesQueryService {
         })
         .select('_id content.text createdAt')
         .sort({ _id: -1 })
+        .limit(20)
         .lean(),
     ]);
 
@@ -438,11 +478,19 @@ export class MessagesQueryService {
       return message;
     };
 
-    return {
+    const result = {
       images_videos: images_videos.map(signMessageFile),
       files: files.map(signMessageFile),
       links,
     };
+
+    try {
+      await this.redisService.set(cacheKey, JSON.stringify(result), 'EX', 3600);
+    } catch (err) {
+      console.error('Failed to set media preview cache in Redis:', err);
+    }
+
+    return result;
   }
 
   async getMediasFileType(
@@ -653,7 +701,19 @@ export class MessagesQueryService {
     };
   }
 
-  async getPollStatistics(pollId: string) {
+  async getPollStatistics(pollId: string, bypassCache = false) {
+    const cacheKey = `poll:stats:${pollId}`;
+    if (!bypassCache) {
+      try {
+        const cached = await this.redisService.get(cacheKey);
+        if (cached) {
+          return JSON.parse(cached);
+        }
+      } catch (err) {
+        console.error('Failed to get poll stats cache from Redis:', err);
+      }
+    }
+
     const pollObjectId = new Types.ObjectId(pollId);
 
     const stats = await this.pollModel.aggregate([
@@ -755,7 +815,17 @@ export class MessagesQueryService {
       },
     ]);
 
-    return stats[0] || null;
+    const result = stats[0] || null;
+
+    if (result) {
+      try {
+        await this.redisService.set(cacheKey, JSON.stringify(result), 'EX', 86400);
+      } catch (err) {
+        console.error('Failed to set poll stats cache in Redis:', err);
+      }
+    }
+
+    return result;
   }
 
   async getPollMessagesFromConversation(

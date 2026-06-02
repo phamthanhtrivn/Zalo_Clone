@@ -150,7 +150,7 @@ export class PollService {
       await session.commitTransaction();
 
       // 3. Lấy thống kê mới nhất & Bắn Socket
-    
+      await this.redisService.del(`poll:stats:${dto.pollId}`);
       const stats = await this.queryService.getPollStatistics(dto.pollId);
       const transformedStats = this.transformService.transformPoll(stats);
       
@@ -223,6 +223,7 @@ export class PollService {
       });
 
       await session.commitTransaction();
+      await this.redisService.del(`poll:stats:${pollId}`);
       return newOption;
     } catch (error) {
       await session.abortTransaction();

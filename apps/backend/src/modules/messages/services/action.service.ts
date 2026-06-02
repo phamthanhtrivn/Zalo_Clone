@@ -240,6 +240,8 @@ export class MessagesActionService {
         }
       }
 
+      await this.invalidateMessagesCache(conversationId);
+
       return message;
     } catch (error) {
       console.log(error);
@@ -434,6 +436,8 @@ export class MessagesActionService {
         }
       }
 
+      await this.invalidateMessagesCache(conversationId);
+
       return message;
     } catch (error) {
       console.log(error);
@@ -525,6 +529,8 @@ export class MessagesActionService {
           },
         });
       });
+
+      await this.invalidateMessagesCache(conversationIdStr);
     }
 
     return updatedMessage;
@@ -569,6 +575,8 @@ export class MessagesActionService {
       { _id: objectMessageId },
       { $addToSet: { deletedFor: objectUserId } },
     );
+
+    await this.invalidateMessagesCache(conversationId);
 
     return { success: true, messageId };
   }
@@ -669,6 +677,8 @@ export class MessagesActionService {
             });
           }
         }
+
+        await this.invalidateMessagesCache(convId);
       }),
     );
 
@@ -794,6 +804,8 @@ export class MessagesActionService {
       event: 'message_reacted',
       data: { messageId, reactions },
     });
+
+    await this.invalidateMessagesCache(conversationId);
 
     return updatedMessage;
   }
@@ -1054,6 +1066,8 @@ export class MessagesActionService {
         },
       });
 
+      await this.invalidateMessagesCache(conversationId.toString());
+
       return message;
     } catch (error) {
       await session.abortTransaction();
@@ -1066,5 +1080,27 @@ export class MessagesActionService {
   async handleForceReadReceipt(payload: any) {
     const { userId, conversationId } = payload;
     await this.readReceiptMessage({ userId, conversationId });
+  }
+
+  private async invalidateMessagesCache(conversationId: string) {
+    try {
+      const client = this.redisService.getClient();
+
+      // 1. Invalidate messages page cache
+      const messagesPattern = `user:conv:${conversationId}:messages:*`;
+      const messagesKeys = await client.keys(messagesPattern);
+      if (messagesKeys.length > 0) {
+        await client.del(...messagesKeys);
+      }
+
+      // 2. Invalidate media preview cache
+      const mediaPattern = `user:media-preview:${conversationId}:*`;
+      const mediaKeys = await client.keys(mediaPattern);
+      if (mediaKeys.length > 0) {
+        await client.del(...mediaKeys);
+      }
+    } catch (err) {
+      console.error('Failed to invalidate messages/media-preview cache:', err);
+    }
   }
 }
