@@ -959,6 +959,9 @@ export class MessagesActionService {
       { $set: { lastReadMessageId: lastMessageId } },
     );
 
+    // Xóa cache hội thoại của user khi đánh dấu đã đọc để sidebar cập nhật unreadCount chính xác
+    await this.redisService.del(`user:conversations:${userId}`);
+
     return {
       conversationId,
       userId,
